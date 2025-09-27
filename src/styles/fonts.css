@@ -1,0 +1,25 @@
+/* Google Fonts - Optimized loading */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-var.woff2') format('woff2');
+}
+
+/* Preload critical fonts */
+link[rel="preload"] {
+  as: font;
+  type: font/woff2;
+  crossorigin: true;
+}
+
+/* Font classes for consistency */
+.font-primary {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.font-heading {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 700;
+}
