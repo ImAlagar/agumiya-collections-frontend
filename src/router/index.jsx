@@ -14,6 +14,7 @@ import AdminProducts from "../pages/dashboard/admin/AdminProducts";
 import AdminOrders from "../pages/dashboard/admin/AdminOrders";
 import AdminUsers from "../pages/dashboard/admin/AdminUsers";
 import ProtectedRoute from "../components/admin/auth/ProtectedRoute";
+import Lookbook from "../pages/general/Lookbook"; // Add this import
 
 const router = createBrowserRouter([
     {
@@ -45,6 +46,10 @@ const router = createBrowserRouter([
                 path: 'register',
                 element: <UserRegister />,
             },
+            {
+                path: 'lookbook', // Add this new route
+                element: <Lookbook />,
+            },
         ],
     },
     {
@@ -71,11 +76,9 @@ const router = createBrowserRouter([
                 path: 'products',
                 element: <AdminProducts />,
             },
-
             {
                 path: 'users',
-                element:  
-                     <AdminUsers />
+                element: <AdminUsers />,
             },
         ],
     }

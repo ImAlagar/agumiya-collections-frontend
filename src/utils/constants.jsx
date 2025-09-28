@@ -87,3 +87,28 @@ export const SOCIAL_LINKS = [
     bgcolor: "hover:bg-red-800",
   },
 ];
+
+
+export const DEFAULT_HERO_DATA = {
+  title: "I'm Alagar",
+  subtitles: ["Full Stack Developer"],
+  descriptions: ["I build scalable web applications"],
+  buttonText: "Download CV",
+  buttonLink: "#",
+  imageUrl:
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=774&q=80",
+  stats: {
+    projects: "10+",
+    customers: "15+",
+    libraries: "5+",
+    experience: "3+",
+  },
+  // 👇 give at least one background
+  backgrounds: [
+    {
+      imageUrl:
+        "https://images.unsplash.com/photo-1498050108023-c5249f4df085?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80",
+    },
+  ],
+  socialLinks: [],
+};
