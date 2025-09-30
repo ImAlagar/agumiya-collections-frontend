@@ -86,9 +86,31 @@ export const authService = {
 
       return data;
     } catch (error) {
+      // FIX: Return the actual backend error message
+      const backendMessage = error.response?.data?.message;
+      const backendError = error.response?.data?.error;
+      
+      let userFriendlyMessage = 'Login failed. Please try again.';
+      
+      // Handle specific error cases
+      if (backendMessage) {
+        userFriendlyMessage = backendMessage;
+      } else if (backendError) {
+        userFriendlyMessage = backendError;
+      } else if (error.response?.status === 401) {
+        userFriendlyMessage = 'Invalid email or password';
+      } else if (error.response?.status === 404) {
+        userFriendlyMessage = 'Service not available. Please try again later.';
+      } else if (error.response?.status === 500) {
+        userFriendlyMessage = 'Server error. Please try again later.';
+      } else if (error.code === 'NETWORK_ERROR' || !error.response) {
+        userFriendlyMessage = 'Network error. Please check your internet connection.';
+      }
+
       return { 
         success: false, 
-        message: error.response?.data?.message || error.message || 'User login failed' 
+        message: userFriendlyMessage,
+        error: userFriendlyMessage // Add this for consistency
       };
     }
   },
