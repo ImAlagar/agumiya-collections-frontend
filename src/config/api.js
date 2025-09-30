@@ -1,6 +1,6 @@
 // src/config/api/apiClient.js
 import axios from 'axios';
-import { storageManager } from '../services/storage/storageManager.jsx'; // Import the instance
+import { storageManager } from '../services/storage/storageManager.jsx';
 import { USER_TYPES, STORAGE_KEYS } from '../config/constants.jsx';
 
 const API_BASE_URL = import.meta.env.VITE_APP_API_BASE_URL;
@@ -13,13 +13,30 @@ export const apiClient = axios.create({
   },
 });
 
+// Enhanced error extraction
+const extractErrorMessage = (error) => {
+  if (error.response?.data?.message) {
+    return error.response.data.message;
+  }
+  if (error.response?.data?.error) {
+    return error.response.data.error;
+  }
+  if (error.response?.data) {
+    return typeof error.response.data === 'string' 
+      ? error.response.data 
+      : JSON.stringify(error.response.data);
+  }
+  if (error.message) {
+    return error.message;
+  }
+  return 'An unexpected error occurred';
+};
+
 // Enhanced token expiration handler
 const handleTokenExpiration = async (error) => {
   try {
-    // Clear all auth data using the storage manager
     storageManager.clearAllAuth();
     
-    // Only redirect if we're in a browser environment and not already on a login page
     if (typeof window !== 'undefined') {
       const currentPath = window.location.pathname;
       const isLoginPage = currentPath.includes('login');
@@ -52,13 +69,12 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor - FIXED: Proper error handling
+// Response interceptor - FIXED
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
     
-    // Only handle 401 errors (unauthorized)
     if (error.response?.status === 401) {
       if (!originalRequest._retry) {
         originalRequest._retry = true;
@@ -66,12 +82,8 @@ apiClient.interceptors.response.use(
       }
     }
     
-    // Handle other errors without redirecting
-    if (error.response?.status >= 500) {
-      console.error('Server error:', error.response.data);
-    } else if (error.code === 'NETWORK_ERROR' || !error.response) {
-      console.error('Network error:', error.message);
-    }
+    // Enhance error with extracted message
+    error.apiMessage = extractErrorMessage(error);
     
     return Promise.reject(error);
   }

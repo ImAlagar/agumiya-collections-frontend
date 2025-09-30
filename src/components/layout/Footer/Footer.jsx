@@ -226,34 +226,7 @@ const Footer = () => {
             </div>
           </motion.div>
         </div>
-
-        {/* Payment Methods */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          viewport={{ once: true }}
-          className="text-center mb-8"
-        >
-          <h5 className="text-sm font-semibold mb-4">We Accept</h5>
-          <div className="flex justify-center items-center space-x-4 flex-wrap">
-            {paymentMethods.map((method, index) => (
-              <motion.span 
-                key={method}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 * index }}
-                viewport={{ once: true }}
-                className={`text-xs font-medium px-3 py-1 rounded-full ${
-                  isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600 shadow-sm'
-                }`}
-              >
-                {method}
-              </motion.span>
-            ))}
-          </div>
-        </motion.div>
-        
+ 
         {/* Divider */}
         <motion.div 
           initial={{ width: 0 }}
