@@ -225,12 +225,10 @@ const UserRegister = () => {
     validateField(name, value);
   };
 
-  // Handle form submission
-// In your UserRegister component - SIMPLIFIED handleSubmit
+// In your UserRegister component - IMPROVED handleSubmit
 const handleSubmit = async (e) => {
   e.preventDefault();
   
-  // Frontend validation for better UX
   if (!formData.name.trim()) {
     setErrors({ name: 'Full name is required' });
     return;
@@ -261,21 +259,29 @@ const handleSubmit = async (e) => {
       name: formData.name.trim(),
       email: formData.email.trim(),
       password: formData.password,
-      phone: formData.phone || '', // Add if needed
-      address: formData.address || '' // Add if needed
+      phone: formData.phone || '',
+      address: formData.address || ''
     });
     
     if (result.success) {
       // Registration successful
       navigate('/login', { 
         state: { 
-          message: 'Registration successful! Please check your email for verification.',
+          message: result.message || 'Registration successful! Please check your email for verification.',
           type: 'success'
         }
       });
     } else {
-      // Show the specific backend error
-      setBackendError(result.error);
+      // Handle timeout specifically
+      if (result.error.includes('timeout') || result.error.includes('longer than expected')) {
+        setBackendError(
+          'Registration is taking longer than expected. ' +
+          'Please check your email - your account might have been created. ' +
+          'Try logging in after a few minutes.'
+        );
+      } else {
+        setBackendError(result.error);
+      }
     }
   } catch (error) {
     console.error('Registration error:', error);
@@ -284,7 +290,6 @@ const handleSubmit = async (e) => {
     setIsLoading(false);
   }
 };
-
   return (
     <motion.div 
       initial={{ opacity: 0 }}

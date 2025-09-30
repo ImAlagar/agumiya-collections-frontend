@@ -148,19 +148,26 @@ export const authService = {
   },
 
 
-// authService.js - FIXED
 async registerUser(userData) {
   try {
     const response = await apiClient.post(API_ENDPOINTS.USER_REGISTER, userData);
     return response.data;
   } catch (error) {
-    console.log('Registration API Error:', error.response?.data);
+    console.log('Registration API Error:', error);
+    
+    // Handle timeout specifically
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      return {
+        success: false,
+        message: 'Registration is taking longer than expected. Please check your email to see if the account was created.',
+        error: 'Request timeout - please check if account was created'
+      };
+    }
     
     // Extract the specific error message from backend
     const backendMessage = error.response?.data?.message;
     
     if (backendMessage) {
-      // Return the specific backend error (like "User with this email already exists")
       return {
         success: false,
         message: backendMessage,
