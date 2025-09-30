@@ -3,10 +3,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerVariants, itemVariants, useProducts } from '../../contexts/ProductsContext';
 import { SEO } from '../../contexts/SEOContext';
-import ProductFilters from '../../components/user/products/ProductFilters';
 import ProductGridSkeleton from '../../components/user/skeletons/ProductGridSkeleton';
 import ProductCard from '../../components/user/products/ProductCard';
-import CurrencySelector from '../../components/common/CurrencySelector';
 
 const Shop = () => {
   const { 
@@ -21,7 +19,6 @@ const Shop = () => {
   } = useProducts();
 
   const [localFilters, setLocalFilters] = useState(filters);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Safe products array - always ensure it's an array
   const safeProducts = Array.isArray(products) ? products : [];
@@ -107,39 +104,7 @@ const Shop = () => {
             )}
           </AnimatePresence>
 
-          {/* Mobile Filter Toggle */}
-          <div className="lg:hidden mb-6">
-            <button
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 flex items-center justify-between group hover:shadow-xl transition-all duration-300"
-            >
-              <span className="font-semibold text-gray-900 dark:text-white">Filters & Sort</span>
-              <motion.div
-                animate={{ rotate: isFilterOpen ? 180 : 0 }}
-                transition={{ duration: 0.3 }}
-                className="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center group-hover:bg-primary-200 dark:group-hover:bg-primary-800 transition-colors"
-              >
-                <span className="text-primary-600 dark:text-primary-400">↓</span>
-              </motion.div>
-            </button>
-          </div>
-
           <div className="flex flex-col lg:flex-row gap-8">
-            {/* Filters Sidebar */}
-            <motion.div 
-              initial={false}
-              animate={{ 
-                height: isFilterOpen ? 'auto' : 'auto',
-                opacity: 1 
-              }}
-              className={`lg:w-80 flex-shrink-0 ${isFilterOpen ? 'block' : 'hidden lg:block'}`}
-            >
-              <ProductFilters
-                filters={localFilters}
-                onFilterChange={handleFilterChange}
-              />
-            </motion.div>
-
             {/* Products Grid */}
             <div className="flex-1">
               {/* Results Info and Sort */}
@@ -170,7 +135,6 @@ const Shop = () => {
                 
                 {/* Sort Options and Currency Selector */}
                 <div className="flex items-center space-x-4">
-                  <CurrencySelector />
                   <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm px-4 py-2">
                     <select
                       value={`${filters.sortBy}-${filters.sortOrder}`}

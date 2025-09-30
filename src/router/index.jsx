@@ -1,3 +1,4 @@
+// router.jsx
 import { createBrowserRouter } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import ErrorPage from "../pages/general/ErrorPage";
@@ -15,11 +16,10 @@ import AdminOrders from "../pages/dashboard/admin/AdminOrders";
 import AdminUsers from "../pages/dashboard/admin/AdminUsers";
 import ProtectedRoute from "../components/admin/auth/ProtectedRoute";
 import Lookbook from "../pages/general/Lookbook";
-// Import the new pages
 import ProductDetails from "../pages/general/ProductDetails";
 import Checkout from "../pages/general/Checkout";
 import OrderDetails from "../pages/general/OrderDetails";
-import Cart from "../pages/general/Cart"; // You'll need this too
+import Cart from "../pages/general/Cart";
 import UserProfile from "../pages/general/UserProfile";
 import UserOrders from "../pages/general/UserOrders";
 import AdminContacts from "../pages/dashboard/admin/AdminContacts";
@@ -27,7 +27,11 @@ import AdminForgotPassword from "../pages/auth/admin/AdminForgotPassword";
 import AdminResetPassword from "../pages/auth/admin/AdminResetPassword";
 import UserForgotPassword from "../pages/auth/user/UserForgotPassword";
 import UserResetPassword from "../pages/auth/user/UserResetPassword";
-import AdminSettings from "../pages/dashboard/admin/AdminSettings";
+
+// Import individual settings pages
+import GeneralSettings from "../pages/dashboard/settings/GeneralSettings";
+import CouponManagement from "../pages/dashboard/settings/CouponManagement";
+import AdminRegistration from "../pages/dashboard/settings/AdminRegistration";
 
 const router = createBrowserRouter([
     {
@@ -48,23 +52,23 @@ const router = createBrowserRouter([
                 element: <Shop />,
             },
             {
-                path: 'products/:id', // Product details page
+                path: 'products/:id',
                 element: <ProductDetails />,
             },
             {
-                path: 'cart', // Shopping cart page
+                path: 'cart',
                 element: <Cart />,
             },
             {
-                path: 'checkout', // Checkout page
+                path: 'checkout',
                 element: <Checkout />,
             },
             {
-                path: 'myorders', // Order details page
+                path: 'myorders',
                 element: <UserOrders />,
             },
             {
-                path: 'orders/:id', // Order details page
+                path: 'orders/:id',
                 element: <OrderDetails />,
             },
             {
@@ -79,7 +83,7 @@ const router = createBrowserRouter([
                 path: 'register',
                 element: <UserRegister />,
             },
-                        {
+            {
                 path: 'forgot-password',
                 element: <UserForgotPassword />,
             },
@@ -103,11 +107,11 @@ const router = createBrowserRouter([
     },
     {
         path: '/admin/forgot-password',
-         element: <AdminForgotPassword />,
+        element: <AdminForgotPassword />,
     },
-        {
+    {
         path: '/admin/reset-password',
-         element: <AdminResetPassword />,
+        element: <AdminResetPassword />,
     },
     {
         path: '/admin',
@@ -138,8 +142,16 @@ const router = createBrowserRouter([
                 element: <AdminContacts />,
             },
             {
-                path: 'settings',
-                element: <AdminSettings />,
+                path: 'settings/general',
+                element: <GeneralSettings />,
+            },
+            {
+                path: 'settings/coupons',
+                element: <CouponManagement />,
+            },
+            {
+                path: 'settings/admins',
+                element: <AdminRegistration />,
             },
         ],
     }

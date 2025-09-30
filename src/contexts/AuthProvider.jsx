@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { authService } from '../services/api/authService';
 import { STORAGE_KEYS, USER_TYPES } from '../config/constants';
-import { storageManager } from '../services/storage/storageManager'; // ✅ use global storageManager
+import { storageManager } from '../services/storage/storageManager';
 
 // Action types
 const ACTION_TYPES = {
@@ -57,7 +57,6 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Restore login state from storage
   const checkExistingAuth = useCallback(async () => {
     try {
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
@@ -82,7 +81,6 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
       }
     } catch (error) {
-      console.error('Auth restoration error:', error);
       storageManager.clearAllAuth();
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
     }
@@ -92,19 +90,17 @@ export const AuthProvider = ({ children }) => {
     checkExistingAuth();
   }, [checkExistingAuth]);
 
-  // Logout
   const handleLogout = useCallback(async () => {
     try {
       await authService.logout();
     } catch (error) {
-      console.warn('Logout API call failed:', error);
+      // Silent fail for logout API
     } finally {
       storageManager.clearAllAuth();
       dispatch({ type: ACTION_TYPES.LOGOUT });
     }
   }, []);
 
-  // Login
   const login = async (credentials) => {
     try {
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
@@ -119,12 +115,10 @@ export const AuthProvider = ({ children }) => {
         response = await authService.loginUser({ email, password });
       }
 
-
       if (response.success === false) {
         throw new Error(response.message || 'Login failed');
       }
 
-      // Extract token and user
       const token = response.token || response.data?.token || response.access_token;
       const user = response.user || response.admin || response.data?.user || response.data?.admin;
 
@@ -132,7 +126,6 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Invalid login response');
       }
 
-      // Ensure user object fields
       const processedUser = {
         email: user.email || email,
         name: user.name || user.username || email.split('@')[0],
@@ -140,7 +133,6 @@ export const AuthProvider = ({ children }) => {
         id: user.id || user._id || Date.now(),
         ...user
       };
-
 
       storageManager.clearAllAuth();
       storageManager.setItem(STORAGE_KEYS.AUTH_TOKEN, token, userType);
@@ -155,7 +147,6 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: processedUser };
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Login failed';
-      console.error('Login error:', errorMessage);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: errorMessage });
       return { success: false, error: errorMessage };
     } finally {
@@ -163,7 +154,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Register
   const register = async (userData) => {
     try {
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
@@ -183,7 +173,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Update profile
   const updateProfile = async (profileData) => {
     try {
       const response = await authService.updateProfile(profileData);

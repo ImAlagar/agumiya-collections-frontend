@@ -14,16 +14,18 @@ import {
   FiShield,
   FiArrowLeft,
   FiChevronDown,
-  FiChevronUp
+  FiChevronUp,
+  FiGlobe
 } from 'react-icons/fi';
 import FlyingItem from '../../components/user/products/FlyingItem';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import CurrencySelector from '../../components/common/CurrencySelector';
 
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getProductById, similarProducts } = useProducts();
-  const { formatPrice } = useCurrency();
+  const { formatPrice, userCurrency, convertPrice, getCurrencySymbol } = useCurrency();
   const { addToCart } = useCart();
 
   const [product, setProduct] = useState(null);
@@ -58,6 +60,19 @@ const ProductDetails = () => {
     loadProduct();
   }, [id, getProductById]);
 
+  // Safe calculateSavings function with null checks
+  const calculateSavings = () => {
+    if (!product || !product.originalPrice || product.originalPrice <= (selectedVariant?.price || product.price)) {
+      return null;
+    }
+    
+    const currentPrice = selectedVariant?.price || product.price;
+    const savings = product.originalPrice - currentPrice;
+    const savingsPercentage = ((savings / product.originalPrice) * 100).toFixed(0);
+    
+    return { savings, savingsPercentage };
+  };
+
   const handleAddToCart = () => {
     if (product && selectedVariant) {
       const cartItem = {
@@ -78,7 +93,7 @@ const ProductDetails = () => {
   };
 
   const triggerFlyingAnimation = () => {
-    if (!addToCartRef.current) return;
+    if (!addToCartRef.current || !product) return;
 
     const addToCartRect = addToCartRef.current.getBoundingClientRect();
     const endPosition = {
@@ -128,6 +143,7 @@ const ProductDetails = () => {
   const displayVariants = getDisplayVariants();
   const hasMoreVariants = product?.printifyVariants?.length > 6;
   const remainingCount = product?.printifyVariants ? product.printifyVariants.length - 6 : 0;
+  const savingsInfo = calculateSavings();
 
   if (isLoading) {
     return (
@@ -163,6 +179,17 @@ const ProductDetails = () => {
     );
   }
 
+  // Safe price calculations
+  const currentPrice = selectedVariant?.price || product.price;
+  const { formatted: currentFormattedPrice, original: currentOriginalPrice } = 
+    formatPrice(currentPrice, userCurrency, true);
+  
+  const { formatted: originalFormattedPrice } = 
+    product.originalPrice ? formatPrice(product.originalPrice, userCurrency) : { formatted: null };
+
+  const { formatted: savingsFormatted } = 
+    savingsInfo ? formatPrice(savingsInfo.savings, userCurrency) : { formatted: null };
+
   return (
     <>
       <SEO
@@ -188,8 +215,8 @@ const ProductDetails = () => {
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Breadcrumb */}
-          <nav className="mb-6 sm:mb-8">
+          {/* Enhanced Breadcrumb with Currency Selector */}
+          <nav className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <ol className="flex flex-wrap items-center space-x-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               <li>
                 <button
@@ -218,12 +245,21 @@ const ProductDetails = () => {
                 {product.name}
               </li>
             </ol>
+            
+            {/* Currency Selector */}
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                <FiGlobe size={16} />
+                <span>Currency:</span>
+              </div>
+              <CurrencySelector />
+            </div>
           </nav>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12 sm:mb-16">
             {/* Product Images */}
             <div className="space-y-4">
-              <div className="aspect-square bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg overflow-hidden">
+              <div className="aspect-square bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg overflow-hidden relative">
                 <motion.img
                   key={selectedImage}
                   initial={{ opacity: 0 }}
@@ -233,6 +269,16 @@ const ProductDetails = () => {
                   alt={product.name}
                   className="w-full h-full object-cover"
                 />
+                
+                {/* Currency Badge */}
+                <div className="absolute top-4 right-4">
+                  <div className="bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2">
+                    <FiGlobe size={16} />
+                    <span className="font-semibold text-sm">
+                      {userCurrency} {getCurrencySymbol()}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {product.images && product.images.length > 1 && (
@@ -291,17 +337,35 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* Price */}
-                <div className="flex items-baseline space-x-2 sm:space-x-3 mb-5 sm:mb-6">
-                  <span className="text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400">
-                    {selectedVariant
-                      ? formatPrice(selectedVariant.price)
-                      : formatPrice(product.price)}
-                  </span>
-                  {product.originalPrice && product.originalPrice > product.price && (
-                    <span className="text-base sm:text-lg text-gray-500 line-through">
-                      {formatPrice(product.originalPrice)}
+                {/* Enhanced Price Section */}
+                <div className="space-y-2 mb-5 sm:mb-6">
+                  <div className="flex items-baseline space-x-2 sm:space-x-3">
+                    <span className="text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400">
+                      {currentFormattedPrice}
                     </span>
+                    
+                    {product.originalPrice && product.originalPrice > currentPrice && (
+                      <span className="text-base sm:text-lg text-gray-500 line-through">
+                        {originalFormattedPrice}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Savings Badge */}
+                  {savingsInfo && (
+                    <div className="flex items-center space-x-2">
+                      <span className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 px-2 py-1 rounded-full text-sm font-medium">
+                        Save {savingsFormatted} ({savingsInfo.savingsPercentage}%)
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Original USD Price */}
+                  {userCurrency !== 'USD' && currentOriginalPrice && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                      <span>Original: {currentOriginalPrice}</span>
+                      <span className="text-green-600 font-medium">• Auto-converted</span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -321,29 +385,39 @@ const ProductDetails = () => {
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {displayVariants.map((variant) => (
-                      <button
-                        key={variant.id}
-                        onClick={() => setSelectedVariant(variant)}
-                        className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 text-left transition-all ${
-                          selectedVariant?.id === variant.id
-                            ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                        }`}
-                      >
-                        <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
-                          {variant.title}
-                        </p>
-                        <p className="text-blue-600 dark:text-blue-400 font-bold text-base sm:text-lg">
-                          {formatPrice(variant.price)}
-                        </p>
-                        {variant.description && (
-                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            {variant.description}
+                    {displayVariants.map((variant) => {
+                      const { formatted: variantFormattedPrice } = formatPrice(variant.price, userCurrency);
+                      const { formatted: variantOriginalPrice } = formatPrice(variant.price, 'USD');
+                      
+                      return (
+                        <button
+                          key={variant.id}
+                          onClick={() => setSelectedVariant(variant)}
+                          className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 text-left transition-all ${
+                            selectedVariant?.id === variant.id
+                              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                          }`}
+                        >
+                          <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                            {variant.title}
                           </p>
-                        )}
-                      </button>
-                    ))}
+                          <p className="text-blue-600 dark:text-blue-400 font-bold text-base sm:text-lg">
+                            {variantFormattedPrice}
+                          </p>
+                          {userCurrency !== 'USD' && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {variantOriginalPrice}
+                            </p>
+                          )}
+                          {variant.description && (
+                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              {variant.description}
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Show More/Less Button */}
@@ -440,7 +514,7 @@ const ProductDetails = () => {
                 </div>
               </div>
 
-              {/* Features */}
+              {/* Enhanced Features with Currency Info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-5 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-3">
                   <FiTruck className="text-green-600 flex-shrink-0" size={18} />
@@ -464,16 +538,39 @@ const ProductDetails = () => {
                     </p>
                   </div>
                 </div>
+                <div className="flex items-center space-x-3">
+                  <FiGlobe className="text-purple-600 flex-shrink-0" size={18} />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                      Local Pricing
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                      {userCurrency} {getCurrencySymbol()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs">✓</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                      Price Guarantee
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                      Best exchange rates
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Rest of the component remains the same */}
           {/* Tabs */}
           <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-2xl shadow-md sm:shadow-lg">
             <div className="border-b border-gray-200 dark:border-gray-700">
               <nav className="flex overflow-x-auto">
-                {['description', 'specifications', 'reviews', 'shipping'].map((tab) => (
+                {['description', 'specifications', 'reviews', 'shipping', 'currency'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -552,6 +649,36 @@ const ProductDetails = () => {
                     </p>
                   </motion.div>
                 )}
+
+                {activeTab === 'currency' && (
+                  <motion.div
+                    key="currency"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="space-y-4"
+                  >
+                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                      <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                        Currency Information
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p><strong>Current Currency:</strong> {userCurrency}</p>
+                          <p><strong>Symbol:</strong> {getCurrencySymbol()}</p>
+                          <p><strong>Base Price:</strong> ${currentPrice.toFixed(2)} USD</p>
+                        </div>
+                        <div>
+                          <p><strong>Converted Price:</strong> {currentFormattedPrice}</p>
+                          <p><strong>Exchange Rate:</strong> 1 USD = {convertPrice(1, 'USD', userCurrency).toFixed(2)} {userCurrency}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-center">
+                      <CurrencySelector />
+                    </div>
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
           </div>
@@ -563,27 +690,31 @@ const ProductDetails = () => {
                 You May Also Like
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                {similarProducts.slice(0, 4).map((similarProduct) => (
-                  <div
-                    key={similarProduct.id}
-                    onClick={() => navigate(`/shop/products/${similarProduct.id}`)}
-                    className="cursor-pointer group"
-                  >
-                    <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-3 sm:p-4 hover:shadow-lg sm:hover:shadow-xl transition-shadow duration-300">
-                      <img
-                        src={similarProduct.images?.[0] || '/api/placeholder/300/300'}
-                        alt={similarProduct.name}
-                        className="w-full h-40 sm:h-48 object-cover rounded-lg mb-3 sm:mb-4 group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <h3 className="font-medium sm:font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2 line-clamp-2 text-sm sm:text-base">
-                        {similarProduct.name}
-                      </h3>
-                      <p className="text-blue-600 dark:text-blue-400 font-bold text-sm sm:text-lg">
-                        {formatPrice(similarProduct.price)}
-                      </p>
+                {similarProducts.slice(0, 4).map((similarProduct) => {
+                  const { formatted: similarFormattedPrice } = formatPrice(similarProduct.price, userCurrency);
+                  
+                  return (
+                    <div
+                      key={similarProduct.id}
+                      onClick={() => navigate(`/shop/products/${similarProduct.id}`)}
+                      className="cursor-pointer group"
+                    >
+                      <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-3 sm:p-4 hover:shadow-lg sm:hover:shadow-xl transition-shadow duration-300">
+                        <img
+                          src={similarProduct.images?.[0] || '/api/placeholder/300/300'}
+                          alt={similarProduct.name}
+                          className="w-full h-40 sm:h-48 object-cover rounded-lg mb-3 sm:mb-4 group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <h3 className="font-medium sm:font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2 line-clamp-2 text-sm sm:text-base">
+                          {similarProduct.name}
+                        </h3>
+                        <p className="text-blue-600 dark:text-blue-400 font-bold text-sm sm:text-lg">
+                          {similarFormattedPrice}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           )}

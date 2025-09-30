@@ -17,12 +17,14 @@ import { ContactsProvider } from './contexts/ContactsContext'; // 👈 ADD THIS
 import { CartProvider } from './contexts/CartContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { SearchProvider } from './contexts/SearchContext';
+import { CouponProvider } from './contexts/CouponContext';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <SEOProvider>
       <ThemeProvider>
         <AuthProvider>
+          <CouponProvider>
           <SearchProvider>
             <LoadingProvider>
               <ProductsProvider>
@@ -42,6 +44,7 @@ createRoot(document.getElementById('root')).render(
               </ProductsProvider>
             </LoadingProvider>
           </SearchProvider>
+          </CouponProvider>
         </AuthProvider>
       </ThemeProvider>
     </SEOProvider>

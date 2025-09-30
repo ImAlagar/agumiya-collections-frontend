@@ -1,4 +1,5 @@
-import React from 'react';
+// components/admin/AdminSidebar.jsx
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,13 +11,18 @@ import {
   X,
   ChevronLeft,
   Contact,
-  Settings
+  Settings,
+  Ticket,
+  UserPlus,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import logo from '../../../assets/images/logo.png';
 
 const AdminSidebar = ({ isOpen, setIsOpen }) => {
   const { theme } = useTheme();
   const location = useLocation();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const menuItems = [
     { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -24,11 +30,20 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
     { path: '/admin/orders', label: 'Orders', icon: ShoppingCart },
     { path: '/admin/users', label: 'Users', icon: Users },
     { path: '/admin/contacts', label: 'Contacts', icon: Contact },
-    { path: '/admin/settings', label: 'Settings', icon: Settings },
+  ];
+
+  const settingsSubmenu = [
+    { path: '/admin/settings/general', label: 'General Settings', icon: Settings },
+    { path: '/admin/settings/coupons', label: 'Coupon Management', icon: Ticket },
+    { path: '/admin/settings/admins', label: 'Admin Registration', icon: UserPlus },
   ];
 
   const isActive = (path) => {
     return location.pathname === path;
+  };
+
+  const isSettingsActive = () => {
+    return settingsSubmenu.some(item => location.pathname === item.path);
   };
 
   const sidebarVariants = {
@@ -69,6 +84,23 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
     }
   };
 
+  const submenuVariants = {
+    open: {
+      opacity: 1,
+      height: "auto",
+      transition: {
+        duration: 0.3
+      }
+    },
+    closed: {
+      opacity: 0,
+      height: 0,
+      transition: {
+        duration: 0.3
+      }
+    }
+  };
+
   const staggerContainer = {
     open: {
       transition: {
@@ -104,11 +136,11 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
         variants={sidebarVariants}
         initial="closed"
         animate={isOpen ? "open" : "closed"}
-        className="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg"
+        className="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg overflow-y-auto"
       >
         {/* Sidebar Header */}
         <motion.div 
-          className="flex items-center justify-between p-4"
+          className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -120,7 +152,6 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
               className="h-28 w-52 object-cover"
               whileHover={{ scale: 1.05 }}
             />
-
           </Link>
           <motion.button
             whileHover={{ scale: 1.1 }}
@@ -135,7 +166,7 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
         {/* Navigation Menu */}
         <nav className="mt-6">
           <motion.ul 
-            className="space-y-2 px-4"
+            className="space-y-1 px-3"
             variants={staggerContainer}
             initial="closed"
             animate="open"
@@ -172,12 +203,81 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
                 </motion.li>
               );
             })}
+
+            {/* Settings with Submenu */}
+            <motion.li variants={menuItemVariants}>
+              <button
+                onClick={() => setSettingsOpen(!settingsOpen)}
+                className={`flex items-center justify-between w-full px-4 py-3 rounded-lg transition-colors group ${
+                  isSettingsActive()
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <div className="flex items-center">
+                  <Settings 
+                    size={20} 
+                    className={`mr-3 ${
+                      isSettingsActive()
+                        ? 'text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-200'
+                    }`} 
+                  />
+                  <span className="font-medium">Settings</span>
+                </div>
+                <motion.div
+                  animate={{ rotate: settingsOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronDown size={16} />
+                </motion.div>
+              </button>
+
+              <AnimatePresence>
+                {settingsOpen && (
+                  <motion.ul
+                    variants={submenuVariants}
+                    initial="closed"
+                    animate="open"
+                    exit="closed"
+                    className="ml-4 mt-1 space-y-1"
+                  >
+                    {settingsSubmenu.map((subItem) => {
+                      const SubIcon = subItem.icon;
+                      return (
+                        <motion.li key={subItem.path}>
+                          <Link
+                            to={subItem.path}
+                            onClick={() => window.innerWidth < 1024 && setIsOpen(false)}
+                            className={`flex items-center px-4 py-2 rounded-lg transition-colors group ${
+                              isActive(subItem.path)
+                                ? 'bg-blue-50 dark:bg-blue-800/50 text-blue-600 dark:text-blue-400'
+                                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                            }`}
+                          >
+                            <SubIcon 
+                              size={16} 
+                              className={`mr-3 ${
+                                isActive(subItem.path)
+                                  ? 'text-blue-600 dark:text-blue-400'
+                                  : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300'
+                              }`} 
+                            />
+                            <span className="text-sm">{subItem.label}</span>
+                          </Link>
+                        </motion.li>
+                      );
+                    })}
+                  </motion.ul>
+                )}
+              </AnimatePresence>
+            </motion.li>
           </motion.ul>
         </nav>
 
         {/* Sidebar Footer */}
         <motion.div 
-          className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700"
+          className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -199,7 +299,6 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
             </div>
           </div>
         </motion.div>
-
       </motion.aside>
     </>
   );

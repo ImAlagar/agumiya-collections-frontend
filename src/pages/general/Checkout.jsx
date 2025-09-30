@@ -7,7 +7,6 @@ import { useAuth } from '../../contexts/AuthProvider';
 import { useTheme } from '../../contexts/ThemeContext';
 
 // Import components
-import EnhancedProgressSteps from '../../components/user/checkout/EnhancedProgressSteps';
 import ShippingStep from '../../components/user/checkout/ShippingStep';
 import PaymentStep from '../../components/user/checkout/PaymentStep';
 import ReviewStep from '../../components/user/checkout/ReviewStep';
@@ -15,6 +14,7 @@ import ConfirmationStep from '../../components/user/checkout/ConfirmationStep';
 import OrderSummary from '../../components/user/checkout/OrderSummary';
 import NavigationButtons from '../../components/user/checkout/NavigationButtons';
 import { SEO } from '../../contexts/SEOContext';
+import ProfessionalProgressSteps from '../../components/user/checkout/ProfessionalProgressSteps';
 
 // Enhanced SEO configuration for checkout page
 const checkoutStructuredData = (cartItems, grandTotal) => ({
@@ -319,7 +319,10 @@ const Checkout = () => {
       >
         <div className="px-4 sm:px-6 lg:px-8">
           {/* Enhanced Progress Steps */}
-          <EnhancedProgressSteps currentStep={currentStep} steps={steps} />
+               <ProfessionalProgressSteps
+              currentStep={currentStep} 
+              steps={steps} 
+            />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Checkout Form */}

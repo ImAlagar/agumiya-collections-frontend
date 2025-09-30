@@ -13,7 +13,6 @@ const UserLogin = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
   const { login, error, clearError } = useAuth();
   const navigate = useNavigate();
@@ -296,17 +295,7 @@ const UserLogin = () => {
                 </div>
 
                 {/* Remember Me & Forgot Password */}
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center space-x-2">
-                    <input 
-                      type="checkbox" 
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="rounded border-gray-300 text-blue-600  scale-90" 
-                      disabled={isLoading}
-                    />
-                    <span className={themeStyles.text.secondary}>Remember me</span>
-                  </label>
+                <div className=" text-sm text-end">
                   <Link 
                     to="/forgot-password" 
                     className="text-blue-600 hover:text-blue-500 font-medium transition-colors disabled:opacity-50"

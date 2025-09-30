@@ -1,7 +1,6 @@
 // src/pages/Home.jsx
-
 import CollectionGrid from "../../components/ui/collections/CollectionGrid";
-import HeroSlider3D from "../../components/ui/hero/HeroSlider3D";
+import ResponsiveHero from "../../components/ui/hero/ResponsiveHero";
 import FeaturedProducts from "../../components/ui/products/FeaturedProducts";
 import { SEO } from "../../contexts/SEOContext";
 import '../../styles/swiper-custom.css'
@@ -22,7 +21,7 @@ const Home = () => {
         }}
       />
       
-     <HeroSlider3D />
+      <ResponsiveHero />
       <CollectionGrid />
       <FeaturedProducts />
     </div>

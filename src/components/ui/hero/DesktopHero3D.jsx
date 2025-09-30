@@ -1,13 +1,9 @@
-// src/components/ui/hero/HeroSlider3D.jsx
+// src/components/ui/hero/DesktopHero3D.jsx
 import { motion } from 'framer-motion';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, EffectCube, Navigation, Pagination } from 'swiper/modules';
 import { useRef, useState, useEffect } from 'react';
-
-// Import hero slides data
 import { heroSlides } from '../../../utils/hero-data';
-
-// Import Swiper styles
 import '../../../styles/swiper-custom.css'
 import 'swiper/css';
 import 'swiper/css/effect-cube';
@@ -17,20 +13,16 @@ import Advanced3DCard from './Advanced3DCard';
 import SlideContent from './SlideContent';
 import { useNavigate } from 'react-router-dom';
 
-const HeroSlider3D = () => {
+const DesktopHero3D = () => {
   const navigate = useNavigate();
   const swiperRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
     const checkDevice = () => {
       const width = window.innerWidth;
-      setIsMobile(width < 768);
       setIsTablet(width >= 768 && width < 1024);
-      setIsDesktop(width >= 1024);
     };
     
     checkDevice();
@@ -44,14 +36,14 @@ const HeroSlider3D = () => {
     setLoadedImages(prev => ({ ...prev, [imageId]: true }));
   };
 
-  // Enhanced animation variants for all devices
+  // Animation variants for desktop
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: isMobile ? 0.05 : 0.1,
-        delayChildren: isMobile ? 0.05 : 0.2
+        staggerChildren: 0.1,
+        delayChildren: 0.2
       }
     }
   };
@@ -59,7 +51,7 @@ const HeroSlider3D = () => {
   const itemVariants = {
     hidden: { 
       opacity: 0, 
-      x: isMobile ? -10 : -30,
+      x: -30,
       filter: "blur(4px)"
     },
     visible: {
@@ -78,7 +70,7 @@ const HeroSlider3D = () => {
   const titleVariants = {
     hidden: { 
       opacity: 0, 
-      y: isMobile ? -15 : -30,
+      y: -30,
       filter: "blur(4px)"
     },
     visible: {
@@ -94,7 +86,6 @@ const HeroSlider3D = () => {
     }
   };
 
-  // Add navigation handlers
   const handleShopClick = () => {
     navigate('/shop');
   };
@@ -105,55 +96,43 @@ const HeroSlider3D = () => {
 
   return (
     <div className="relative min-h-screen bg-black overflow-hidden">
-      {/* Optimized Animated Background */}
+      {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div 
-          className={`absolute ${
-            isMobile ? 'top-1/3 left-1/4 w-32 h-32' :
-            isTablet ? 'top-1/4 left-1/4 w-48 h-48' :
-            'top-1/4 left-1/4 w-64 h-64'
-          } bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-xl`}
+          className="absolute top-1/4 left-1/4 w-64 h-64 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-xl"
           animate={{
             scale: [1, 1.2, 1],
             opacity: [0.3, 0.6, 0.3],
-            x: isMobile ? [-5, 5, -5] : [-10, 10, -10],
+            x: [-10, 10, -10],
           }}
           transition={{
-            duration: isMobile ? 5 : 7,
+            duration: 7,
             repeat: Infinity,
             ease: "easeInOut"
           }}
         />
         <motion.div 
-          className={`absolute ${
-            isMobile ? 'bottom-1/3 right-1/4 w-32 h-32' :
-            isTablet ? 'bottom-1/4 right-1/4 w-48 h-48' :
-            'bottom-1/4 right-1/4 w-64 h-64'
-          } bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-full blur-xl`}
+          className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-full blur-xl"
           animate={{
             scale: [1.2, 1, 1.2],
             opacity: [0.6, 0.3, 0.6],
-            y: isMobile ? [5, -5, 5] : [10, -10, 10],
+            y: [10, -10, 10],
           }}
           transition={{
-            duration: isMobile ? 6 : 8,
+            duration: 8,
             repeat: Infinity,
             ease: "easeInOut"
           }}
         />
         
-        {/* Optimized floating particles */}
-        {[...Array(isMobile ? 3 : isTablet ? 5 : 8)].map((_, i) => (
+        {/* Floating particles */}
+        {[...Array(8)].map((_, i) => (
           <motion.div
             key={i}
-            className={`absolute ${
-              isMobile ? 'w-0.5 h-0.5' : 
-              isTablet ? 'w-1 h-1' : 
-              'w-1.5 h-1.5'
-            } bg-white/20 rounded-full`}
+            className="absolute w-1.5 h-1.5 bg-white/20 rounded-full"
             animate={{
               y: [0, -60, 0],
-              x: [0, Math.sin(i) * (isMobile ? 15 : isTablet ? 30 : 40), 0],
+              x: [0, Math.sin(i) * 40, 0],
               opacity: [0, 0.8, 0],
             }}
             transition={{
@@ -162,29 +141,29 @@ const HeroSlider3D = () => {
               delay: i * 0.2,
             }}
             style={{
-              left: `${10 + i * (isMobile ? 30 : isTablet ? 25 : 20)}%`,
-              top: `${15 + i * (isMobile ? 25 : isTablet ? 15 : 12)}%`,
+              left: `${10 + i * 20}%`,
+              top: `${15 + i * 12}%`,
             }}
           />
         ))}
       </div>
 
-      {/* Responsive 3D Cube Effect Swiper */}
+      {/* 3D Cube Effect Swiper */}
       <Swiper
         ref={swiperRef}
         modules={[Autoplay, EffectCube, Navigation, Pagination]}
-        effect={isMobile ? "slide" : "cube"}
-        speed={isMobile ? 600 : 1000}
+        effect={"cube"}
+        speed={1000}
         autoplay={{
-          delay: isMobile ? 3500 : 4500,
+          delay: 4500,
           disableOnInteraction: false,
         }}
-        cubeEffect={!isMobile ? {
+        cubeEffect={{
           shadow: true,
           slideShadows: true,
-          shadowOffset: isTablet ? 15 : 30,
-          shadowScale: isTablet ? 0.90 : 0.92,
-        } : undefined}
+          shadowOffset: 30,
+          shadowScale: 0.92,
+        }}
         pagination={{
           clickable: true,
           dynamicBullets: true,
@@ -205,29 +184,17 @@ const HeroSlider3D = () => {
       >
         {heroSlides.map((slide, index) => (
           <SwiperSlide key={slide.id}>
-            {/* Background Image Container */}
             <div 
               className="relative h-full w-full bg-cover bg-center bg-no-repeat"
               style={{
                 backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.4)), url(${slide.bgImage})`
               }}
             >
-              <div className="relative z-10 px-4 sm:px-6 lg:px-8 min-h-screen flex items-center pt-16 lg:pt-0">
-                {/* Enhanced Responsive Grid Layout */}
-                <div className={`w-full max-w-7xl mx-auto ${
-                  isMobile ? 
-                  'grid grid-cols-1 gap-4 py-8' : 
-                  isTablet ? 
-                  'grid grid-cols-1 lg:grid-cols-2 gap-8 py-12' : 
-                  'grid grid-cols-1 lg:grid-cols-2 gap-12 py-16'
-                } items-center`}>
+              <div className="relative z-10 px-6 lg:px-8 min-h-screen flex items-center pt-16 lg:pt-0">
+                <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 py-16 items-center">
                   
-                  {/* Left Content - Mobile First */}
-                  <div className={`
-                    ${isMobile ? 'order-2 text-center mt-4' : 
-                    isTablet ? 'order-1 text-left' : 
-                    'order-1 text-left'}
-                  `}>
+                  {/* Left Content */}
+                  <div className="text-left">
                     <SlideContent
                       slide={slide}
                       activeIndex={activeIndex}
@@ -235,7 +202,7 @@ const HeroSlider3D = () => {
                       containerVariants={containerVariants}
                       itemVariants={itemVariants}
                       titleVariants={titleVariants}
-                      isMobile={isMobile}
+                      isMobile={false}
                       isTablet={isTablet}
                       onShopClick={handleShopClick}
                       onLookbookClick={handleLookbookClick}
@@ -248,26 +215,20 @@ const HeroSlider3D = () => {
                     initial={{ 
                       opacity: 0, 
                       scale: 0.85, 
-                      rotateY: isMobile ? 0 : 180 
+                      rotateY: 180 
                     }}
                     animate={{ 
                       opacity: activeIndex === index ? 1 : 0, 
                       scale: activeIndex === index ? 1 : 0.85, 
-                      rotateY: activeIndex === index ? 0 : (isMobile ? 0 : 180)
+                      rotateY: activeIndex === index ? 0 : 180
                     }}
                     transition={{ 
                       type: "spring",
                       damping: 20,
                       stiffness: 80,
-                      delay: isMobile ? 0 : isTablet ? 0.1 : 0.2 
+                      delay: 0.2 
                     }}
-                    className={`
-                      ${isMobile ? 
-                        'order-1 flex justify-center mb-6' : 
-                        isTablet ? 
-                        'order-2 flex justify-center' : 
-                        'order-2 flex justify-center'}
-                    `}
+                    className="flex justify-center"
                   >
                     <Advanced3DCard
                       slide={slide} 
@@ -275,7 +236,7 @@ const HeroSlider3D = () => {
                       onImageLoad={handleImageLoad}
                       activeIndex={activeIndex}
                       index={index}
-                      isMobile={isMobile}
+                      isMobile={false}
                       isTablet={isTablet}
                     />
                   </motion.div>
@@ -289,4 +250,4 @@ const HeroSlider3D = () => {
   );
 };
 
-export default HeroSlider3D;
+export default DesktopHero3D;

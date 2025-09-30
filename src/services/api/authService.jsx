@@ -26,6 +26,18 @@ export const authService = {
     }
   },
 
+  async registerAdmin(adminData) {
+    try {
+      const response = await apiClient.post(API_ENDPOINTS.ADMIN_REGISTER, adminData);
+      return response.data;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Admin registration failed'
+      };
+    }
+  },
+
   async getAdminProfile() {
     try {
       const response = await apiClient.get(API_ENDPOINTS.ADMIN_PROFILE);
@@ -35,9 +47,8 @@ export const authService = {
     }
   },
 
-  async forgotAdminPassword(email) { // Changed parameter to accept just email string
+  async forgotAdminPassword(email) {
     try {
-      // Send email as string directly, not as object
       const response = await apiClient.post(API_ENDPOINTS.ADMIN_FORGOT_PASSWORD, { email });
       return response.data;
     } catch (error) {
@@ -59,7 +70,6 @@ export const authService = {
       };
     }
   },
-
 
   // ------------------ USER METHODS ------------------
   async loginUser(credentials) {
@@ -92,10 +102,8 @@ export const authService = {
     }
   },
 
-
-  async forgotUserPassword(email) { // Changed parameter to accept just email string
+  async forgotUserPassword(email) {
     try {
-      // Send email as string directly, not as object
       const response = await apiClient.post(API_ENDPOINTS.USER_FORGOT_PASSWORD, { email });
       return response.data;
     } catch (error) {
@@ -149,3 +157,4 @@ export const authService = {
     return { success: true };
   }
 };
+

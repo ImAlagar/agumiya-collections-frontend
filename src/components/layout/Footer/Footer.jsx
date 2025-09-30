@@ -236,57 +236,62 @@ const Footer = () => {
           className={`h-px my-8 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
         ></motion.div>
         
-        {/* Bottom section */}
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            viewport={{ once: true }}
-            className="flex items-center mb-4 md:mb-0"
-          >
+      {/* Bottom section */}
+
+      <div className="flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-4">
+        {/* Left side */}
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+          viewport={{ once: true }}
+          className="flex flex-col md:flex-row items-center md:items-center"
+        >
+          {/* First part */}
+          <div className="flex items-center">
             <span className="text-sm mr-2">Crafted with</span>
             <motion.div
-              animate={{ 
-                scale: [1, 1.2, 1],
-              }}
-              transition={{ 
-                repeat: Infinity, 
-                duration: 1.5,
-                ease: "easeInOut"
-              }}
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
             >
               <Heart size={16} className="text-red-500 fill-current" />
             </motion.div>
-            <span className="text-sm ml-2">by Agumiya Collections © {new Date().getFullYear()}</span>
-          </motion.div>
-          
-          <div className="flex items-center space-x-6 text-sm">
-            <motion.a 
-              href="/privacy"
-              whileHover={{ color: isDarkMode ? '#60a5fa' : '#2563eb' }}
-              className="transition-colors"
-            >
-              Privacy Policy
-            </motion.a>
-            <motion.a 
-              href="/terms"
-              whileHover={{ color: isDarkMode ? '#60a5fa' : '#2563eb' }}
-              className="transition-colors"
-            >
-              Terms of Service
-            </motion.a>
-            <motion.button
-              onClick={scrollToTop}
-              whileHover={{ y: -3 }}
-              whileTap={{ y: 0 }}
-              className={`p-2 rounded-full ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-100'} shadow-sm transition-colors flex items-center`}
-              aria-label="Scroll to top"
-            >
-              <ArrowUp size={16} />
-            </motion.button>
           </div>
+
+          {/* Second part → goes below on mobile, inline on desktop */}
+          <span className="text-sm mt-1 md:mt-0 md:ml-2">
+            by Agumiya Collections © {new Date().getFullYear()}
+          </span>
+        </motion.div>
+
+        {/* Right side */}
+        <div className="flex flex-col md:flex-row items-center gap-4 text-sm">
+          <motion.a 
+            href="/privacy"
+            whileHover={{ color: isDarkMode ? '#60a5fa' : '#2563eb' }}
+            className="transition-colors"
+          >
+            Privacy Policy
+          </motion.a>
+          <motion.a 
+            href="/terms"
+            whileHover={{ color: isDarkMode ? '#60a5fa' : '#2563eb' }}
+            className="transition-colors"
+          >
+            Terms of Service
+          </motion.a>
+          <motion.button
+            onClick={scrollToTop}
+            whileHover={{ y: -3 }}
+            whileTap={{ y: 0 }}
+            className={`p-2 rounded-full ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-100'} shadow-sm transition-colors flex items-center`}
+            aria-label="Scroll to top"
+          >
+            <ArrowUp size={16} />
+          </motion.button>
         </div>
+      </div>
+
       </div>
     </motion.footer>
   );

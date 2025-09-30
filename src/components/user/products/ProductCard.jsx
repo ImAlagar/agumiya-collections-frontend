@@ -7,15 +7,20 @@ import { useCurrency } from '../../../contexts/CurrencyContext';
 const ProductCard = ({ product }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const { formatPrice } = useCurrency(); // Add this hook
+  const { formatPrice, userCurrency, getCurrencySymbol } = useCurrency();
   const firstImage = product.images?.[0];
   
   // Get price range for variants
   const variantPrices = product.printifyVariants?.map(v => v.price) || [];
-  const minPrice = Math.min(...variantPrices, product.price);
-  const maxPrice = Math.max(...variantPrices, product.price);
+  const minPrice = variantPrices.length > 0 ? Math.min(...variantPrices) : product.price;
+  const maxPrice = variantPrices.length > 0 ? Math.max(...variantPrices) : product.price;
   const hasMultiplePrices = minPrice !== maxPrice;
   const hasVariants = product.printifyVariants && product.printifyVariants.length > 0;
+
+  // Format prices with currency
+  const { formatted: formattedMinPrice, original: originalMinPrice } = formatPrice(minPrice, userCurrency, true);
+  const { formatted: formattedMaxPrice } = formatPrice(maxPrice, userCurrency);
+  const { formatted: formattedProductPrice } = formatPrice(product.price, userCurrency);
 
   const cardVariants = {
     hidden: { 
@@ -106,6 +111,13 @@ const ProductCard = ({ product }) => {
               </span>
             </div>
           )}
+
+          {/* Currency Badge */}
+          <div className="absolute bottom-3 left-3">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-500 text-white shadow-md">
+              {userCurrency} {getCurrencySymbol()}
+            </span>
+          </div>
         </div>
 
         {/* Product Info */}
@@ -115,27 +127,46 @@ const ProductCard = ({ product }) => {
             {product.name}
           </h3>
 
-          {/* Updated Price Section with Currency */}
-          <div className="flex items-baseline justify-between mb-3">
-            <div className="flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                {hasMultiplePrices ? formatPrice(minPrice) : formatPrice(product.price)}
-              </span>
-              {hasMultiplePrices && (
-                <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-                  - {formatPrice(maxPrice)}
+          {/* Updated Price Section with Currency Conversion */}
+          <div className="mb-3">
+            <div className="flex items-baseline justify-between mb-2">
+              <div className="flex items-baseline space-x-2">
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {hasMultiplePrices ? formattedMinPrice : formattedProductPrice}
                 </span>
+                {hasMultiplePrices && (
+                  <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                    - {formattedMaxPrice}
+                  </span>
+                )}
+              </div>
+              
+              {/* Rating if available */}
+              {product.rating && (
+                <div className="flex items-center space-x-1 bg-primary-50 dark:bg-primary-900/30 px-2 py-1 rounded-lg">
+                  <span className="text-yellow-500 text-sm">⭐</span>
+                  <span className="text-sm font-semibold text-primary-700 dark:text-primary-300">
+                    {product.rating}
+                  </span>
+                </div>
               )}
             </div>
-            
-            {/* Rating if available */}
-            {product.rating && (
-              <div className="flex items-center space-x-1 bg-primary-50 dark:bg-primary-900/30 px-2 py-1 rounded-lg">
-                <span className="text-yellow-500 text-sm">⭐</span>
-                <span className="text-sm font-semibold text-primary-700 dark:text-primary-300">
-                  {product.rating}
+
+            {/* Show original USD price if different currency */}
+            {userCurrency !== 'USD' && originalMinPrice && (
+              <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400">
+                <span>≈ {originalMinPrice} USD</span>
+                <span className="text-green-600 font-medium">
+                  • Local pricing
                 </span>
               </div>
+            )}
+
+            {/* Price range info for variants */}
+            {hasMultiplePrices && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Price varies by {product.printifyVariants.length} options
+              </p>
             )}
           </div>
 
@@ -170,6 +201,10 @@ const ProductCard = ({ product }) => {
                 ✨ Premium
               </span>
             )}
+            {/* Currency feature badge */}
+            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-medium">
+              💱 Auto-converted
+            </span>
           </div>
         </div>
       </Link>

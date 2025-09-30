@@ -6,12 +6,14 @@ import { authService } from '../../services/api/authService';
 import { storageManager } from '../../services/storage/storageManager';
 import { STORAGE_KEYS, USER_TYPES } from '../../config/constants.jsx';
 import { SEO } from '../../contexts/SEOContext.jsx';
+import { useAuth } from '../../contexts/AuthProvider.jsx';
 
 const UserProfile = () => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+  const { user: authUser, isAdmin, userType } = useAuth();
 
   useEffect(() => {
     loadUserProfile();
@@ -20,23 +22,40 @@ const UserProfile = () => {
   const loadUserProfile = async () => {
     try {
       setLoading(true);
-      // Try to get from storage first
-      const cachedUserData = storageManager.getItem(STORAGE_KEYS.USER_DATA, USER_TYPES.USER);
+      
+      const currentUserType = userType || storageManager.getCurrentUserType();
+      
+      if (!currentUserType) {
+        setError('No user type found');
+        setLoading(false);
+        return;
+      }
+
+      const cachedUserData = storageManager.getItem(STORAGE_KEYS.USER_DATA, currentUserType);
       
       if (cachedUserData) {
         setUserData(cachedUserData);
       }
 
-      // Fetch fresh data from API
-      const response = await authService.getUserProfile();
-      if (response.success) {
-        setUserData(response.user);
-        // Update cache
-        storageManager.setItem(STORAGE_KEYS.USER_DATA, response.user, USER_TYPES.USER);
+      let response;
+      if (currentUserType === USER_TYPES.ADMIN) {
+        response = await authService.getAdminProfile();
+      } else {
+        response = await authService.getUserProfile();
+      }
+
+      if (response && response.success) {
+        const freshUserData = response.admin || response.user || response.data;
+        setUserData(freshUserData);
+        storageManager.setItem(STORAGE_KEYS.USER_DATA, freshUserData, currentUserType);
+      } else {
+        if (!cachedUserData) {
+          setError(response?.message || 'Failed to load profile data');
+        }
       }
     } catch (err) {
-      setError(err.message || 'Failed to load profile');
-      console.error('Profile loading error:', err);
+      const errorMessage = err.message || 'Failed to load profile';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -44,10 +63,19 @@ const UserProfile = () => {
 
   const handleUpdateProfile = async (updateData) => {
     try {
-      const response = await authService.updateProfile(updateData);
+      const currentUserType = userType || storageManager.getCurrentUserType();
+      let response;
+      
+      if (currentUserType === USER_TYPES.ADMIN) {
+        response = await authService.updateProfile(updateData);
+      } else {
+        response = await authService.updateProfile(updateData);
+      }
+
       if (response.success) {
-        setUserData(response.user);
-        storageManager.setItem(STORAGE_KEYS.USER_DATA, response.user, USER_TYPES.USER);
+        const updatedUser = response.admin || response.user;
+        setUserData(updatedUser);
+        storageManager.setItem(STORAGE_KEYS.USER_DATA, updatedUser, currentUserType);
         return { success: true, message: 'Profile updated successfully' };
       }
       return { success: false, message: response.message };
@@ -57,11 +85,30 @@ const UserProfile = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    if (!dateString) return 'Unknown';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  };
+
+  const getPageTitle = () => {
+    if (isAdmin) {
+      return `${userData?.name || 'Admin'} Dashboard - Agumiya Collections`;
+    }
+    return `${userData?.name || 'User'} Profile - Agumiya Collections`;
+  };
+
+  const getPageDescription = () => {
+    if (isAdmin) {
+      return 'Admin dashboard for managing Agumiya Collections. Monitor orders, products, and system analytics.';
+    }
+    return 'Manage your Agumiya Collections account. View and update your profile information, order history, and preferences.';
   };
 
   if (loading) {
@@ -69,7 +116,7 @@ const UserProfile = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <SEO
           title="Loading Profile - Agumiya Collections"
-          description="Loading user profile information"
+          description="Loading profile information"
         />
         <motion.div
           initial={{ opacity: 0 }}
@@ -88,7 +135,7 @@ const UserProfile = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <SEO 
           title="Error - Agumiya Collections"
-          description="Error loading user profile"
+          description="Error loading profile"
         />
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -114,16 +161,16 @@ const UserProfile = () => {
   return (
     <>
       <SEO 
-        title={`${userData?.name || 'User'} Profile - Agumiya Collections`}
-        description={`Manage your Agumiya Collections account. View and update your profile information, order history, and preferences.`}
-        keywords="user profile, account settings, order history, Agumiya Collections"
-        canonical={`https://agumiya-collections.com/profile`}
+        title={getPageTitle()}
+        description={getPageDescription()}
+        keywords={isAdmin ? "admin dashboard, management, analytics, Agumiya Collections" : "user profile, account settings, order history, Agumiya Collections"}
+        canonical={`https://agumiya-collections.com/${isAdmin ? 'admin' : 'profile'}`}
         ogType="profile"
         structuredData={{
           "@context": "https://schema.org",
           "@type": "ProfilePage",
-          "name": `${userData?.name || 'User'} Profile`,
-          "description": "User profile management page for Agumiya Collections",
+          "name": getPageTitle(),
+          "description": getPageDescription(),
           "publisher": {
             "@type": "Organization",
             "name": "Agumiya Collections"
@@ -139,12 +186,21 @@ const UserProfile = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              My Account
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Manage your profile and preferences
-            </p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                  {isAdmin ? 'Admin Dashboard' : 'My Account'}
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-2">
+                  {isAdmin ? 'Manage your store and monitor analytics' : 'Manage your profile and preferences'}
+                </p>
+              </div>
+              {isAdmin && (
+                <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-4 py-2 rounded-lg">
+                  <span className="font-semibold">Admin Mode</span>
+                </div>
+              )}
+            </div>
           </motion.header>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -157,7 +213,11 @@ const UserProfile = () => {
             >
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sticky top-8">
                 <div className="flex items-center space-x-4 mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    isAdmin 
+                      ? 'bg-gradient-to-br from-purple-500 to-pink-600' 
+                      : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+                  }`}>
                     <span className="text-white font-semibold text-lg">
                       {userData?.name?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
@@ -169,22 +229,24 @@ const UserProfile = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       {userData?.email || 'No email provided'}
                     </p>
+                    {isAdmin && (
+                      <span className="inline-block mt-1 px-2 py-1 text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300 rounded-full">
+                        Administrator
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <nav className="space-y-2">
-                  {[
-                    { id: 'overview', label: 'Overview', icon: '👤' },
-                    { id: 'orders', label: 'Orders', icon: '📦' },
-                    { id: 'settings', label: 'Settings', icon: '⚙️' },
-                    { id: 'security', label: 'Security', icon: '🔒' }
-                  ].map((tab) => (
+                  {getNavigationItems(isAdmin).map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
                       className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
                         activeTab === tab.id
-                          ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300'
+                          ? isAdmin
+                            ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                            : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300'
                           : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                     >
@@ -207,21 +269,29 @@ const UserProfile = () => {
                 {activeTab === 'overview' && (
                   <ProfileOverview 
                     userData={userData} 
+                    isAdmin={isAdmin}
                     formatDate={formatDate}
                     onUpdateProfile={handleUpdateProfile}
                   />
                 )}
                 {activeTab === 'orders' && (
-                  <OrderHistory userData={userData} />
+                  <OrderHistory userData={userData} isAdmin={isAdmin} />
                 )}
                 {activeTab === 'settings' && (
                   <ProfileSettings 
                     userData={userData} 
+                    isAdmin={isAdmin}
                     onUpdateProfile={handleUpdateProfile}
                   />
                 )}
                 {activeTab === 'security' && (
-                  <SecuritySettings userData={userData} />
+                  <SecuritySettings userData={userData} isAdmin={isAdmin} />
+                )}
+                {isAdmin && activeTab === 'analytics' && (
+                  <AdminAnalytics userData={userData} />
+                )}
+                {isAdmin && activeTab === 'management' && (
+                  <AdminManagement userData={userData} />
                 )}
               </AnimatePresence>
             </motion.div>
@@ -232,8 +302,28 @@ const UserProfile = () => {
   );
 };
 
+// Helper function to get navigation items based on user type
+const getNavigationItems = (isAdmin) => {
+  const baseItems = [
+    { id: 'overview', label: 'Overview', icon: '👤' },
+    { id: 'orders', label: 'Orders', icon: '📦' },
+    { id: 'settings', label: 'Settings', icon: '⚙️' },
+    { id: 'security', label: 'Security', icon: '🔒' }
+  ];
+
+  if (isAdmin) {
+    return [
+      ...baseItems,
+      { id: 'analytics', label: 'Analytics', icon: '📊' },
+      { id: 'management', label: 'Management', icon: '🏪' }
+    ];
+  }
+
+  return baseItems;
+};
+
 // Profile Overview Component
-const ProfileOverview = ({ userData, formatDate, onUpdateProfile }) => {
+const ProfileOverview = ({ userData, isAdmin, formatDate, onUpdateProfile }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: userData?.name || '',
@@ -246,7 +336,6 @@ const ProfileOverview = ({ userData, formatDate, onUpdateProfile }) => {
     if (result.success) {
       setIsEditing(false);
     }
-    // You can show a toast notification here
   };
 
   return (
@@ -260,11 +349,15 @@ const ProfileOverview = ({ userData, formatDate, onUpdateProfile }) => {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Profile Information
+            {isAdmin ? 'Admin Information' : 'Profile Information'}
           </h2>
           <button
             onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+            className={`px-4 py-2 rounded-lg text-white transition-colors ${
+              isAdmin 
+                ? 'bg-purple-600 hover:bg-purple-700' 
+                : 'bg-indigo-600 hover:bg-indigo-700'
+            }`}
           >
             {isEditing ? 'Save Changes' : 'Edit Profile'}
           </button>
@@ -327,6 +420,15 @@ const ProfileOverview = ({ userData, formatDate, onUpdateProfile }) => {
               {userData?.createdAt ? formatDate(userData.createdAt) : 'Unknown'}
             </p>
           </div>
+
+          {isAdmin && userData?.role && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Role
+              </label>
+              <p className="text-gray-900 dark:text-white capitalize">{userData.role}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -336,10 +438,14 @@ const ProfileOverview = ({ userData, formatDate, onUpdateProfile }) => {
           whileHover={{ scale: 1.02 }}
           className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center"
         >
-          <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-2">
+          <div className={`text-2xl font-bold mb-2 ${
+            isAdmin ? 'text-purple-600 dark:text-purple-400' : 'text-indigo-600 dark:text-indigo-400'
+          }`}>
             {userData?.orderCount || 0}
           </div>
-          <div className="text-gray-600 dark:text-gray-400">Total Orders</div>
+          <div className="text-gray-600 dark:text-gray-400">
+            {isAdmin ? 'Total Store Orders' : 'Total Orders'}
+          </div>
         </motion.div>
 
         <motion.div
@@ -349,7 +455,9 @@ const ProfileOverview = ({ userData, formatDate, onUpdateProfile }) => {
           <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-2">
             {userData?.completedOrders || 0}
           </div>
-          <div className="text-gray-600 dark:text-gray-400">Completed</div>
+          <div className="text-gray-600 dark:text-gray-400">
+            {isAdmin ? 'Completed Orders' : 'Completed'}
+          </div>
         </motion.div>
 
         <motion.div
@@ -359,15 +467,52 @@ const ProfileOverview = ({ userData, formatDate, onUpdateProfile }) => {
           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">
             {userData?.pendingOrders || 0}
           </div>
-          <div className="text-gray-600 dark:text-gray-400">Pending</div>
+          <div className="text-gray-600 dark:text-gray-400">
+            {isAdmin ? 'Pending Orders' : 'Pending'}
+          </div>
         </motion.div>
       </div>
+
+      {/* Admin-specific stats */}
+      {isAdmin && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center"
+          >
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-2">
+              {userData?.totalProducts || 0}
+            </div>
+            <div className="text-gray-600 dark:text-gray-400">Total Products</div>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center"
+          >
+            <div className="text-2xl font-bold text-pink-600 dark:text-pink-400 mb-2">
+              {userData?.totalCustomers || 0}
+            </div>
+            <div className="text-gray-600 dark:text-gray-400">Total Customers</div>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center"
+          >
+            <div className="text-2xl font-bold text-teal-600 dark:text-teal-400 mb-2">
+              ${userData?.totalRevenue || 0}
+            </div>
+            <div className="text-gray-600 dark:text-gray-400">Total Revenue</div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 };
 
 // Order History Component
-const OrderHistory = ({ userData }) => (
+const OrderHistory = ({ userData, isAdmin }) => (
   <motion.div
     key="orders"
     initial={{ opacity: 0, y: 20 }}
@@ -376,28 +521,91 @@ const OrderHistory = ({ userData }) => (
     className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
   >
     <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-      Order History
+      {isAdmin ? 'Store Orders' : 'Order History'}
     </h2>
     <div className="text-center py-12">
       <div className="text-6xl mb-4">📦</div>
       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-        No orders yet
+        {isAdmin ? 'No orders in store' : 'No orders yet'}
       </h3>
       <p className="text-gray-600 dark:text-gray-400 mb-6">
-        Start shopping to see your order history here
+        {isAdmin ? 'Orders from customers will appear here' : 'Start shopping to see your order history here'}
       </p>
       <Link
-        to="/shop"
-        className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+        to={isAdmin ? "/admin/products" : "/shop"}
+        className={`inline-flex items-center px-6 py-3 rounded-lg text-white transition-colors ${
+          isAdmin ? 'bg-purple-600 hover:bg-purple-700' : 'bg-indigo-600 hover:bg-indigo-700'
+        }`}
       >
-        Start Shopping
+        {isAdmin ? 'Manage Products' : 'Start Shopping'}
+      </Link>
+    </div>
+  </motion.div>
+);
+
+// Admin-specific Components
+const AdminAnalytics = ({ userData }) => (
+  <motion.div
+    key="analytics"
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
+  >
+    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+      Store Analytics
+    </h2>
+    <div className="text-center py-12">
+      <div className="text-6xl mb-4">📊</div>
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+        Analytics Dashboard
+      </h3>
+      <p className="text-gray-600 dark:text-gray-400">
+        Store performance metrics and analytics will be displayed here.
+      </p>
+    </div>
+  </motion.div>
+);
+
+const AdminManagement = ({ userData }) => (
+  <motion.div
+    key="management"
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
+  >
+    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+      Store Management
+    </h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Link
+        to="/admin/products"
+        className="p-6 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      >
+        <div className="text-2xl mb-2">🛍️</div>
+        <h3 className="font-semibold text-gray-900 dark:text-white">Product Management</h3>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+          Manage your product catalog
+        </p>
+      </Link>
+      
+      <Link
+        to="/admin/orders"
+        className="p-6 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      >
+        <div className="text-2xl mb-2">📦</div>
+        <h3 className="font-semibold text-gray-900 dark:text-white">Order Management</h3>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+          Process and manage orders
+        </p>
       </Link>
     </div>
   </motion.div>
 );
 
 // Profile Settings Component
-const ProfileSettings = ({ userData, onUpdateProfile }) => (
+const ProfileSettings = ({ userData, isAdmin, onUpdateProfile }) => (
   <motion.div
     key="settings"
     initial={{ opacity: 0, y: 20 }}
@@ -406,36 +614,44 @@ const ProfileSettings = ({ userData, onUpdateProfile }) => (
     className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
   >
     <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-      Profile Settings
+      {isAdmin ? 'Admin Settings' : 'Profile Settings'}
     </h2>
     <div className="space-y-6">
       <div className="flex items-center justify-between py-4 border-b border-gray-200 dark:border-gray-600">
         <div>
           <h4 className="font-medium text-gray-900 dark:text-white">Email Notifications</h4>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Receive updates about your orders</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {isAdmin ? 'Receive store updates and alerts' : 'Receive updates about your orders'}
+          </p>
         </div>
         <label className="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" className="sr-only peer" defaultChecked />
-          <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+          <div className={`w-11 h-6 bg-gray-200 peer-focus:ring-4 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 ${
+            isAdmin 
+              ? 'peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 peer-checked:bg-purple-600'
+              : 'peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 peer-checked:bg-indigo-600'
+          }`}></div>
         </label>
       </div>
       
-      <div className="flex items-center justify-between py-4 border-b border-gray-200 dark:border-gray-600">
-        <div>
-          <h4 className="font-medium text-gray-900 dark:text-white">SMS Notifications</h4>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Get text message updates</p>
+      {isAdmin && (
+        <div className="flex items-center justify-between py-4 border-b border-gray-200 dark:border-gray-600">
+          <div>
+            <h4 className="font-medium text-gray-900 dark:text-white">Store Notifications</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Get alerts for new orders and low stock</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" defaultChecked />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+          </label>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" className="sr-only peer" />
-          <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
-        </label>
-      </div>
+      )}
     </div>
   </motion.div>
 );
 
 // Security Settings Component
-const SecuritySettings = ({ userData }) => (
+const SecuritySettings = ({ userData, isAdmin }) => (
   <motion.div
     key="security"
     initial={{ opacity: 0, y: 20 }}
@@ -452,7 +668,9 @@ const SecuritySettings = ({ userData }) => (
           <h4 className="font-medium text-gray-900 dark:text-white">Two-Factor Authentication</h4>
           <p className="text-sm text-gray-600 dark:text-gray-400">Add an extra layer of security</p>
         </div>
-        <button className="text-indigo-600 hover:text-indigo-700 font-medium">
+        <button className={`font-medium ${
+          isAdmin ? 'text-purple-600 hover:text-purple-700' : 'text-indigo-600 hover:text-indigo-700'
+        }`}>
           Enable
         </button>
       </div>
@@ -464,7 +682,9 @@ const SecuritySettings = ({ userData }) => (
         </div>
         <Link
           to="/forgot-password"
-          className="text-indigo-600 hover:text-indigo-700 font-medium"
+          className={`font-medium ${
+            isAdmin ? 'text-purple-600 hover:text-purple-700' : 'text-indigo-600 hover:text-indigo-700'
+          }`}
         >
           Change
         </Link>

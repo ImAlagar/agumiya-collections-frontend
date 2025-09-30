@@ -8,12 +8,14 @@ export const STORAGE_KEYS = {
   AUTH_TOKEN: 'authToken',
   USER_DATA: 'userData',
   USER_TYPE: 'userType',
-  PRODUCTS_FILTERS: 'productsFilters'
+  PRODUCTS_FILTERS: 'productsFilters',
+  COUPONS_FILTERS: 'couponsFilters' // 👈 ADD THIS
 };
 
 export const API_ENDPOINTS = {
   // Admin endpoints
   ADMIN_LOGIN: '/admin/login',
+  ADMIN_REGISTER: '/admin/register',
   ADMIN_PROFILE: '/admin/dashboard',
   ADMIN_FORGOT_PASSWORD: '/admin/forgot-password',
   ADMIN_RESET_PASSWORD: '/admin/reset-password',
@@ -30,6 +32,11 @@ export const API_ENDPOINTS = {
   // Products endpoints
   PRODUCTS: '/products',
   PRODUCTS_SYNC: '/products/sync',
+
+  // Coupons endpoints 👈 ADD THESE
+  COUPONS: '/coupons',
+  COUPONS_VALIDATE: '/coupons/validate',
+  COUPONS_STATS: '/coupons/stats',
 
   ORDERS: '/orders',
   ORDER_STATS: '/orders/stats',
@@ -75,6 +82,38 @@ export const SORT_OPTIONS = {
   PRICE_DESC: { sortBy: 'price', sortOrder: 'desc' },
   DATE_ASC: { sortBy: 'createdAt', sortOrder: 'asc' },
   DATE_DESC: { sortBy: 'createdAt', sortOrder: 'desc' }
+};
+
+// 👇 ADD COUPON RELATED CONSTANTS
+export const COUPON_DISCOUNT_TYPES = {
+  PERCENTAGE: 'PERCENTAGE',
+  FIXED_AMOUNT: 'FIXED_AMOUNT'
+};
+
+export const COUPON_APPLICABILITY = {
+  ALL_PRODUCTS: 'ALL_PRODUCTS',
+  CATEGORY_SPECIFIC: 'CATEGORY_SPECIFIC',
+  PRODUCT_SPECIFIC: 'PRODUCT_SPECIFIC'
+};
+
+export const COUPON_STATUS = {
+  ACTIVE: 'active',
+  INACTIVE: 'inactive',
+  EXPIRED: 'expired'
+};
+
+export const COUPON_FILTERS = {
+  STATUS: {
+    ALL: 'all',
+    ACTIVE: 'active',
+    INACTIVE: 'inactive',
+    EXPIRED: 'expired'
+  },
+  DISCOUNT_TYPE: {
+    ALL: 'all',
+    PERCENTAGE: 'PERCENTAGE',
+    FIXED_AMOUNT: 'FIXED_AMOUNT'
+  }
 };
 
 export const ORDER_STATUS = {

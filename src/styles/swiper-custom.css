@@ -1,0 +1,99 @@
+/* src/styles/swiper-custom.css */
+/* Enhanced responsive Swiper styles */
+
+.swiper {
+  width: 100%;
+  height: 100vh;
+}
+
+.swiper-slide {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Pagination - Mobile First */
+.swiper-pagination {
+  bottom: 20px !important;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+}
+
+.swiper-pagination-bullet {
+  background: rgba(255, 255, 255, 0.6);
+  opacity: 1;
+  transition: all 0.3s ease;
+}
+
+.swiper-pagination-bullet-active {
+  background: #ffffff;
+  transform: scale(1.2);
+}
+
+/* Cube effect adjustments for tablet and desktop */
+@media (min-width: 768px) {
+  .swiper-pagination {
+    bottom: 30px !important;
+    gap: 6px;
+  }
+  
+  .swiper-cube-shadow {
+    background: rgba(0, 0, 0, 0.3) !important;
+  }
+}
+
+/* Navigation buttons */
+.swiper-button-next,
+.swiper-button-prev {
+  color: white !important;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 50%;
+  width: 40px !important;
+  height: 40px !important;
+  transition: all 0.3s ease;
+}
+
+.swiper-button-next:after,
+.swiper-button-prev:after {
+  font-size: 16px !important;
+  font-weight: bold;
+}
+
+.swiper-button-next:hover,
+.swiper-button-prev:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+/* Hide navigation on mobile */
+@media (max-width: 767px) {
+  .swiper-button-next,
+  .swiper-button-prev {
+    display: none !important;
+  }
+  
+  .swiper-pagination {
+    bottom: 15px !important;
+  }
+}
+
+/* Large desktop enhancements */
+@media (min-width: 1536px) {
+  .swiper-pagination {
+    bottom: 40px !important;
+  }
+  
+  .swiper-button-next,
+  .swiper-button-prev {
+    width: 50px !important;
+    height: 50px !important;
+  }
+  
+  .swiper-button-next:after,
+  .swiper-button-prev:after {
+    font-size: 20px !important;
+  }
+}

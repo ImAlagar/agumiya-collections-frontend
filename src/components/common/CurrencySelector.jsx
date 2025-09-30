@@ -1,85 +1,109 @@
-// src/components/common/CurrencySelector.js
-import React, { useState } from 'react';
+// src/components/user/CurrencySelector.jsx
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { FiGlobe, FiChevronDown } from 'react-icons/fi';
 
 const CurrencySelector = () => {
-  const { userCurrency, currencies, changeCurrency, isLoading } = useCurrency();
-  const [isOpen, setIsOpen] = useState(false);
+  const { userCurrency, setUserCurrency, exchangeRates, isLoading, getCurrencySymbol } = useCurrency();
 
-  const currentCurrency = currencies.find(c => c.code === userCurrency);
+  const popularCurrencies = [
+    { code: 'USD', name: 'US Dollar', symbol: '$', flag: '🇺🇸' },
+    { code: 'EUR', name: 'Euro', symbol: '€', flag: '🇪🇺' },
+    { code: 'GBP', name: 'British Pound', symbol: '£', flag: '🇬🇧' },
+    { code: 'INR', name: 'Indian Rupee', symbol: '₹', flag: '🇮🇳' },
+    { code: 'CAD', name: 'Canadian Dollar', symbol: 'CA$', flag: '🇨🇦' },
+    { code: 'AUD', name: 'Australian Dollar', symbol: 'A$', flag: '🇦🇺' },
+    { code: 'JPY', name: 'Japanese Yen', symbol: '¥', flag: '🇯🇵' },
+    { code: 'CNY', name: 'Chinese Yuan', symbol: 'CN¥', flag: '🇨🇳' },
+  ];
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 rounded-xl px-3 py-2">
-        <div className="w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse" />
-        <div className="w-12 h-4 bg-gray-300 dark:bg-gray-600 rounded animate-pulse" />
-      </div>
-    );
-  }
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  const currentCurrency = popularCurrencies.find(c => c.code === userCurrency) || 
+    { code: userCurrency, name: userCurrency, symbol: getCurrencySymbol(), flag: '🌍' };
 
   return (
     <div className="relative">
-      <button
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
         onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center space-x-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors min-w-[120px] justify-between"
         disabled={isLoading}
-        className="flex items-center space-x-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2 hover:shadow-lg transition-all duration-300 disabled:opacity-50"
       >
-        {currentCurrency && (
+        {isLoading ? (
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full"
+          />
+        ) : (
           <>
-            <span className="font-semibold text-gray-700 dark:text-gray-300">
-              {currentCurrency.symbol}
-            </span>
-            <span className="text-gray-600 dark:text-gray-400 text-sm">
-              {currentCurrency.code}
-            </span>
+            <div className="flex items-center space-x-2">
+              <FiGlobe size={16} className="text-blue-600" />
+              <span>{currentCurrency.symbol}</span>
+              <span className="font-semibold">{userCurrency}</span>
+            </div>
+            <motion.span
+              animate={{ rotate: isOpen ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <FiChevronDown size={16} />
+            </motion.span>
           </>
         )}
-        <motion.span
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          className="text-gray-400 text-xs"
-        >
-          ▼
-        </motion.span>
-      </button>
+      </motion.button>
 
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-xl z-50 overflow-hidden"
+            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-xl z-50 overflow-hidden"
           >
-            <div className="max-h-64 overflow-y-auto">
-              {currencies.map((currency) => (
+            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                Select Currency
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Prices will be converted automatically
+              </p>
+            </div>
+            
+            <div className="max-h-60 overflow-y-auto">
+              {popularCurrencies.map((currency) => (
                 <button
                   key={currency.code}
                   onClick={() => {
-                    changeCurrency(currency.code);
+                    setUserCurrency(currency.code);
                     setIsOpen(false);
                   }}
-                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
-                    userCurrency === currency.code 
-                      ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' 
+                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                    userCurrency === currency.code
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
                       : 'text-gray-700 dark:text-gray-300'
                   }`}
                 >
-                  <div className="flex justify-between items-center">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <span className="font-medium text-lg">
-                        {currency.symbol}
-                      </span>
-                      <div className="text-left">
-                        <div className="font-semibold">{currency.code}</div>
+                      <span className="text-lg">{currency.flag}</span>
+                      <div>
+                        <div className="font-medium text-sm">{currency.code}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           {currency.name}
                         </div>
                       </div>
                     </div>
-                    {userCurrency === currency.code && (
-                      <span className="text-primary-600 dark:text-primary-400">✓</span>
-                    )}
+                    <div className="text-right">
+                      <div className="font-medium text-sm">{currency.symbol}</div>
+                      {exchangeRates[currency.code] && (
+                        <div className="text-xs text-gray-500">
+                          1 USD = {exchangeRates[currency.code].toFixed(2)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </button>
               ))}
