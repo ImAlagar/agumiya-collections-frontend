@@ -225,28 +225,39 @@ const UserRegister = () => {
     validateField(name, value);
   };
 
-// In your UserRegister component - IMPROVED handleSubmit
+// UserRegister component - ENHANCED handleSubmit
 const handleSubmit = async (e) => {
   e.preventDefault();
   
-  if (!formData.name.trim()) {
-    setErrors({ name: 'Full name is required' });
-    return;
+  // Enhanced validation
+  const newErrors = {};
+  
+  if (!formData.name?.trim()) {
+    newErrors.name = 'Full name is required';
+  } else if (formData.name.trim().length < 2) {
+    newErrors.name = 'Name must be at least 2 characters';
   }
-  if (!formData.email.trim()) {
-    setErrors({ email: 'Email is required' });
-    return;
+  
+  if (!formData.email?.trim()) {
+    newErrors.email = 'Email is required';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    newErrors.email = 'Please enter a valid email address';
   }
+  
   if (!formData.password) {
-    setErrors({ password: 'Password is required' });
-    return;
+    newErrors.password = 'Password is required';
+  } else if (formData.password.length < 8) {
+    newErrors.password = 'Password must be at least 8 characters';
   }
+  
   if (!formData.confirmPassword) {
-    setErrors({ confirmPassword: 'Please confirm your password' });
-    return;
+    newErrors.confirmPassword = 'Please confirm your password';
+  } else if (formData.password !== formData.confirmPassword) {
+    newErrors.confirmPassword = 'Passwords do not match';
   }
-  if (formData.password !== formData.confirmPassword) {
-    setErrors({ confirmPassword: 'Passwords do not match' });
+  
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
     return;
   }
 
@@ -255,16 +266,20 @@ const handleSubmit = async (e) => {
   setErrors({});
   
   try {
-    const result = await register({
+    // Prepare the exact data structure backend expects
+    const registrationData = {
       name: formData.name.trim(),
-      email: formData.email.trim(),
+      email: formData.email.trim().toLowerCase(),
       password: formData.password,
-      phone: formData.phone || '',
-      address: formData.address || ''
-    });
+      phone: formData.phone?.trim() || '', // Make sure to include phone
+      address: formData.address?.trim() || '' // Make sure to include address
+    };
+    
+    console.log('Sending registration data:', { ...registrationData, password: '***' });
+    
+    const result = await register(registrationData);
     
     if (result.success) {
-      // Registration successful
       navigate('/login', { 
         state: { 
           message: result.message || 'Registration successful! Please check your email for verification.',
@@ -272,16 +287,7 @@ const handleSubmit = async (e) => {
         }
       });
     } else {
-      // Handle timeout specifically
-      if (result.error.includes('timeout') || result.error.includes('longer than expected')) {
-        setBackendError(
-          'Registration is taking longer than expected. ' +
-          'Please check your email - your account might have been created. ' +
-          'Try logging in after a few minutes.'
-        );
-      } else {
-        setBackendError(result.error);
-      }
+      setBackendError(result.error);
     }
   } catch (error) {
     console.error('Registration error:', error);
@@ -290,6 +296,7 @@ const handleSubmit = async (e) => {
     setIsLoading(false);
   }
 };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
