@@ -101,58 +101,63 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = async (credentials) => {
-    try {
-      dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
-      dispatch({ type: ACTION_TYPES.CLEAR_ERROR });
+// In your AuthContext.js - SIMPLIFIED
+const login = async (credentials) => {
+  try {
+    dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
+    dispatch({ type: ACTION_TYPES.CLEAR_ERROR });
 
-      const { email, password, userType = USER_TYPES.USER } = credentials;
+    const { email, password, userType = USER_TYPES.USER } = credentials;
 
-      let response;
-      if (userType === USER_TYPES.ADMIN) {
-        response = await authService.loginAdmin({ email, password });
-      } else {
-        response = await authService.loginUser({ email, password });
-      }
-
-      if (response.success === false) {
-        throw new Error(response.message || 'Login failed');
-      }
-
-      const token = response.token || response.data?.token || response.access_token;
-      const user = response.user || response.admin || response.data?.user || response.data?.admin;
-
-      if (!token || !user) {
-        throw new Error('Invalid login response');
-      }
-
-      const processedUser = {
-        email: user.email || email,
-        name: user.name || user.username || email.split('@')[0],
-        role: user.role || userType,
-        id: user.id || user._id || Date.now(),
-        ...user
-      };
-
-      storageManager.clearAllAuth();
-      storageManager.setItem(STORAGE_KEYS.AUTH_TOKEN, token, userType);
-      storageManager.setItem(STORAGE_KEYS.USER_DATA, processedUser, userType);
-      storageManager.setItem(STORAGE_KEYS.USER_TYPE, userType, userType);
-
-      dispatch({
-        type: ACTION_TYPES.SET_USER,
-        payload: { user: processedUser, userType }
-      });
-
-      return { success: true, user: processedUser };
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || 'Login failed';
-      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: errorMessage });
-      return { success: false, error: errorMessage };
-    } finally {
-      dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
+    let response;
+    if (userType === USER_TYPES.ADMIN) {
+      response = await authService.loginAdmin({ email, password });
+    } else {
+      response = await authService.loginUser({ email, password });
     }
-  };
+
+    // Now response will always have the correct error message
+    if (response.success === false) {
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: response.message });
+      return { success: false, error: response.message };
+    }
+
+    const token = response.token;
+    const user = response.user || response.admin;
+
+    if (!token || !user) {
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: 'Invalid login response' });
+      return { success: false, error: 'Invalid login response' };
+    }
+
+    const processedUser = {
+      email: user.email || email,
+      name: user.name || user.username || email.split('@')[0],
+      role: user.role || userType,
+      id: user.id || user._id || Date.now(),
+      ...user
+    };
+
+    storageManager.clearAllAuth();
+    storageManager.setItem(STORAGE_KEYS.AUTH_TOKEN, token, userType);
+    storageManager.setItem(STORAGE_KEYS.USER_DATA, processedUser, userType);
+    storageManager.setItem(STORAGE_KEYS.USER_TYPE, userType, userType);
+
+    dispatch({
+      type: ACTION_TYPES.SET_USER,
+      payload: { user: processedUser, userType }
+    });
+
+    return { success: true, user: processedUser };
+  } catch (error) {
+    // This should rarely happen now since authService handles errors
+    const errorMessage = error.message || 'Login failed';
+    dispatch({ type: ACTION_TYPES.SET_ERROR, payload: errorMessage });
+    return { success: false, error: errorMessage };
+  } finally {
+    dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
+  }
+};
 
   const register = async (userData) => {
     try {
