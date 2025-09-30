@@ -13,7 +13,7 @@ const UserLogin = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
+  const [localError, setLocalError] = useState('');
   const { login, error, clearError } = useAuth();
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -101,36 +101,63 @@ const UserLogin = () => {
 
   const themeStyles = getThemeStyles();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    clearError();
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  // Frontend validation for better UX
+  if (!formData.email || !formData.password) {
+    setLocalError('Please fill in all fields');
+    return;
+  }
 
-    try {
-      // Prepare login credentials
-      const credentials = {
-        email: formData.email,
-        password: formData.password,
-        userType: USER_TYPES.USER // Explicitly set user type
-      };
+  setIsLoading(true);
+  clearError();
+  setLocalError(''); // Clear any previous local errors
 
-      const result = await login(credentials);
-      
-      if (result.success) {
-        // Login successful - redirect to home or intended page
-        navigate('/', { replace: true });
-      } else {
-        // Error is already set in the context, just log it
-        console.error('Login failed:', result.error);
-      }
-    } catch (error) {
-      console.error('Unexpected login error:', error);
-      // The error should be handled by the AuthProvider
-    } finally {
-      setIsLoading(false);
+  try {
+    const credentials = {
+      email: formData.email,
+      password: formData.password,
+      userType: USER_TYPES.USER
+    };
+
+    const result = await login(credentials);
+    
+    if (result.success) {
+      navigate('/', { replace: true });
+    } else {
+      // Show error to user
+      setLocalError(result.error || 'Login failed. Please check your credentials.');
     }
-  };
-
+  } catch (error) {
+    // Handle different types of errors
+    let errorMessage = 'An unexpected error occurred. Please try again.';
+    
+    if (error.response) {
+      // Server responded with error status
+      switch (error.response.status) {
+        case 401:
+          errorMessage = 'Invalid email or password';
+          break;
+        case 404:
+          errorMessage = 'Service not found';
+          break;
+        case 500:
+          errorMessage = 'Server error. Please try again later.';
+          break;
+        default:
+          errorMessage = error.response.data?.message || 'Login failed';
+      }
+    } else if (error.request) {
+      // Request made but no response received
+      errorMessage = 'Network error. Please check your connection.';
+    }
+    setLocalError(errorMessage);
+    console.error('Login error:', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
   const handleChange = (e) => {
     setFormData({
       ...formData,

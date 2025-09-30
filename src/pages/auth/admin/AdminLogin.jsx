@@ -39,38 +39,50 @@ const AdminLogin = () => {
     }, []);
 
     // Handle form submission
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        // Client-side validation
-        if (!formData.email || !formData.password) {
-            setLocalError('Please fill in all fields');
-            return;
+const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Client-side validation
+    if (!formData.email || !formData.password) {
+        setLocalError('Please fill in all fields');
+        return;
+    }
+
+    setIsLoading(true);
+    setLocalError('');
+
+    try {
+        const result = await login({
+            ...formData,
+            userType: 'admin'
+        });
+
+        if (result.success) {
+            // Redirect to intended page or admin dashboard
+            const from = location.state?.from?.pathname || '/admin';
+            navigate(from, { replace: true });
+        } else {
+            // This will handle the case where login returns success: false with an error message
+            setLocalError(result.error || 'Login failed. Please check your credentials.');
         }
-
-        setIsLoading(true);
-        setLocalError('');
-
-        try {
-            const result = await login({
-                ...formData,
-                userType: 'admin'
-            });
-
-            if (result.success) {
-                // Redirect to intended page or admin dashboard
-                const from = location.state?.from?.pathname || '/admin';
-                navigate(from, { replace: true });
-            } else {
-                setLocalError(result.error || 'Login failed. Please check your credentials.');
-            }
-        } catch (err) {
+    } catch (err) {
+        // Check if this is an authentication error (401)
+        if (err.response && err.response.status === 401) {
+            setLocalError('Invalid credentials. Please check your email and password.');
+        } else if (err.response && err.response.data && err.response.data.message) {
+            // Use the specific error message from backend
+            setLocalError(err.response.data.message);
+        } else if (err.message) {
+            // Use the error message from the error object
+            setLocalError(err.message);
+        } else {
             setLocalError('An unexpected error occurred. Please try again.');
-            console.error('Login error:', err);
-        } finally {
-            setIsLoading(false);
         }
-    };
+        console.error('Login error:', err);
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     // Redirect if already authenticated as admin
     useEffect(() => {
