@@ -101,6 +101,8 @@ const UserLogin = () => {
 
   const themeStyles = getThemeStyles();
 
+
+  // In your UserLogin component - SIMPLIFIED
 const handleSubmit = async (e) => {
   e.preventDefault();
   
@@ -111,8 +113,8 @@ const handleSubmit = async (e) => {
   }
 
   setIsLoading(true);
-  clearError();
   setLocalError(''); // Clear any previous local errors
+  clearError(); // Clear auth context errors
 
   try {
     const credentials = {
@@ -126,38 +128,18 @@ const handleSubmit = async (e) => {
     if (result.success) {
       navigate('/', { replace: true });
     } else {
-      // Show error to user
+      // Show the specific error message from authService
       setLocalError(result.error || 'Login failed. Please check your credentials.');
     }
   } catch (error) {
-    // Handle different types of errors
-    let errorMessage = 'An unexpected error occurred. Please try again.';
-    
-    if (error.response) {
-      // Server responded with error status
-      switch (error.response.status) {
-        case 401:
-          errorMessage = 'Invalid email or password';
-          break;
-        case 404:
-          errorMessage = 'Service not found';
-          break;
-        case 500:
-          errorMessage = 'Server error. Please try again later.';
-          break;
-        default:
-          errorMessage = error.response.data?.message || 'Login failed';
-      }
-    } else if (error.request) {
-      // Request made but no response received
-      errorMessage = 'Network error. Please check your connection.';
-    }
-    setLocalError(errorMessage);
-    console.error('Login error:', error);
+    // This should not happen now since authService handles all errors
+    console.error('Unexpected error in handleSubmit:', error);
+    setLocalError('An unexpected error occurred. Please try again.');
   } finally {
     setIsLoading(false);
   }
 };
+  
   const handleChange = (e) => {
     setFormData({
       ...formData,

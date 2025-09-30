@@ -5,13 +5,12 @@ import { storageManager } from '../storage/storageManager';
 
 export const authService = {
   // ------------------ ADMIN METHODS ------------------
-  async loginAdmin(credentials) {
+ async loginAdmin(credentials) {
     try {
       const response = await apiClient.post(API_ENDPOINTS.ADMIN_LOGIN, credentials);
       const data = response.data;
 
       if (data?.success && data?.token) {
-        // Save admin token & details
         storageManager.setItem(STORAGE_KEYS.AUTH_TOKEN, data.token, USER_TYPES.ADMIN);
         storageManager.setItem(STORAGE_KEYS.USER_TYPE, USER_TYPES.ADMIN, USER_TYPES.ADMIN);
         storageManager.setItem(STORAGE_KEYS.USER_DATA, data.admin, USER_TYPES.ADMIN);
@@ -19,13 +18,31 @@ export const authService = {
 
       return data;
     } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || error.message || 'Admin login failed' 
+      console.log('Admin Auth Service Error:', error.response?.data);
+      
+      if (error.response?.data?.message) {
+        return {
+          success: false,
+          message: error.response.data.message,
+          error: error.response.data.message
+        };
+      }
+      
+      if (error.response?.status === 401) {
+        return {
+          success: false,
+          message: 'Invalid admin credentials',
+          error: 'Invalid admin credentials'
+        };
+      }
+      
+      return {
+        success: false,
+        message: 'Admin login failed. Please try again.',
+        error: 'Admin login failed. Please try again.'
       };
     }
   },
-
   async registerAdmin(adminData) {
     try {
       const response = await apiClient.post(API_ENDPOINTS.ADMIN_REGISTER, adminData);
@@ -86,35 +103,51 @@ export const authService = {
 
       return data;
     } catch (error) {
-      // FIX: Return the actual backend error message
-      const backendMessage = error.response?.data?.message;
-      const backendError = error.response?.data?.error;
+      console.log('Auth Service Error:', error.response?.data); // Debug log
       
-      let userFriendlyMessage = 'Login failed. Please try again.';
+      // If backend returns proper JSON with message, use it
+      if (error.response?.data?.message) {
+        return {
+          success: false,
+          message: error.response.data.message,
+          error: error.response.data.message
+        };
+      }
       
-      // Handle specific error cases
-      if (backendMessage) {
-        userFriendlyMessage = backendMessage;
-      } else if (backendError) {
-        userFriendlyMessage = backendError;
-      } else if (error.response?.status === 401) {
-        userFriendlyMessage = 'Invalid email or password';
-      } else if (error.response?.status === 404) {
-        userFriendlyMessage = 'Service not available. Please try again later.';
-      } else if (error.response?.status === 500) {
-        userFriendlyMessage = 'Server error. Please try again later.';
-      } else if (error.code === 'NETWORK_ERROR' || !error.response) {
-        userFriendlyMessage = 'Network error. Please check your internet connection.';
+      // Fallback for when backend returns plain text or no message
+      if (error.response?.status === 401) {
+        return {
+          success: false,
+          message: 'Invalid email or password',
+          error: 'Invalid email or password'
+        };
+      }
+      
+      if (error.response?.status === 500) {
+        return {
+          success: false,
+          message: 'Server error. Please try again later.',
+          error: 'Server error. Please try again later.'
+        };
+      }
+      
+      // Network errors
+      if (!error.response) {
+        return {
+          success: false,
+          message: 'Network error. Please check your internet connection.',
+          error: 'Network error. Please check your internet connection.'
+        };
       }
 
-      return { 
-        success: false, 
-        message: userFriendlyMessage,
-        error: userFriendlyMessage // Add this for consistency
+      // Default fallback
+      return {
+        success: false,
+        message: 'Login failed. Please try again.',
+        error: 'Login failed. Please try again.'
       };
     }
   },
-
   async registerUser(userData) {
     try {
       const response = await apiClient.post(API_ENDPOINTS.USER_REGISTER, userData);
