@@ -78,7 +78,6 @@ const AdminForgotPassword = () => {
                 // Fix: Pass email directly as string, not as object
                 const response = await authService.forgotAdminPassword(email);
                 
-                console.log('Forgot password response:', response); // Debug log
                 
                 if (response.success) {
                     setIsSubmitted(true);

@@ -71,7 +71,6 @@ const ProductDetails = () => {
       };
       
       addToCart(cartItem);
-      console.log('Added to cart:', product.name);
       
       // Trigger flying animation
       triggerFlyingAnimation();

@@ -48,7 +48,6 @@ const AdminUsers = () => {
   // Add the missing handleExportUsers function
   const handleExportUsers = () => {
     // Implement export functionality
-    console.log('Export users functionality');
     
     // Example implementation:
     if (users && users.length > 0) {

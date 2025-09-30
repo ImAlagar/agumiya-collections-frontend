@@ -58,7 +58,6 @@ export const CurrencyProvider = ({ children }) => {
       }
 
     } catch (error) {
-      console.log('Location detection failed, using USD as default');
       setUserCurrency('USD');
     }
   };

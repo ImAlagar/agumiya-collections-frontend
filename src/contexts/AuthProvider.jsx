@@ -111,7 +111,6 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: ACTION_TYPES.CLEAR_ERROR });
 
       const { email, password, userType = USER_TYPES.USER } = credentials;
-      console.log('Attempting login for:', { email, userType });
 
       let response;
       if (userType === USER_TYPES.ADMIN) {
@@ -120,7 +119,6 @@ export const AuthProvider = ({ children }) => {
         response = await authService.loginUser({ email, password });
       }
 
-      console.log('Login API Response:', response);
 
       if (response.success === false) {
         throw new Error(response.message || 'Login failed');
@@ -143,7 +141,6 @@ export const AuthProvider = ({ children }) => {
         ...user
       };
 
-      console.log('Processed auth data:', { token, processedUser, userType });
 
       storageManager.clearAllAuth();
       storageManager.setItem(STORAGE_KEYS.AUTH_TOKEN, token, userType);

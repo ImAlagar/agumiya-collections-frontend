@@ -20,9 +20,7 @@ export const productService = {
 
   async getProductById(id) {
     try {
-      console.log('📡 Fetching product from:', `${API_ENDPOINTS.PRODUCTS}/${id}`);
       const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/${id}`);
-      console.log('✅ Product service response:', response);
       return response.data; // Return data instead of full response
     } catch (error) {
       console.error('❌ Product service error:', error);

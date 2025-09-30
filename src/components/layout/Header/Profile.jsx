@@ -70,8 +70,6 @@ const Profile = () => {
   ];
 
   const handleMenuClick = (path) => {
-    console.log('Menu clicked:', path);
-    console.log('Current auth state:', { isAuthenticated, user });
     navigate(path);
     setIsOpen(false);
   };
@@ -193,7 +191,6 @@ const Profile = () => {
               }`}>
                 <button
                   onClick={() => {
-                    console.log('Navigating to admin dashboard');
                     navigate('/admin');
                     setIsOpen(false);
                   }}

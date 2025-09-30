@@ -148,18 +148,11 @@ const fetchProducts = useCallback(async (page = state.pagination.currentPage, fi
       params.inStock = currentFilters.inStock;
     }
 
-    console.log('🔄 Fetching products with params:', params);
 
     const hasFilters = params.search || params.category || params.inStock;
     const endpoint = hasFilters ? '/products/filter' : '/products';
 
     const response = await apiClient.get(endpoint, { params });
-    
-    console.log('✅ FULL API RESPONSE:', response);
-    console.log('🔍 response.data:', response.data);
-    console.log('🔍 response.data.data:', response.data?.data);
-    console.log('🔍 All keys in response.data:', Object.keys(response.data || {}));
-    console.log('🔍 All keys in response.data.data:', Object.keys(response.data?.data || {}));
 
     // SIMPLE EXTRACTION - Try the most likely paths
     let products = [];
@@ -187,8 +180,6 @@ const fetchProducts = useCallback(async (page = state.pagination.currentPage, fi
       products = [];
     }
 
-    console.log('📦 FINAL PRODUCTS:', products);
-    console.log('📊 FINAL PAGINATION:', paginationData);
 
     dispatch({
       type: PRODUCT_ACTIONS.SET_PRODUCTS,
@@ -218,11 +209,9 @@ const fetchProducts = useCallback(async (page = state.pagination.currentPage, fi
 const getProductById = useCallback(async (id) => {
   try {
     dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
-    console.log('🔄 Fetching product by ID:', id);
     
     const response = await productService.getProductById(id);
     
-    console.log('✅ Product API Response:', response);
     
     let productData = null;
     
@@ -256,7 +245,6 @@ const getProductById = useCallback(async (id) => {
       }
     }
     
-    console.log('📦 Extracted product data:', productData);
     
     if (productData && productData.id) {
       dispatch({ type: PRODUCT_ACTIONS.SET_PRODUCT, payload: productData });
@@ -392,10 +380,8 @@ const getProductById = useCallback(async (id) => {
   // Add this function to your ProductsContext.jsx
 const getSimilarProducts = useCallback(async (productId, limit = 4) => {
   try {
-    console.log('🔄 Fetching similar products for:', productId);
     const response = await productService.getSimilarProducts(productId, limit);
     
-    console.log('✅ Similar products response:', response);
     
     if (response.success) {
       let similarProducts = [];
@@ -408,7 +394,6 @@ const getSimilarProducts = useCallback(async (productId, limit = 4) => {
         similarProducts = response;
       }
       
-      console.log('📦 Extracted similar products:', similarProducts);
       return similarProducts;
     } else {
       throw new Error(response.message || 'Failed to fetch similar products');
