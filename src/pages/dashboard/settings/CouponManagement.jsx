@@ -33,7 +33,7 @@ const CouponManagement = () => {
 
     const result = await deleteCoupon(couponId);
     if (result.success) {
-      console.log('Coupon deleted successfully!');
+        result.success
     } else {
       alert(result.error || 'Failed to delete coupon');
     }
@@ -67,8 +67,7 @@ const CouponManagement = () => {
   };
 
   const handleCouponCreated = (newCoupon) => {
-    console.log('Coupon created:', newCoupon);
-    alert('Coupon created successfully!');
+    alert(`${newCoupon}Coupon created successfully!`);
   };
 
   const filteredCoupons = coupons.filter(coupon => {

@@ -18,7 +18,6 @@ export const authService = {
 
       return data;
     } catch (error) {
-      console.log('Admin Auth Service Error:', error.response?.data);
       
       if (error.response?.data?.message) {
         return {
@@ -103,7 +102,6 @@ export const authService = {
 
       return data;
     } catch (error) {
-      console.log('Auth Service Error:', error.response?.data); // Debug log
       
       // If backend returns proper JSON with message, use it
       if (error.response?.data?.message) {
