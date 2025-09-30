@@ -48,14 +48,14 @@
     },
 
     // Create order (for user)
-    async createOrder(orderData) {
-      try {
-        const response = await apiClient.post(API_ENDPOINTS.ORDERS, orderData);
-        return response.data;
-      } catch (error) {
-        throw new Error(error.response?.data?.message || 'Failed to create order');
-      }
-    },
+  async createOrder(orderData) {
+    try {
+      const response = await apiClient.post(API_ENDPOINTS.ORDERS, orderData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to create order');
+    }
+  },
 
   async getOrderStats() {
     try {

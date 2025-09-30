@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect } from 'react';
 import { FiUser, FiSettings, FiLogOut, FiShoppingBag, FiHeart, FiCreditCard, FiMoon, FiSun, FiCloud } from 'react-icons/fi';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../contexts/AuthProvider';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { useAuth } from '../../../contexts/AuthProvider';
 
 const Profile = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,7 +14,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Theme configuration - moved outside component for better performance
+  // Theme configuration
   const themeConfig = {
     light: { icon: <FiSun size={16} />, label: 'Light Mode', class: 'light-theme' },
     dark: { icon: <FiMoon size={16} />, label: 'Dark Mode', class: 'dark-theme' },
@@ -63,14 +63,18 @@ const Profile = () => {
     return 'Member';
   };
 
-  // Menu items configuration
+  // Menu items configuration - ADD DEBUG LOGGING
   const menuItems = [
     { icon: FiUser, label: 'My Profile', path: '/profile' },
-    { icon: FiShoppingBag, label: 'Orders', path: '/orders' },
-    { icon: FiHeart, label: 'Wishlist', path: '/wishlist' },
-    { icon: FiCreditCard, label: 'Payment Methods', path: '/payment' },
-    { icon: FiSettings, label: 'Settings', path: '/settings' },
+    { icon: FiShoppingBag, label: 'My Orders', path: '/myorders' },
   ];
+
+  const handleMenuClick = (path) => {
+    console.log('Menu clicked:', path);
+    console.log('Current auth state:', { isAuthenticated, user });
+    navigate(path);
+    setIsOpen(false);
+  };
 
   const currentTheme = themeConfig[theme];
 
@@ -80,14 +84,9 @@ const Profile = () => {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
-        className={`p-2 rounded-full bg-gradient-to-r shadow-lg hover:shadow-xl 
-                   transition-all duration-300 ${
-                     theme === 'light' 
-                       ? 'from-blue-100 to-purple-100 text-blue-600' 
-                       : theme === 'dark'
-                       ? 'from-gray-800 to-gray-700 text-blue-400'
-                       : 'from-gray-700 to-gray-600 text-blue-300'
-                   }`}
+        className={`p-2.5 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 
+                          dark:from-gray-800 dark:to-gray-700 text-blue-600 dark:text-blue-400 
+                          shadow-lg hover:shadow-xl transition-all duration-300`}
       >
         <FiUser size={20} />
       </motion.button>
@@ -140,10 +139,7 @@ const Profile = () => {
               {menuItems.map((item, index) => (
                 <button
                   key={index}
-                  onClick={() => {
-                    navigate(item.path);
-                    setIsOpen(false);
-                  }}
+                  onClick={() => handleMenuClick(item.path)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg 
                              transition-colors text-sm ${
                                theme === 'light'
@@ -197,6 +193,7 @@ const Profile = () => {
               }`}>
                 <button
                   onClick={() => {
+                    console.log('Navigating to admin dashboard');
                     navigate('/admin');
                     setIsOpen(false);
                   }}

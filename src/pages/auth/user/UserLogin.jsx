@@ -146,7 +146,7 @@ const UserLogin = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
-      className={` flex items-center justify-center bg-gradient-to-br ${themeStyles.background} p-4`}
+      className={` flex items-center justify-center bg-gradient-to-br ${themeStyles.background} p-4 lg:py-20 `}
     >
       <div className="w-full max-w-4xl mx-auto">
         <div className={`grid grid-cols-1 lg:grid-cols-2 ${themeStyles.cardBg} rounded-2xl shadow-2xl overflow-hidden border ${themeStyles.cardBorder} max-h-[90vh]`}>
@@ -222,7 +222,7 @@ const UserLogin = () => {
               {/* Header */}
               <div className="text-center mb-6">
                 <div className="lg:hidden mb-3">
-                  <h1 className={`text-xl font-bold ${themeStyles.text.primary}`}>ShopEase</h1>
+                  <h1 className={`text-xl font-bold ${themeStyles.text.primary}`}>Agumiya Collections</h1>
                 </div>
                 <h2 className={`text-2xl font-bold ${themeStyles.text.primary}`}>Welcome Back</h2>
                 <p className={`${themeStyles.text.secondary} mt-1 text-sm`}>Sign in to your account</p>

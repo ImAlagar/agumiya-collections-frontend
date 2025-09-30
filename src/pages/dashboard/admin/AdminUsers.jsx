@@ -1,4 +1,3 @@
-// src/components/admin/user/AdminUsers.js
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Plus, Filter, Download, ShoppingCart, CheckCircle, DollarSign, RefreshCwIcon } from 'lucide-react';

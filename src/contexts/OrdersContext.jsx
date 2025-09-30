@@ -154,6 +154,8 @@ export const OrdersProvider = ({ children }) => {
     }
   }, [state.filters, state.pagination.currentPage]);
 
+
+
   const fetchOrderById = useCallback(async (id) => {
     try {
       dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
@@ -168,6 +170,26 @@ export const OrdersProvider = ({ children }) => {
       dispatch({ type: ORDER_ACTIONS.SET_ERROR, payload: error.message });
     }
   }, []);
+
+const createOrder = useCallback(async (orderData) => {
+  try {
+    dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
+    const response = await orderService.createOrder(orderData);
+    
+    if (response.success) {
+      dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: false });
+      return { success: true, order: response.data };
+    } else {
+      throw new Error(response.message || 'Failed to create order');
+    }
+  } catch (error) {
+    dispatch({ 
+      type: ORDER_ACTIONS.SET_ERROR, 
+      payload: error.message || 'Failed to create order. Please try again.' 
+    });
+    return { success: false, error: error.message };
+  }
+}, []);
 
   const fetchOrderStats = useCallback(async () => {
     try {
@@ -231,6 +253,7 @@ export const OrdersProvider = ({ children }) => {
 
   const value = {
     ...state,
+    createOrder,
     fetchOrders,
     fetchOrderById,
     fetchOrderStats,

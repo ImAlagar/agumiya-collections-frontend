@@ -8,7 +8,9 @@ import {
   ShoppingCart, 
   Users,
   X,
-  ChevronLeft
+  ChevronLeft,
+  Contact,
+  Settings
 } from 'lucide-react';
 import logo from '../../../assets/images/logo.png';
 
@@ -21,6 +23,8 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
     { path: '/admin/products', label: 'Products', icon: Package },
     { path: '/admin/orders', label: 'Orders', icon: ShoppingCart },
     { path: '/admin/users', label: 'Users', icon: Users },
+    { path: '/admin/contacts', label: 'Contacts', icon: Contact },
+    { path: '/admin/settings', label: 'Settings', icon: Settings },
   ];
 
   const isActive = (path) => {
@@ -113,7 +117,7 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
             <motion.img 
               src={logo} 
               alt="Admin Logo"
-              className="h-24 w-60 object-contain"
+              className="h-28 w-52 object-cover"
               whileHover={{ scale: 1.05 }}
             />
 

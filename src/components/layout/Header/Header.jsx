@@ -1,5 +1,5 @@
 // src/components/Header/Header.jsx
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useInView } from '../../../hooks/useInView';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useAuth } from '../../../contexts/AuthProvider';
@@ -9,17 +9,52 @@ import NavLinks from './NavLinks';
 import { Sun, Moon, Cloud, ShoppingCart, Search, Phone, Mail, Menu, X } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { FiSearch } from 'react-icons/fi';
-import Profile from './Profile'; // Import the Profile component
+import Profile from './Profile';
+import { useCart } from '../../../contexts/CartContext';
+import { useSearch } from '../../../contexts/SearchContext'; // Add this import
+import { useDebounce } from '../../../hooks/useDebounce'; // Add this import
 
 const Header = () => {
   const { theme, toggleTheme } = useTheme();
-  const { user, isAuthenticated, isAdmin } = useAuth(); // Remove logout from here since Profile handles it
+  const { user, isAuthenticated, isAdmin } = useAuth();
   const { ref, isInView } = useInView({ threshold: 0.1 });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hoveredLink, setHoveredLink] = useState(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
+  const cartIconRef = useRef(null);
+
+  // Search context
+  const {
+    suggestions,
+    recentSearches,
+    popularSearches,
+    isLoading,
+    getSearchSuggestions,
+    performGlobalSearch,
+    loadRecentSearches,
+    loadPopularSearches,
+    saveToRecentSearches,
+    clearSearch
+  } = useSearch();
+
+  const { totalItems } = useCart();
+  const navigate = useNavigate();
+  const debouncedQuery = useDebounce(searchQuery, 300);
+
+  // Load search data on mount
+  useEffect(() => {
+    loadRecentSearches();
+    loadPopularSearches();
+  }, [loadRecentSearches, loadPopularSearches]);
+
+  // Fetch suggestions when query changes
+  useEffect(() => {
+    if (debouncedQuery.length >= 2) {
+      getSearchSuggestions(debouncedQuery, 'products');
+    }
+  }, [debouncedQuery, getSearchSuggestions]);
 
   // Focus search input when opened
   useEffect(() => {
@@ -32,15 +67,53 @@ const Header = () => {
     setIsSearchOpen(!isSearchOpen);
     if (!isSearchOpen) {
       setSearchQuery('');
+      clearSearch();
     }
   };
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      console.log('Searching for:', searchQuery);
-    }
+  const handleSearchSubmit = async (e, searchText = searchQuery) => {
+    if (e) e.preventDefault();
+    
+    const finalQuery = searchText?.trim() || searchQuery.trim();
+    if (!finalQuery) return;
+
+    // Save to recent searches
+    saveToRecentSearches(finalQuery);
+
+    // Close search
     setIsSearchOpen(false);
+    setSearchQuery('');
+
+    // Navigate to search results page
+    navigate(`/search?q=${encodeURIComponent(finalQuery)}`);
+  };
+
+  const handleInputChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearchSubmit(e);
+    } else if (e.key === 'Escape') {
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    const searchText = suggestion.text || suggestion;
+    setSearchQuery(searchText);
+    handleSearchSubmit(null, searchText);
+  };
+
+  const clearInput = () => {
+    setSearchQuery('');
+    searchInputRef.current?.focus();
+  };
+
+  const handleCartClick = () => {
+    navigate('/cart');
   };
 
   const handleLoginClick = () => {
@@ -49,6 +122,17 @@ const Header = () => {
 
   const handleRegisterClick = () => {
     window.location.href = '/register';
+  };
+
+  // Get suggestion icon
+  const getSuggestionIcon = (type) => {
+    const icons = {
+      product: ShoppingCart,
+      category: '📁',
+      user: '👤',
+      order: '📦'
+    };
+    return icons[type] || Search;
   };
 
   // Announcement bar content
@@ -64,6 +148,216 @@ const Header = () => {
     dark: <Moon size={20} />,
     smokey: <Cloud size={20} />
   };
+
+  // Search Suggestions Dropdown Component
+  const SearchSuggestions = () => (
+    <motion.div
+      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl mt-2 z-50 max-h-96 overflow-y-auto"
+    >
+      {/* Loading State */}
+      {isLoading && (
+        <div className="p-4">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+            <span className="ml-2 text-gray-600 dark:text-gray-400">Searching...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Recent Searches */}
+      {!searchQuery && recentSearches.length > 0 && (
+        <div className="p-3 border-b border-gray-100 dark:border-gray-700">
+          <div className="flex items-center text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+            <Clock className="h-4 w-4 mr-2" />
+            Recent Searches
+          </div>
+          {recentSearches.map((search, index) => (
+            <button
+              key={index}
+              onClick={() => handleSuggestionClick(search)}
+              className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded flex items-center justify-between group"
+            >
+              <span className="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                {search}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Popular Searches */}
+      {!searchQuery && popularSearches.length > 0 && (
+        <div className="p-3 border-b border-gray-100 dark:border-gray-700">
+          <div className="flex items-center text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Popular Searches
+          </div>
+          {popularSearches.map((item, index) => (
+            <button
+              key={index}
+              onClick={() => handleSuggestionClick(item.text)}
+              className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded flex items-center justify-between group"
+            >
+              <span className="text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                {item.text}
+              </span>
+              <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded-full">
+                {item.count} searches
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Search Suggestions */}
+      {searchQuery && suggestions.length > 0 && (
+        <div className="p-3">
+          {suggestions.map((suggestion, index) => {
+            const IconComponent = getSuggestionIcon(suggestion.type);
+            
+            return (
+              <button
+                key={index}
+                onClick={() => handleSuggestionClick(suggestion)}
+                className="w-full text-left px-3 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg flex items-center space-x-3 group transition-all duration-200"
+              >
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
+                  {typeof IconComponent === 'string' ? (
+                    <span className="text-sm">{IconComponent}</span>
+                  ) : (
+                    <IconComponent className="h-4 w-4" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
+                    {suggestion.text}
+                  </div>
+                  {suggestion.category && (
+                    <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                      {suggestion.category}
+                    </div>
+                  )}
+                  {suggestion.price && (
+                    <div className="text-sm font-semibold text-green-600 dark:text-green-400">
+                      ${suggestion.price}
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs text-gray-400 dark:text-gray-500 capitalize px-2 py-1 bg-gray-100 dark:bg-gray-600 rounded-full">
+                  {suggestion.type}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* No Results */}
+      {searchQuery && suggestions.length === 0 && searchQuery.length >= 2 && !isLoading && (
+        <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+          <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+          <p>No results found for "{searchQuery}"</p>
+          <p className="text-sm mt-1">Try different keywords or check spelling</p>
+        </div>
+      )}
+
+      {/* Search Button for Current Query */}
+      {searchQuery && (
+        <div className="p-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+          <button
+            onClick={() => handleSearchSubmit(null)}
+            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center justify-center space-x-2 transition-colors"
+          >
+            <Search className="h-4 w-4" />
+            <span>Search for "{searchQuery}"</span>
+          </button>
+        </div>
+      )}
+    </motion.div>
+  );
+
+  // Mobile Search Suggestions Component
+  const MobileSearchSuggestions = () => (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700"
+    >
+      <div className="max-h-60 overflow-y-auto">
+        {/* Loading State */}
+        {isLoading && (
+          <div className="p-3 border-b border-gray-100 dark:border-gray-700">
+            <div className="flex items-center justify-center py-2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+              <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Searching...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Recent Searches */}
+        {!searchQuery && recentSearches.length > 0 && (
+          <div className="p-3 border-b border-gray-100 dark:border-gray-700">
+            <div className="flex items-center text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+              <Clock className="h-4 w-4 mr-2" />
+              Recent Searches
+            </div>
+            {recentSearches.map((search, index) => (
+              <button
+                key={index}
+                onClick={() => handleSuggestionClick(search)}
+                className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded text-gray-700 dark:text-gray-300"
+              >
+                {search}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Search Suggestions */}
+        {searchQuery && suggestions.length > 0 && (
+          <div className="p-3">
+            {suggestions.slice(0, 3).map((suggestion, index) => (
+              <button
+                key={index}
+                onClick={() => handleSuggestionClick(suggestion)}
+                className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded flex items-center space-x-3"
+              >
+                <div className="p-1.5 rounded bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
+                  {typeof getSuggestionIcon(suggestion.type) === 'string' ? (
+                    <span className="text-xs">{getSuggestionIcon(suggestion.type)}</span>
+                  ) : (
+                    <Search className="h-3 w-3" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-gray-900 dark:text-white truncate text-sm">
+                    {suggestion.text}
+                  </div>
+                  {suggestion.category && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {suggestion.category}
+                    </div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* No Results */}
+        {searchQuery && suggestions.length === 0 && searchQuery.length >= 2 && !isLoading && (
+          <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+            No results found for "{searchQuery}"
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
 
   return (
     <>
@@ -149,8 +443,8 @@ const Header = () => {
 
             {/* Desktop Right Section */}
             <div className="hidden lg:flex items-center space-x-4">
-              {/* Search Section */}
-              <div className="flex items-center">
+              {/* Search Section - UPDATED WITH FUNCTIONALITY */}
+              <div className="flex items-center relative">
                 <AnimatePresence>
                   {isSearchOpen && (
                     <motion.form
@@ -166,7 +460,8 @@ const Header = () => {
                           ref={searchInputRef}
                           type="text"
                           value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onChange={handleInputChange}
+                          onKeyDown={handleKeyPress}
                           placeholder="Search products..."
                           className="w-full pl-4 pr-10 py-2.5 bg-white/80 dark:bg-gray-800/80 
                                    border border-gray-300 dark:border-gray-600 rounded-full 
@@ -212,6 +507,13 @@ const Header = () => {
                     <FiSearch size={20} />
                   </motion.div>
                 </motion.button>
+
+                {/* Desktop Search Suggestions */}
+                <AnimatePresence>
+                  {isSearchOpen && searchQuery && (
+                    <SearchSuggestions />
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Theme Toggle */}
@@ -240,8 +542,10 @@ const Header = () => {
 
               {/* Cart Icon */}
               <motion.button 
+                ref={cartIconRef}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
+                onClick={handleCartClick}
                 className="relative p-2.5 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 
                           dark:from-gray-800 dark:to-gray-700 text-blue-600 dark:text-blue-400 
                           shadow-lg hover:shadow-xl transition-all duration-300"
@@ -258,28 +562,32 @@ const Header = () => {
                 >
                   <ShoppingCart size={22} />
                 </motion.div>
-                <motion.span 
-                  whileHover={{
-                    scale: [1, 1.3, 1],
-                    rotate: [0, 10, -10, 0],
-                  }}
-                  transition={{
-                    duration: 0.4,
-                    ease: "easeInOut"
-                  }}
-                  className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                >
-                  3
-                </motion.span>
+                
+                {/* Dynamic cart count */}
+                {totalItems > 0 && (
+                  <motion.span 
+                    key={totalItems}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    whileHover={{
+                      scale: [1, 1.3, 1],
+                      rotate: [0, 10, -10, 0],
+                    }}
+                    transition={{
+                      duration: 0.4,
+                      ease: "easeInOut"
+                    }}
+                    className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+                  >
+                    {totalItems > 99 ? '99+' : totalItems}
+                  </motion.span>
+                )}
               </motion.button>
 
-              {/* Profile Component (Shown only when authenticated) */}
+              {/* Profile Component */}
               {isAuthenticated ? (
                 <div className="flex items-center space-x-3">
-                  {/* Show Profile dropdown */}
                   <Profile />
-                  
-                  {/* Optional: Show admin badge next to profile */}
                   {isAdmin && (
                     <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full font-medium">
                       Admin
@@ -287,9 +595,7 @@ const Header = () => {
                   )}
                 </div>
               ) : (
-                // Show login/register buttons when not authenticated
                 <div className="flex space-x-2">
-                  {/* Login Button */}
                   <motion.button
                     onClick={handleLoginClick}
                     onHoverStart={() => setHoveredLink('login')}
@@ -304,7 +610,6 @@ const Header = () => {
                       Login
                     </span>
                     
-                    {/* Gradient Shift Effect */}
                     <motion.span
                       initial={false}
                       animate={{ 
@@ -314,7 +619,6 @@ const Header = () => {
                       className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-500"
                     />
                     
-                    {/* Shine Effect */}
                     {hoveredLink === 'login' && (
                       <motion.span
                         initial={{ x: "-100%", skewX: "-20deg" }}
@@ -325,7 +629,6 @@ const Header = () => {
                     )}
                   </motion.button>
 
-                  {/* Register Button */}
                   <motion.button
                     onClick={handleRegisterClick}
                     onHoverStart={() => setHoveredLink('register')}
@@ -382,6 +685,7 @@ const Header = () => {
               <motion.button 
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
+                onClick={handleCartClick}
                 className="p-2 relative rounded-full bg-gradient-to-r from-blue-100 to-purple-100 
                           dark:from-gray-800 dark:to-gray-700 text-blue-600 dark:text-blue-400 
                           shadow-lg hover:shadow-xl transition-all duration-300"
@@ -398,18 +702,20 @@ const Header = () => {
                 >
                   <ShoppingCart size={22} />
                 </motion.div>
-                <motion.span 
-                  whileHover={{
-                    scale: [1, 1.2, 1],
-                    rotate: [0, 5, -5, 0],
-                  }}
-                  className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                >
-                  3
-                </motion.span>
+                {totalItems > 0 && (
+                  <motion.span 
+                    whileHover={{
+                      scale: [1, 1.2, 1],
+                      rotate: [0, 5, -5, 0],
+                    }}
+                    className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+                  >
+                    {totalItems > 99 ? '99+' : totalItems}
+                  </motion.span>
+                )}
               </motion.button>
 
-              {/* Mobile Profile (Shown only when authenticated) */}
+              {/* Mobile Profile */}
               {isAuthenticated && (
                 <div className="lg:hidden">
                   <Profile />
@@ -444,14 +750,15 @@ const Header = () => {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="lg:hidden py-3 border-t border-gray-200 dark:border-gray-700"
+                className="lg:hidden border-t border-gray-200 dark:border-gray-700"
               >
-                <form onSubmit={handleSearchSubmit} className="relative">
+                <form onSubmit={handleSearchSubmit} className="relative py-3">
                   <input
                     ref={searchInputRef}
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyPress}
                     placeholder="Search products..."
                     className="w-full pl-4 pr-12 py-3 bg-white/80 dark:bg-gray-800/80 
                              border border-gray-300 dark:border-gray-600 rounded-full 
@@ -469,6 +776,13 @@ const Header = () => {
                     <FiSearch size={20} />
                   </button>
                 </form>
+
+                {/* Mobile Search Suggestions */}
+                <AnimatePresence>
+                  {searchQuery && (
+                    <MobileSearchSuggestions />
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
           </AnimatePresence>

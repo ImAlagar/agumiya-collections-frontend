@@ -1,25 +1,28 @@
 // src/services/api/productService.js
-import apiClient from '../../config/api.js';
-import { API_ENDPOINTS } from '../../config/constants.jsx';
+import apiClient from '../../config/api';
+import { API_ENDPOINTS } from '../../config/constants';
 
 export const productService = {
   // Get all products with pagination and filters
   async getAllProducts(params = {}) {
     try {
       const response = await apiClient.get(API_ENDPOINTS.PRODUCTS, { params });
-      return response.data;
+      return response;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch products');
+      throw new Error(error.message || 'Failed to fetch products');
     }
   },
 
-  // Get single product by ID
+  // Get single product by ID - UPDATED
   async getProductById(id) {
     try {
+      console.log('📡 Fetching product from:', `${API_ENDPOINTS.PRODUCTS}/${id}`);
       const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/${id}`);
-      return response.data;
+      console.log('✅ Product service response:', response);
+      return response;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch product');
+      console.error('❌ Product service error:', error);
+      throw new Error(error.message || 'Failed to fetch product');
     }
   },
 
@@ -27,9 +30,9 @@ export const productService = {
   async getProductVariants(productId) {
     try {
       const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/${productId}/variants`);
-      return response.data;
+      return response;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch product variants');
+      throw new Error(error.message || 'Failed to fetch product variants');
     }
   },
 
@@ -37,17 +40,65 @@ export const productService = {
   async syncProducts(shopId) {
     try {
       const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS_SYNC}/${shopId}`);
-      return response.data;
+      return response;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to sync products');
+      throw new Error(error.message || 'Failed to sync products');
     }
   },
 
+  // Update product
+  async updateProduct(id, productData) {
+    try {
+      const response = await apiClient.put(`${API_ENDPOINTS.PRODUCTS}/${id}`, productData);
+      return response;
+    } catch (error) {
+      throw new Error(error.message || 'Failed to update product');
+    }
+  },
 
-};
+  // Delete product
+  async deleteProduct(id) {
+    try {
+      const response = await apiClient.delete(`${API_ENDPOINTS.PRODUCTS}/${id}`);
+      return response;
+    } catch (error) {
+      throw new Error(error.message || 'Failed to delete product');
+    }
+  },
 
-// Add products endpoints to constants
-export const PRODUCTS_ENDPOINTS = {
-  PRODUCTS: '/api/v1/products',
-  PRODUCTS_SYNC: '/api/v1/products/sync'
+  // Search products
+  async searchProducts(query, params = {}) {
+    try {
+      const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/search`, {
+        params: { ...params, search: query }
+      });
+      return response;
+    } catch (error) {
+      throw new Error(error.message || 'Failed to search products');
+    }
+  },
+
+  // Filter products
+  async filterProducts(filters = {}) {
+    try {
+      const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/filter`, {
+        params: filters
+      });
+      return response;
+    } catch (error) {
+      throw new Error(error.message || 'Failed to filter products');
+    }
+  },
+
+  // Get similar products
+  async getSimilarProducts(productId, limit = 4) {
+    try {
+      const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/${productId}/similar`, {
+        params: { limit }
+      });
+      return response;
+    } catch (error) {
+      throw new Error(error.message || 'Failed to fetch similar products');
+    }
+  }
 };

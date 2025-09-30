@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 
-const NavLinks = ({ mobile = false, onItemClick }) => {
+const NavLinks = ({ mobile = false, onItemClick , onLinkClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeLink, setActiveLink] = useState('');
@@ -15,6 +15,8 @@ const NavLinks = ({ mobile = false, onItemClick }) => {
     { name: 'About', path: '/about' },
     { name: 'Contact', path: '/contact' },
   ];
+
+
 
   useEffect(() => {
     const currentItem = navItems.find(item => item.path === location.pathname);
@@ -51,8 +53,9 @@ const NavLinks = ({ mobile = false, onItemClick }) => {
 
   const handleItemClick = (itemName) => {
     setActiveLink(itemName);
-    if (mobile && onItemClick) {
-      onItemClick();
+    // Call the onLinkClick prop to close the mobile menu
+    if (mobile && onLinkClick) {
+      onLinkClick();
     }
   };
 

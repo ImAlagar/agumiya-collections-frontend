@@ -15,22 +15,26 @@ export const API_ENDPOINTS = {
   // Admin endpoints
   ADMIN_LOGIN: '/admin/login',
   ADMIN_PROFILE: '/admin/dashboard',
+  ADMIN_FORGOT_PASSWORD: '/admin/forgot-password',
+  ADMIN_RESET_PASSWORD: '/admin/reset-password',
   
   // User endpoints
   USER_LOGIN: '/users/login',
   USER_REGISTER: '/users/register',
   USER_PROFILE: '/users/profile',
   USER_UPDATE_PROFILE: '/users/profile',
+  USER_FORGOT_PASSWORD: '/users/forgot-password',
+  USER_RESET_PASSWORD: '/users/reset-password',
   ALL_USERS: '/users',
   
-    // Products endpoints
-  PRODUCTS: '/products',         // ✅ remove /api/v1 here
+  // Products endpoints
+  PRODUCTS: '/products',
   PRODUCTS_SYNC: '/products/sync',
 
   ORDERS: '/orders',
   ORDER_STATS: '/orders/stats',
 
-    // Dashboard endpoints
+  // Dashboard endpoints
   DASHBOARD_STATS: '/dashboard/stats',
   SALES_OVERVIEW: '/dashboard/sales-overview',
   BEST_SELLING: '/dashboard/best-selling',
@@ -56,6 +60,21 @@ export const PRODUCT_CATEGORIES = [
 export const PRODUCT_STATUS = {
   IN_STOCK: true,
   OUT_OF_STOCK: false
+};
+
+export const STOCK_STATUS = {
+  ALL: 'all',
+  IN_STOCK: 'true',
+  OUT_OF_STOCK: 'false'
+};
+
+export const SORT_OPTIONS = {
+  NAME_ASC: { sortBy: 'name', sortOrder: 'asc' },
+  NAME_DESC: { sortBy: 'name', sortOrder: 'desc' },
+  PRICE_ASC: { sortBy: 'price', sortOrder: 'asc' },
+  PRICE_DESC: { sortBy: 'price', sortOrder: 'desc' },
+  DATE_ASC: { sortBy: 'createdAt', sortOrder: 'asc' },
+  DATE_DESC: { sortBy: 'createdAt', sortOrder: 'desc' }
 };
 
 export const ORDER_STATUS = {
@@ -89,4 +108,12 @@ export const ORDER_FILTERS = {
     FAILED: 'FAILED',
     REFUNDED: 'REFUNDED'
   }
+};
+
+// Pagination defaults
+export const PAGINATION_DEFAULTS = {
+  PAGE: 1,
+  LIMIT: 10,
+  SORT_BY: 'name',
+  SORT_ORDER: 'asc'
 };

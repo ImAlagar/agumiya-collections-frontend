@@ -13,24 +13,35 @@ import { ProductsProvider } from './contexts/ProductsContext';
 import { OrdersProvider } from './contexts/OrdersContext';
 import { AuthProvider } from './contexts/AuthProvider';
 import { UsersProvider } from './contexts/UsersContext';
+import { ContactsProvider } from './contexts/ContactsContext'; // 👈 ADD THIS
+import { CartProvider } from './contexts/CartContext';
+import { CurrencyProvider } from './contexts/CurrencyContext';
+import { SearchProvider } from './contexts/SearchContext';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <SEOProvider>
       <ThemeProvider>
         <AuthProvider>
-          <LoadingProvider>
-            <ProductsProvider>
-              <OrdersProvider>
-                {/* Global Loaders */}
-                <UsersProvider>
-                  <ProgressLoader />
-                  <Loader />
-                  <RouterProvider router={router}/>
-                </UsersProvider>  
-              </OrdersProvider>
-            </ProductsProvider>
-          </LoadingProvider>
+          <SearchProvider>
+            <LoadingProvider>
+              <ProductsProvider>
+                <CurrencyProvider>
+                  <OrdersProvider>
+                    <UsersProvider>
+                      <ContactsProvider> {/* 👈 ADD THIS */}
+                        <CartProvider>
+                          <ProgressLoader />
+                          <Loader />
+                          <RouterProvider router={router}/>
+                        </CartProvider>
+                      </ContactsProvider> {/* 👈 ADD THIS */}
+                    </UsersProvider>  
+                  </OrdersProvider>
+                </CurrencyProvider>
+              </ProductsProvider>
+            </LoadingProvider>
+          </SearchProvider>
         </AuthProvider>
       </ThemeProvider>
     </SEOProvider>

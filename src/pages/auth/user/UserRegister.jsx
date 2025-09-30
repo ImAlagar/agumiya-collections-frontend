@@ -361,7 +361,7 @@ const UserRegister = () => {
               {/* Header */}
               <div className="text-center mb-6">
                 <div className="lg:hidden mb-3">
-                  <h1 className={`text-xl font-bold ${themeStyles.text.primary}`}>ShopEase</h1>
+                  <h1 className={`text-xl font-bold ${themeStyles.text.primary}`}>Agumiya Collections</h1>
                 </div>
                 <h2 className={`text-2xl font-bold ${themeStyles.text.primary}`}>Create Account</h2>
                 <p className={`${themeStyles.text.secondary} mt-1 text-sm`}>Join thousands of happy customers</p>

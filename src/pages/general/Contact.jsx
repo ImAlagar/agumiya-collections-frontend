@@ -8,8 +8,10 @@ import {
   Send, 
   MessageCircle, 
   Calendar, 
-  ExternalLink 
+  ExternalLink,
+  AlertCircle
 } from "lucide-react";
+import { useContacts } from "../../contexts/ContactsContext";
 
 const Contact = () => {
   const { theme } = useTheme();
@@ -20,12 +22,15 @@ const Contact = () => {
     name: "",
     email: "",
     subject: "",
-    message: ""
+    message: "",
+    inquiryType: "GENERAL",
+    phone: "",
   });
-
+  const { submitContact } = useContacts();
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hoveredSocial, setHoveredSocial] = useState(null);
+  const [error, setError] = useState(null);
 
   const sectionRef = useRef(null);
   const formRef = useRef(null);
@@ -44,26 +49,89 @@ const Contact = () => {
       ...formData,
       [key]: value,
     });
+    // Clear error when user starts typing
+    if (error) setError(null);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    // Simulate form submission
-    setTimeout(() => {
-      setIsSubmitting(false);
+
+
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError("Name is required");
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError("Email is required");
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setError("Please enter a valid email address");
+      return false;
+    }
+    if (!formData.subject) {
+      setError("Please select an inquiry type");
+      return false;
+    }
+    if (!formData.message.trim()) {
+      setError("Message is required");
+      return false;
+    }
+    if (formData.message.trim().length < 10) {
+      setError("Message must be at least 10 characters long");
+      return false;
+    }
+    return true;
+  };
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError(null);
+  
+  // Validate form
+  if (!validateForm()) {
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    const submissionData = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      subject: formData.subject,
+      message: formData.message.trim(),
+      inquiryType: formData.inquiryType,
+      phone: formData.phone.trim(),
+    };
+
+    // Use the context method instead of direct fetch
+    const result = await submitContact(submissionData);
+
+    if (result.success) {
+      // Success case
       setShowSuccess(true);
-      setFormData({ name: "", email: "", subject: "", message: "" });
+      setFormData({ 
+        name: "", 
+        email: "", 
+        subject: "", 
+        message: "", 
+        inquiryType: "GENERAL",
+        phone: "",
+      });
       
-      // Hide success message after 3 seconds
-      setTimeout(() => setShowSuccess(false), 3000);
-    }, 1500);
-  };
+      // Hide success message after 5 seconds
+      setTimeout(() => setShowSuccess(false), 5000);
+    } else {
+      throw new Error(result.error || 'Submission failed');
+    }
+  } catch (error) {
+    console.error('Contact form submission error:', error);
+    setError(error.message || 'Failed to send message. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
-  const handleScheduleCall = () => {
-    window.open('https://calendly.com/agumiyacollections', '_blank');
-  };
 
   // Theme-based background colors
   const getBackgroundColor = () => {
@@ -119,6 +187,22 @@ const Contact = () => {
       case 'dark': return "border-gray-600";
       case 'smokey': return "border-gray-600";
       default: return "border-gray-300";
+    }
+  };
+
+  const getErrorColor = () => {
+    switch (theme) {
+      case 'dark': return "text-red-400";
+      case 'smokey': return "text-red-400";
+      default: return "text-red-600";
+    }
+  };
+
+  const getErrorBackground = () => {
+    switch (theme) {
+      case 'dark': return "bg-red-900/20 border-red-800";
+      case 'smokey': return "bg-red-900/20 border-red-800";
+      default: return "bg-red-50 border-red-200";
     }
   };
 
@@ -426,6 +510,20 @@ const Contact = () => {
             }}
           >
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Error Message */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`p-4 rounded-lg ${getErrorBackground()} border`}
+                >
+                  <p className={`flex items-center space-x-2 ${getErrorColor()}`}>
+                    <AlertCircle size={18} />
+                    <span>{error}</span>
+                  </p>
+                </motion.div>
+              )}
+
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -435,7 +533,7 @@ const Contact = () => {
                   htmlFor="name" 
                   className={`block mb-2 font-medium ${getTextColor()}`}
                 >
-                  Your Name
+                  Your Name *
                 </label>
                 <input
                   type="text"
@@ -443,9 +541,34 @@ const Contact = () => {
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   required
-                  className={`w-full px-4 py-3 rounded-lg border focus:border-transparent transition-all ${
+                  className={`w-full px-4 py-3 rounded-lg border focus:border-transparent focus:ring-2 focus:ring-blue-500 transition-all ${
                     getInputBackground()} ${getInputBorder()} ${getTextColor()}`}
                   placeholder="Enter your full name"
+                  disabled={isSubmitting}
+                />
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5, delay: 0.45 }}
+              >
+                <label 
+                  htmlFor="email" 
+                  className={`block mb-2 font-medium ${getTextColor()}`}
+                >
+                  Your Email *
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  required
+                  className={`w-full px-4 py-3 rounded-lg border focus:border-transparent focus:ring-2 focus:ring-blue-500 transition-all ${
+                    getInputBackground()} ${getInputBorder()} ${getTextColor()}`}
+                  placeholder="Enter your email address"
+                  disabled={isSubmitting}
                 />
               </motion.div>
 
@@ -455,20 +578,20 @@ const Contact = () => {
                 transition={{ duration: 0.5, delay: 0.5 }}
               >
                 <label 
-                  htmlFor="email" 
+                  htmlFor="phone" 
                   className={`block mb-2 font-medium ${getTextColor()}`}
                 >
-                  Your Email
+                  Phone Number
                 </label>
                 <input
-                  type="email"
-                  id="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  required
-                  className={`w-full px-4 py-3 rounded-lg border focus:border-transparent transition-all ${
+                  type="tel"
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  className={`w-full px-4 py-3 rounded-lg border focus:border-transparent focus:ring-2 focus:ring-blue-500 transition-all ${
                     getInputBackground()} ${getInputBorder()} ${getTextColor()}`}
-                  placeholder="Enter your email address"
+                  placeholder="Enter your phone number (optional)"
+                  disabled={isSubmitting}
                 />
               </motion.div>
 
@@ -478,26 +601,28 @@ const Contact = () => {
                 transition={{ duration: 0.5, delay: 0.55 }}
               >
                 <label 
-                  htmlFor="subject" 
+                  htmlFor="inquiryType" 
                   className={`block mb-2 font-medium ${getTextColor()}`}
                 >
-                  Subject
+                  Inquiry Type *
                 </label>
                 <select
-                  id="subject"
-                  value={formData.subject}
-                  onChange={(e) => handleInputChange('subject', e.target.value)}
+                  id="inquiryType"
+                  value={formData.inquiryType}
+                  onChange={(e) => handleInputChange('inquiryType', e.target.value)}
                   required
-                  className={`w-full px-4 py-3 rounded-lg border focus:border-transparent transition-all ${
+                  className={`w-full px-4 py-3 rounded-lg border focus:border-transparent focus:ring-2 focus:ring-blue-500 transition-all ${
                     getInputBackground()} ${getInputBorder()} ${getTextColor()}`}
+                  disabled={isSubmitting}
                 >
-                  <option value="">Select inquiry type</option>
-                  <option value="order-support">Order Support</option>
-                  <option value="product-info">Product Information</option>
-                  <option value="shipping">Shipping Inquiry</option>
-                  <option value="returns">Returns & Exchanges</option>
-                  <option value="wholesale">Wholesale Inquiry</option>
-                  <option value="other">Other</option>
+                  <option value="GENERAL">General Inquiry</option>
+                  <option value="ORDER_SUPPORT">Order Support</option>
+                  <option value="PRODUCT_QUESTION">Product Information</option>
+                  <option value="SHIPPING">Shipping Inquiry</option>
+                  <option value="RETURNS">Returns & Exchanges</option>
+                  <option value="COMPLAINT">Complaint</option>
+                  <option value="FEEDBACK">Feedback</option>
+                  <option value="OTHER">Other</option>
                 </select>
               </motion.div>
 
@@ -507,10 +632,34 @@ const Contact = () => {
                 transition={{ duration: 0.5, delay: 0.6 }}
               >
                 <label 
+                  htmlFor="subject" 
+                  className={`block mb-2 font-medium ${getTextColor()}`}
+                >
+                  Subject *
+                </label>
+                <input
+                  type="text"
+                  id="subject"
+                  value={formData.subject}
+                  onChange={(e) => handleInputChange('subject', e.target.value)}
+                  required
+                  className={`w-full px-4 py-3 rounded-lg border focus:border-transparent focus:ring-2 focus:ring-blue-500 transition-all ${
+                    getInputBackground()} ${getInputBorder()} ${getTextColor()}`}
+                  placeholder="Brief subject of your inquiry"
+                  disabled={isSubmitting}
+                />
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5, delay: 0.65 }}
+              >
+                <label 
                   htmlFor="message" 
                   className={`block mb-2 font-medium ${getTextColor()}`}
                 >
-                  Your Message
+                  Your Message *
                 </label>
                 <textarea
                   id="message"
@@ -518,21 +667,21 @@ const Contact = () => {
                   value={formData.message}
                   onChange={(e) => handleInputChange('message', e.target.value)}
                   required
-                  className={`w-full px-4 py-3 rounded-lg border focus:border-transparent transition-all ${
+                  className={`w-full px-4 py-3 rounded-lg border focus:border-transparent focus:ring-2 focus:ring-blue-500 transition-all ${
                     getInputBackground()} ${getInputBorder()} ${getTextColor()}`}
                   placeholder="Please describe your inquiry in detail..."
+                  disabled={isSubmitting}
                 />
               </motion.div>
-
               <motion.button
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: 0.7 }}
+                transition={{ duration: 0.5, delay: 0.8 }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3 px-6 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium rounded-lg flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transition-all disabled:opacity-80"
+                className="w-full py-3 px-6 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium rounded-lg flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transition-all disabled:opacity-80 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <motion.div
@@ -563,37 +712,11 @@ const Contact = () => {
                     isDark || isSmokey ? "text-green-400" : "text-green-700"
                   }`}>
                     <MessageCircle size={18} />
-                    <span>Thank you! Our team will get back to you within 2 hours.</span>
+                    <span>Thank you! Your message has been sent. We'll get back to you within 2 hours.</span>
                   </p>
                 </motion.div>
               )}
 
-              {/* Quick call CTA */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: 0.9 }}
-                className={`pt-6 mt-6 border-t ${getBorderColor()}`}
-              >
-                <div className="text-center">
-                  <p className={`mb-3 ${getSecondaryTextColor()}`}>
-                    <span className="font-medium">Need immediate assistance?</span>
-                    <span className="block text-sm mt-1">
-                      Schedule a callback with our fashion consultants.
-                    </span>
-                  </p>
-                  <motion.button
-                    type="button"
-                    onClick={handleScheduleCall}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="inline-flex items-center space-x-2 px-5 py-3 rounded-lg font-medium bg-transparent border border-purple-500 text-purple-500 hover:bg-purple-500 hover:text-white transition-all"
-                  >
-                    <Calendar size={18} />
-                    <span>Schedule a Callback</span>
-                  </motion.button>
-                </div>
-              </motion.div>
             </form>
           </motion.div>
         </div>
