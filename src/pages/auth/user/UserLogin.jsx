@@ -13,7 +13,7 @@ const UserLogin = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [localError, setLocalError] = useState('');
+
   const { login, error, clearError } = useAuth();
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -101,45 +101,36 @@ const UserLogin = () => {
 
   const themeStyles = getThemeStyles();
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    clearError();
 
-  // In your UserLogin component - SIMPLIFIED
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  // Frontend validation for better UX
-  if (!formData.email || !formData.password) {
-    setLocalError('Please fill in all fields');
-    return;
-  }
+    try {
+      // Prepare login credentials
+      const credentials = {
+        email: formData.email,
+        password: formData.password,
+        userType: USER_TYPES.USER // Explicitly set user type
+      };
 
-  setIsLoading(true);
-  setLocalError(''); // Clear any previous local errors
-  clearError(); // Clear auth context errors
-
-  try {
-    const credentials = {
-      email: formData.email,
-      password: formData.password,
-      userType: USER_TYPES.USER
-    };
-
-    const result = await login(credentials);
-    
-    if (result.success) {
-      navigate('/', { replace: true });
-    } else {
-      // Show the specific error message from authService
-      setLocalError(result.error || 'Login failed. Please check your credentials.');
+      const result = await login(credentials);
+      
+      if (result.success) {
+        // Login successful - redirect to home or intended page
+        navigate('/', { replace: true });
+      } else {
+        // Error is already set in the context, just log it
+        console.error('Login failed:', result.error);
+      }
+    } catch (error) {
+      console.error('Unexpected login error:', error);
+      // The error should be handled by the AuthProvider
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    // This should not happen now since authService handles all errors
-    console.error('Unexpected error in handleSubmit:', error);
-    setLocalError('An unexpected error occurred. Please try again.');
-  } finally {
-    setIsLoading(false);
-  }
-};
-  
+  };
+
   const handleChange = (e) => {
     setFormData({
       ...formData,

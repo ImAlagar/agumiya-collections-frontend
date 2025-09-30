@@ -225,60 +225,77 @@ const UserRegister = () => {
     validateField(name, value);
   };
 
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Mark all fields as touched
-    const allTouched = {
-      name: true,
-      email: true,
-      password: true,
-      confirmPassword: true
+// UserRegister component - ENHANCED handleSubmit
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  // Enhanced validation
+  const newErrors = {};
+  
+  if (!formData.name?.trim()) {
+    newErrors.name = 'Full name is required';
+  } else if (formData.name.trim().length < 2) {
+    newErrors.name = 'Name must be at least 2 characters';
+  }
+  
+  if (!formData.email?.trim()) {
+    newErrors.email = 'Email is required';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    newErrors.email = 'Please enter a valid email address';
+  }
+  
+  if (!formData.password) {
+    newErrors.password = 'Password is required';
+  } else if (formData.password.length < 8) {
+    newErrors.password = 'Password must be at least 8 characters';
+  }
+  
+  if (!formData.confirmPassword) {
+    newErrors.confirmPassword = 'Please confirm your password';
+  } else if (formData.password !== formData.confirmPassword) {
+    newErrors.confirmPassword = 'Passwords do not match';
+  }
+  
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    return;
+  }
+
+  setIsLoading(true);
+  setBackendError('');
+  setErrors({});
+  
+  try {
+    // Prepare the exact data structure backend expects
+    const registrationData = {
+      name: formData.name.trim(),
+      email: formData.email.trim().toLowerCase(),
+      password: formData.password,
+      phone: formData.phone?.trim() || '', // Make sure to include phone
+      address: formData.address?.trim() || '' // Make sure to include address
     };
-    setTouched(allTouched);
     
-    // Validate all fields
-    const isNameValid = validateField('name', formData.name);
-    const isEmailValid = validateField('email', formData.email);
-    const isPasswordValid = validateField('password', formData.password);
-    const isConfirmPasswordValid = validateField('confirmPassword', formData.confirmPassword);
+    console.log('Sending registration data:', { ...registrationData, password: '***' });
     
-    const isFormValid = isNameValid && isEmailValid && isPasswordValid && isConfirmPasswordValid;
+    const result = await register(registrationData);
     
-    if (!isFormValid || !allRequirementsMet || !passwordsMatch) {
-      setBackendError('Please fix the errors in the form');
-      return;
-    }
-    
-    setIsLoading(true);
-    setBackendError('');
-    
-    try {
-      const result = await register({
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        password: formData.password
+    if (result.success) {
+      navigate('/login', { 
+        state: { 
+          message: result.message || 'Registration successful! Please check your email for verification.',
+          type: 'success'
+        }
       });
-      
-      if (result.success) {
-        // Registration successful - redirect to login or dashboard
-        navigate('/login', { 
-          state: { 
-            message: 'Registration successful! Please log in to continue.',
-            type: 'success'
-          }
-        });
-      } else {
-        setBackendError(result.error || 'Registration failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('Registration error:', error);
-      setBackendError('An unexpected error occurred. Please try again.');
-    } finally {
-      setIsLoading(false);
+    } else {
+      setBackendError(result.error);
     }
-  };
+  } catch (error) {
+    console.error('Registration error:', error);
+    setBackendError('An unexpected error occurred. Please try again.');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <motion.div 
