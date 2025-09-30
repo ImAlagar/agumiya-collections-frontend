@@ -146,14 +146,45 @@ export const authService = {
       };
     }
   },
-  async registerUser(userData) {
-    try {
-      const response = await apiClient.post(API_ENDPOINTS.USER_REGISTER, userData);
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Registration failed');
+
+
+// authService.js - FIXED
+async registerUser(userData) {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.USER_REGISTER, userData);
+    return response.data;
+  } catch (error) {
+    console.log('Registration API Error:', error.response?.data);
+    
+    // Extract the specific error message from backend
+    const backendMessage = error.response?.data?.message;
+    
+    if (backendMessage) {
+      // Return the specific backend error (like "User with this email already exists")
+      return {
+        success: false,
+        message: backendMessage,
+        error: backendMessage
+      };
     }
-  },
+    
+    // Handle network errors
+    if (!error.response) {
+      return {
+        success: false,
+        message: 'Network error. Please check your internet connection and try again.',
+        error: 'Network error. Please check your internet connection and try again.'
+      };
+    }
+    
+    // Default fallback
+    return {
+      success: false,
+      message: 'Registration failed. Please try again.',
+      error: 'Registration failed. Please try again.'
+    };
+  }
+},
 
   async forgotUserPassword(email) {
     try {

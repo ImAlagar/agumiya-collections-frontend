@@ -226,59 +226,64 @@ const UserRegister = () => {
   };
 
   // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+// In your UserRegister component - SIMPLIFIED handleSubmit
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  // Frontend validation for better UX
+  if (!formData.name.trim()) {
+    setErrors({ name: 'Full name is required' });
+    return;
+  }
+  if (!formData.email.trim()) {
+    setErrors({ email: 'Email is required' });
+    return;
+  }
+  if (!formData.password) {
+    setErrors({ password: 'Password is required' });
+    return;
+  }
+  if (!formData.confirmPassword) {
+    setErrors({ confirmPassword: 'Please confirm your password' });
+    return;
+  }
+  if (formData.password !== formData.confirmPassword) {
+    setErrors({ confirmPassword: 'Passwords do not match' });
+    return;
+  }
+
+  setIsLoading(true);
+  setBackendError('');
+  setErrors({});
+  
+  try {
+    const result = await register({
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      password: formData.password,
+      phone: formData.phone || '', // Add if needed
+      address: formData.address || '' // Add if needed
+    });
     
-    // Mark all fields as touched
-    const allTouched = {
-      name: true,
-      email: true,
-      password: true,
-      confirmPassword: true
-    };
-    setTouched(allTouched);
-    
-    // Validate all fields
-    const isNameValid = validateField('name', formData.name);
-    const isEmailValid = validateField('email', formData.email);
-    const isPasswordValid = validateField('password', formData.password);
-    const isConfirmPasswordValid = validateField('confirmPassword', formData.confirmPassword);
-    
-    const isFormValid = isNameValid && isEmailValid && isPasswordValid && isConfirmPasswordValid;
-    
-    if (!isFormValid || !allRequirementsMet || !passwordsMatch) {
-      setBackendError('Please fix the errors in the form');
-      return;
-    }
-    
-    setIsLoading(true);
-    setBackendError('');
-    
-    try {
-      const result = await register({
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        password: formData.password
+    if (result.success) {
+      // Registration successful
+      navigate('/login', { 
+        state: { 
+          message: 'Registration successful! Please check your email for verification.',
+          type: 'success'
+        }
       });
-      
-      if (result.success) {
-        // Registration successful - redirect to login or dashboard
-        navigate('/login', { 
-          state: { 
-            message: 'Registration successful! Please log in to continue.',
-            type: 'success'
-          }
-        });
-      } else {
-        setBackendError(result.error || 'Registration failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('Registration error:', error);
-      setBackendError('An unexpected error occurred. Please try again.');
-    } finally {
-      setIsLoading(false);
+    } else {
+      // Show the specific backend error
+      setBackendError(result.error);
     }
-  };
+  } catch (error) {
+    console.error('Registration error:', error);
+    setBackendError('An unexpected error occurred. Please try again.');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <motion.div 
