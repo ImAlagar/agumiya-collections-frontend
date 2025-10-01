@@ -119,7 +119,6 @@ export const AuthProvider = ({ children }) => {
         response = await authService.loginUser({ email, password });
       }
 
-      console.log('Login API Response:', response);
 
       if (response.success === false) {
         throw new Error(response.message || 'Login failed');
@@ -142,7 +141,6 @@ export const AuthProvider = ({ children }) => {
         ...user
       };
 
-      console.log('Processed auth data:', { token, processedUser, userType });
 
       storageManager.clearAllAuth();
       storageManager.setItem(STORAGE_KEYS.AUTH_TOKEN, token, userType);
@@ -157,7 +155,6 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: processedUser };
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Login failed';
-      console.error('Login error:', errorMessage);
       dispatch({ type: ACTION_TYPES.SET_ERROR, payload: errorMessage });
       return { success: false, error: errorMessage };
     } finally {

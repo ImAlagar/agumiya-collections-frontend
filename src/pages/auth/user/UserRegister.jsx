@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useAuth } from '../../../contexts/AuthProvider';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, Check, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, Check, AlertCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const UserRegister = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: ''
   });
@@ -143,7 +144,22 @@ const UserRegister = () => {
       setBackendError('');
       clearError();
     }
-  }, [formData.name, formData.email, formData.password, formData.confirmPassword]);
+  }, [formData.name, formData.email, formData.phone, formData.password, formData.confirmPassword]);
+
+  // Format phone number as user types
+  const formatPhoneNumber = (value) => {
+    // Remove all non-digit characters
+    const cleaned = value.replace(/\D/g, '');
+    
+    // Format based on length
+    if (cleaned.length <= 3) {
+      return cleaned;
+    } else if (cleaned.length <= 6) {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+    } else {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+    }
+  };
 
   // Validate individual field
   const validateField = (name, value) => {
@@ -167,6 +183,19 @@ const UserRegister = () => {
           newErrors.email = 'Please enter a valid email address';
         } else {
           delete newErrors.email;
+        }
+        break;
+
+      case 'phone':
+        if (value.trim()) {
+          const digitsOnly = value.replace(/\D/g, '');
+          if (digitsOnly.length < 10) {
+            newErrors.phone = 'Please enter a valid 10-digit phone number';
+          } else {
+            delete newErrors.phone;
+          }
+        } else {
+          delete newErrors.phone; // Phone is optional
         }
         break;
         
@@ -202,14 +231,21 @@ const UserRegister = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
+    let processedValue = value;
+    
+    // Format phone number if it's the phone field
+    if (name === 'phone') {
+      processedValue = formatPhoneNumber(value);
+    }
+    
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: processedValue
     }));
     
     // Validate field if it's been touched
     if (touched[name]) {
-      validateField(name, value);
+      validateField(name, processedValue);
     }
   };
 
@@ -225,90 +261,97 @@ const UserRegister = () => {
     validateField(name, value);
   };
 
-// UserRegister component - ENHANCED handleSubmit
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  // Enhanced validation
-  const newErrors = {};
-  
-  if (!formData.name?.trim()) {
-    newErrors.name = 'Full name is required';
-  } else if (formData.name.trim().length < 2) {
-    newErrors.name = 'Name must be at least 2 characters';
-  }
-  
-  if (!formData.email?.trim()) {
-    newErrors.email = 'Email is required';
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-    newErrors.email = 'Please enter a valid email address';
-  }
-  
-  if (!formData.password) {
-    newErrors.password = 'Password is required';
-  } else if (formData.password.length < 8) {
-    newErrors.password = 'Password must be at least 8 characters';
-  }
-  
-  if (!formData.confirmPassword) {
-    newErrors.confirmPassword = 'Please confirm your password';
-  } else if (formData.password !== formData.confirmPassword) {
-    newErrors.confirmPassword = 'Passwords do not match';
-  }
-  
-  if (Object.keys(newErrors).length > 0) {
-    setErrors(newErrors);
-    return;
-  }
-
-  setIsLoading(true);
-  setBackendError('');
-  setErrors({});
-  
-  try {
-    // Prepare the exact data structure backend expects
-    const registrationData = {
-      name: formData.name.trim(),
-      email: formData.email.trim().toLowerCase(),
-      password: formData.password,
-      phone: formData.phone?.trim() || '', // Make sure to include phone
-      address: formData.address?.trim() || '' // Make sure to include address
-    };
+  // UserRegister component - ENHANCED handleSubmit
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     
-    console.log('Sending registration data:', { ...registrationData, password: '***' });
+    // Enhanced validation
+    const newErrors = {};
     
-    const result = await register(registrationData);
-    
-    if (result.success) {
-      navigate('/login', { 
-        state: { 
-          message: result.message || 'Registration successful! Please check your email for verification.',
-          type: 'success'
-        }
-      });
-    } else {
-      setBackendError(result.error);
+    if (!formData.name?.trim()) {
+      newErrors.name = 'Full name is required';
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = 'Name must be at least 2 characters';
     }
-  } catch (error) {
-    console.error('Registration error:', error);
-    setBackendError('An unexpected error occurred. Please try again.');
-  } finally {
-    setIsLoading(false);
-  }
-};
+    
+    if (!formData.email?.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Phone validation (optional but must be valid if provided)
+    if (formData.phone?.trim()) {
+      const digitsOnly = formData.phone.replace(/\D/g, '');
+      if (digitsOnly.length < 10) {
+        newErrors.phone = 'Please enter a valid 10-digit phone number';
+      }
+    }
+    
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    }
+    
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsLoading(true);
+    setBackendError('');
+    setErrors({});
+    
+    try {
+      // Prepare the exact data structure backend expects
+      const registrationData = {
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+        phone: formData.phone?.replace(/\D/g, '') || '', // Remove formatting for storage
+        address: formData.address?.trim() || '' // Make sure to include address
+      };
+      
+      
+      const result = await register(registrationData);
+      
+      if (result.success) {
+        navigate('/login', { 
+          state: { 
+            message: result.message || 'Registration successful! Please check your email for verification.',
+            type: 'success'
+          }
+        });
+      } else {
+        setBackendError(result.error);
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      setBackendError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
-      className={`flex items-center justify-center bg-gradient-to-br ${themeStyles.background} p-4`}
+      className={`min-h-screen flex items-center justify-center bg-gradient-to-br ${themeStyles.background} p-3 sm:p-4 md:p-6`}
     >
       <div className="w-full max-w-4xl mx-auto">
-        <div className={`grid grid-cols-1 lg:grid-cols-2 ${themeStyles.cardBg} rounded-2xl shadow-2xl overflow-hidden border ${themeStyles.cardBorder} max-h-[90vh]`}>
+        <div className={`grid grid-cols-1 lg:grid-cols-2 ${themeStyles.cardBg} rounded-xl sm:rounded-2xl shadow-lg sm:shadow-2xl overflow-hidden border ${themeStyles.cardBorder} max-h-[95vh] sm:max-h-[90vh]`}>
           
           {/* Left Side - Branding */}
-          <div className="hidden lg:flex bg-gradient-to-br from-blue-600 to-purple-700 p-8 relative overflow-hidden">
+          <div className="hidden lg:flex bg-gradient-to-br from-blue-600 to-purple-700 p-6 lg:p-8 relative overflow-hidden">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative z-10 flex flex-col justify-center text-white">
               <motion.div
@@ -317,15 +360,15 @@ const handleSubmit = async (e) => {
                 transition={{ delay: 0.2 }}
                 className="mb-6"
               >
-                <h1 className="text-3xl font-bold mb-2">Join Our Community</h1>
-                <p className="text-blue-100">Create your account and start shopping today</p>
+                <h1 className="text-2xl lg:text-3xl font-bold mb-2">Join Our Community</h1>
+                <p className="text-blue-100 text-sm lg:text-base">Create your account and start shopping today</p>
               </motion.div>
 
               <motion.div
                 initial={{ x: -50, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className="space-y-3"
+                className="space-y-2 lg:space-y-3"
               >
                 {[
                   { icon: '🚀', text: 'Fast & Secure Checkout' },
@@ -334,8 +377,8 @@ const handleSubmit = async (e) => {
                   { icon: '⭐', text: 'Early Access to Sales' }
                 ].map((item, index) => (
                   <div key={index} className="flex items-center space-x-2">
-                    <span className="text-xl">{item.icon}</span>
-                    <span className="text-blue-100 text-sm">{item.text}</span>
+                    <span className="text-lg lg:text-xl">{item.icon}</span>
+                    <span className="text-blue-100 text-xs lg:text-sm">{item.text}</span>
                   </div>
                 ))}
               </motion.div>
@@ -350,7 +393,7 @@ const handleSubmit = async (e) => {
                   repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className="absolute top-10 right-10 w-16 h-16 bg-white/10 rounded-full blur-xl"
+                className="absolute top-10 right-10 w-12 lg:w-16 h-12 lg:h-16 bg-white/10 rounded-full blur-xl"
               />
               <motion.div
                 animate={{ 
@@ -362,26 +405,26 @@ const handleSubmit = async (e) => {
                   ease: "easeInOut",
                   delay: 1
                 }}
-                className="absolute bottom-10 left-10 w-12 h-12 bg-white/10 rounded-full blur-lg"
+                className="absolute bottom-10 left-10 w-10 lg:w-12 h-10 lg:h-12 bg-white/10 rounded-full blur-lg"
               />
             </div>
           </div>
 
           {/* Right Side - Registration Form */}
-          <div className="p-6 lg:p-8 overflow-y-auto">
-            <motion.div
+          <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto">
+            <motion.div 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
               className="h-full flex flex-col"
             >
               {/* Header */}
-              <div className="text-center mb-6">
+              <div className="text-center mb-4 sm:mb-6">
                 <div className="lg:hidden mb-3">
-                  <h1 className={`text-xl font-bold ${themeStyles.text.primary}`}>Agumiya Collections</h1>
+                  <h1 className={`text-lg sm:text-xl font-bold ${themeStyles.text.primary}`}>Agumiya Collections</h1>
                 </div>
-                <h2 className={`text-2xl font-bold ${themeStyles.text.primary}`}>Create Account</h2>
-                <p className={`${themeStyles.text.secondary} mt-1 text-sm`}>Join thousands of happy customers</p>
+                <h2 className={`text-xl sm:text-2xl lg:text-2xl font-bold ${themeStyles.text.primary}`}>Create Account</h2>
+                <p className={`${themeStyles.text.secondary} mt-1 text-xs sm:text-sm`}>Join thousands of happy customers</p>
               </div>
 
               {/* Backend Error */}
@@ -389,22 +432,22 @@ const handleSubmit = async (e) => {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`mb-4 p-3 ${themeStyles.error.bg} border ${themeStyles.error.border} rounded-lg flex items-center space-x-2`}
+                  className={`mb-3 sm:mb-4 p-2 sm:p-3 ${themeStyles.error.bg} border ${themeStyles.error.border} rounded-lg flex items-center space-x-2`}
                 >
-                  <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                  <span className={`${themeStyles.error.text} text-sm`}>{backendError || authError}</span>
+                  <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 flex-shrink-0" />
+                  <span className={`${themeStyles.error.text} text-xs sm:text-sm`}>{backendError || authError}</span>
                 </motion.div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4 flex-1">
-                <div className="grid grid-cols-1 gap-3">
+              <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 flex-1">
+                <div className="grid grid-cols-1 gap-2 sm:gap-3">
                   {/* Full Name */}
                   <div className="relative">
-                    <label htmlFor="name" className={`block text-sm font-medium ${themeStyles.text.secondary} mb-1`}>
-                      Full Name
+                    <label htmlFor="name" className={`block text-xs sm:text-sm font-medium ${themeStyles.text.secondary} mb-1`}>
+                      Full Name *
                     </label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
                       <input
                         type="text"
                         id="name"
@@ -412,7 +455,7 @@ const handleSubmit = async (e) => {
                         value={formData.name}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        className={`w-full pl-9 pr-3 py-2.5 border rounded-lg ${themeStyles.input.bg} ${themeStyles.text.primary} transition-all text-sm ${
+                        className={`w-full pl-8 sm:pl-9 pr-3 py-2 sm:py-2.5 border rounded-lg ${themeStyles.input.bg} ${themeStyles.text.primary} transition-all text-xs sm:text-sm ${
                           errors.name ? themeStyles.input.error : `${themeStyles.input.border} ${themeStyles.input.focus}`
                         }`}
                         placeholder="Enter your full name"
@@ -433,11 +476,11 @@ const handleSubmit = async (e) => {
 
                   {/* Email */}
                   <div className="relative">
-                    <label htmlFor="email" className={`block text-sm font-medium ${themeStyles.text.secondary} mb-1`}>
-                      Email Address
+                    <label htmlFor="email" className={`block text-xs sm:text-sm font-medium ${themeStyles.text.secondary} mb-1`}>
+                      Email Address *
                     </label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
                       <input
                         type="email"
                         id="email"
@@ -445,7 +488,7 @@ const handleSubmit = async (e) => {
                         value={formData.email}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        className={`w-full pl-9 pr-3 py-2.5 border rounded-lg ${themeStyles.input.bg} ${themeStyles.text.primary} transition-all text-sm ${
+                        className={`w-full pl-8 sm:pl-9 pr-3 py-2 sm:py-2.5 border rounded-lg ${themeStyles.input.bg} ${themeStyles.text.primary} transition-all text-xs sm:text-sm ${
                           errors.email ? themeStyles.input.error : `${themeStyles.input.border} ${themeStyles.input.focus}`
                         }`}
                         placeholder="your@email.com"
@@ -464,13 +507,50 @@ const handleSubmit = async (e) => {
                     )}
                   </div>
 
-                  {/* Password */}
+                  {/* Phone Number */}
                   <div className="relative">
-                    <label htmlFor="password" className={`block text-sm font-medium ${themeStyles.text.secondary} mb-1`}>
-                      Password
+                    <label htmlFor="phone" className={`block text-xs sm:text-sm font-medium ${themeStyles.text.secondary} mb-1`}>
+                      Phone Number
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={`w-full pl-8 sm:pl-9 pr-3 py-2 sm:py-2.5 border rounded-lg ${themeStyles.input.bg} ${themeStyles.text.primary} transition-all text-xs sm:text-sm ${
+                          errors.phone ? themeStyles.input.error : `${themeStyles.input.border} ${themeStyles.input.focus}`
+                        }`}
+                        placeholder="(123) 456-7890"
+                        disabled={isLoading}
+                        maxLength={14} // (123) 456-7890
+                      />
+                    </div>
+                    {errors.phone && (
+                      <motion.p 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-red-500 text-xs mt-1 flex items-center space-x-1"
+                      >
+                        <AlertCircle className="w-3 h-3" />
+                        <span>{errors.phone}</span>
+                      </motion.p>
+                    )}
+                    <p className={`text-xs ${themeStyles.text.muted} mt-1`}>
+                      Optional - for order updates and faster checkout
+                    </p>
+                  </div>
+
+                  {/* Password */}
+                  <div className="relative">
+                    <label htmlFor="password" className={`block text-xs sm:text-sm font-medium ${themeStyles.text.secondary} mb-1`}>
+                      Password *
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
                       <input
                         type={showPassword ? "text" : "password"}
                         id="password"
@@ -478,7 +558,7 @@ const handleSubmit = async (e) => {
                         value={formData.password}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        className={`w-full pl-9 pr-9 py-2.5 border rounded-lg ${themeStyles.input.bg} ${themeStyles.text.primary} transition-all text-sm ${
+                        className={`w-full pl-8 sm:pl-9 pr-8 sm:pr-9 py-2 sm:py-2.5 border rounded-lg ${themeStyles.input.bg} ${themeStyles.text.primary} transition-all text-xs sm:text-sm ${
                           errors.password ? themeStyles.input.error : `${themeStyles.input.border} ${themeStyles.input.focus}`
                         }`}
                         placeholder="Create a password"
@@ -490,7 +570,7 @@ const handleSubmit = async (e) => {
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
                         disabled={isLoading}
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showPassword ? <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" /> : <Eye className="w-3 h-3 sm:w-4 sm:h-4" />}
                       </button>
                     </div>
                     {errors.password && (
@@ -531,11 +611,11 @@ const handleSubmit = async (e) => {
 
                   {/* Confirm Password */}
                   <div className="relative">
-                    <label htmlFor="confirmPassword" className={`block text-sm font-medium ${themeStyles.text.secondary} mb-1`}>
-                      Confirm Password
+                    <label htmlFor="confirmPassword" className={`block text-xs sm:text-sm font-medium ${themeStyles.text.secondary} mb-1`}>
+                      Confirm Password *
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
                       <input
                         type={showConfirmPassword ? "text" : "password"}
                         id="confirmPassword"
@@ -543,7 +623,7 @@ const handleSubmit = async (e) => {
                         value={formData.confirmPassword}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        className={`w-full pl-9 pr-9 py-2.5 border rounded-lg ${themeStyles.input.bg} ${themeStyles.text.primary} transition-all text-sm ${
+                        className={`w-full pl-8 sm:pl-9 pr-8 sm:pr-9 py-2 sm:py-2.5 border rounded-lg ${themeStyles.input.bg} ${themeStyles.text.primary} transition-all text-xs sm:text-sm ${
                           errors.confirmPassword ? themeStyles.input.error : 
                           formData.confirmPassword && !passwordsMatch ? themeStyles.input.error :
                           `${themeStyles.input.border} ${themeStyles.input.focus}`
@@ -557,7 +637,7 @@ const handleSubmit = async (e) => {
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
                         disabled={isLoading}
                       >
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showConfirmPassword ? <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" /> : <Eye className="w-3 h-3 sm:w-4 sm:h-4" />}
                       </button>
                     </div>
                     {errors.confirmPassword && (
@@ -593,17 +673,11 @@ const handleSubmit = async (e) => {
                   </div>
                 </div>
 
-                {/* Terms and Conditions */}
-                <label className="flex items-start space-x-2">
-                  <span className={`text-xs ${themeStyles.text.secondary}`}>
-                    I agree to the <a href="/terms" className="text-blue-600 hover:text-blue-500 font-medium">Terms of Service</a> and <a href="/privacy" className="text-blue-600 hover:text-blue-500 font-medium">Privacy Policy</a>
-                  </span>
-                </label>
-
-                {/* Submit Button */}
+                {/* Submit Button - Fixed at bottom on mobile */}
+                <div className="sticky bottom-0 bg-inherit pt-3 pb-2 sm:pt-4 sm:pb-0">
                 <button
                   type="submit"
-                  disabled={!allRequirementsMet || !passwordsMatch || isLoading || Object.keys(errors).length > 0}
+                  disabled={!allRequirementsMet || !passwordsMatch || isLoading}
                   className={`w-full bg-gradient-to-r ${themeStyles.button.gradient} text-white py-2.5 rounded-lg font-semibold transition-all duration-300 disabled:${themeStyles.button.disabled} shadow-lg hover:shadow-xl transform hover:scale-[1.02] text-sm`}
                 >
                   {isLoading ? (
@@ -615,33 +689,20 @@ const handleSubmit = async (e) => {
                     'Create Account'
                   )}
                 </button>
-
-                {/* Login Link */}
-                <div className="text-center pt-2">
-                  <p className={`text-xs ${themeStyles.text.secondary}`}>
-                    Already have an account?{' '}
-                    <Link 
-                      to="/login" 
-                      className="text-blue-600 hover:text-blue-500 font-semibold transition-colors"
-                    >
-                      Sign in here
-                    </Link>
-                  </p>
+                  {/* Login Link */}
+                  <div className="text-center mt-2 sm:mt-3">
+                    <p className={`text-xs ${themeStyles.text.secondary}`}>
+                      Already have an account?{' '}
+                      <Link 
+                        to="/login" 
+                        className="text-blue-600 hover:text-blue-500 font-semibold transition-colors"
+                      >
+                        Sign in here
+                      </Link>
+                    </p>
+                  </div>
                 </div>
               </form>
-
-              {/* Security Badge */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-                className={`text-center mt-4 pt-3 border-t ${theme === 'light' ? 'border-gray-200' : 'border-gray-600'}`}
-              >
-                <div className={`flex items-center justify-center space-x-1 text-xs ${themeStyles.text.muted}`}>
-                  <Lock className="w-3 h-3" />
-                  <span>Your data is securely encrypted</span>
-                </div>
-              </motion.div>
             </motion.div>
           </div>
         </div>

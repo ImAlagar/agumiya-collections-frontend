@@ -101,36 +101,33 @@ const UserLogin = () => {
 
   const themeStyles = getThemeStyles();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    clearError();
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsLoading(true);
+  clearError();
 
-    try {
-      // Prepare login credentials
-      const credentials = {
-        email: formData.email,
-        password: formData.password,
-        userType: USER_TYPES.USER // Explicitly set user type
-      };
+  try {
+    const credentials = {
+      email: formData.email,
+      password: formData.password,
+      userType: USER_TYPES.USER
+    };
 
-      const result = await login(credentials);
-      
-      if (result.success) {
-        // Login successful - redirect to home or intended page
-        navigate('/', { replace: true });
-      } else {
-        // Error is already set in the context, just log it
-        console.error('Login failed:', result.error);
-      }
-    } catch (error) {
-      console.error('Unexpected login error:', error);
-      // The error should be handled by the AuthProvider
-    } finally {
-      setIsLoading(false);
+    const result = await login(credentials);
+    
+    if (result.success) {
+      navigate('/', { replace: true });
     }
-  };
-
+    // No else needed - error is displayed via {error} in UI
+  } catch (error) {
+    // Only log truly unexpected errors
+    if (!error.message.includes('Invalid email or password')) {
+      console.error('Unexpected login error:', error);
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
   const handleChange = (e) => {
     setFormData({
       ...formData,
