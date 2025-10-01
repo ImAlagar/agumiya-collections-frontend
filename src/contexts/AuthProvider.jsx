@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { authService } from '../services/api/authService';
 import { STORAGE_KEYS, USER_TYPES } from '../config/constants';
-import { storageManager } from '../services/storage/storageManager';
+import { storageManager } from '../services/storage/storageManager'; // ✅ use global storageManager
 
 // Action types
 const ACTION_TYPES = {
@@ -57,6 +57,7 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
+  // Restore login state from storage
   const checkExistingAuth = useCallback(async () => {
     try {
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
@@ -81,6 +82,7 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
       }
     } catch (error) {
+      console.error('Auth restoration error:', error);
       storageManager.clearAllAuth();
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
     }
@@ -90,75 +92,80 @@ export const AuthProvider = ({ children }) => {
     checkExistingAuth();
   }, [checkExistingAuth]);
 
+  // Logout
   const handleLogout = useCallback(async () => {
     try {
       await authService.logout();
     } catch (error) {
-      // Silent fail for logout API
+      console.warn('Logout API call failed:', error);
     } finally {
       storageManager.clearAllAuth();
       dispatch({ type: ACTION_TYPES.LOGOUT });
     }
   }, []);
 
-// In your AuthContext.js - SIMPLIFIED
-const login = async (credentials) => {
-  try {
-    dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
-    dispatch({ type: ACTION_TYPES.CLEAR_ERROR });
+  // Login
+  const login = async (credentials) => {
+    try {
+      dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
+      dispatch({ type: ACTION_TYPES.CLEAR_ERROR });
 
-    const { email, password, userType = USER_TYPES.USER } = credentials;
+      const { email, password, userType = USER_TYPES.USER } = credentials;
 
-    let response;
-    if (userType === USER_TYPES.ADMIN) {
-      response = await authService.loginAdmin({ email, password });
-    } else {
-      response = await authService.loginUser({ email, password });
+      let response;
+      if (userType === USER_TYPES.ADMIN) {
+        response = await authService.loginAdmin({ email, password });
+      } else {
+        response = await authService.loginUser({ email, password });
+      }
+
+      console.log('Login API Response:', response);
+
+      if (response.success === false) {
+        throw new Error(response.message || 'Login failed');
+      }
+
+      // Extract token and user
+      const token = response.token || response.data?.token || response.access_token;
+      const user = response.user || response.admin || response.data?.user || response.data?.admin;
+
+      if (!token || !user) {
+        throw new Error('Invalid login response');
+      }
+
+      // Ensure user object fields
+      const processedUser = {
+        email: user.email || email,
+        name: user.name || user.username || email.split('@')[0],
+        role: user.role || userType,
+        id: user.id || user._id || Date.now(),
+        ...user
+      };
+
+      console.log('Processed auth data:', { token, processedUser, userType });
+
+      storageManager.clearAllAuth();
+      storageManager.setItem(STORAGE_KEYS.AUTH_TOKEN, token, userType);
+      storageManager.setItem(STORAGE_KEYS.USER_DATA, processedUser, userType);
+      storageManager.setItem(STORAGE_KEYS.USER_TYPE, userType, userType);
+
+      dispatch({
+        type: ACTION_TYPES.SET_USER,
+        payload: { user: processedUser, userType }
+      });
+
+      return { success: true, user: processedUser };
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+      console.error('Login error:', errorMessage);
+      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: errorMessage });
+      return { success: false, error: errorMessage };
+    } finally {
+      dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
     }
+  };
 
-    // Now response will always have the correct error message
-    if (response.success === false) {
-      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: response.message });
-      return { success: false, error: response.message };
-    }
-
-    const token = response.token;
-    const user = response.user || response.admin;
-
-    if (!token || !user) {
-      dispatch({ type: ACTION_TYPES.SET_ERROR, payload: 'Invalid login response' });
-      return { success: false, error: 'Invalid login response' };
-    }
-
-    const processedUser = {
-      email: user.email || email,
-      name: user.name || user.username || email.split('@')[0],
-      role: user.role || userType,
-      id: user.id || user._id || Date.now(),
-      ...user
-    };
-
-    storageManager.clearAllAuth();
-    storageManager.setItem(STORAGE_KEYS.AUTH_TOKEN, token, userType);
-    storageManager.setItem(STORAGE_KEYS.USER_DATA, processedUser, userType);
-    storageManager.setItem(STORAGE_KEYS.USER_TYPE, userType, userType);
-
-    dispatch({
-      type: ACTION_TYPES.SET_USER,
-      payload: { user: processedUser, userType }
-    });
-
-    return { success: true, user: processedUser };
-  } catch (error) {
-    // This should rarely happen now since authService handles errors
-    const errorMessage = error.message || 'Login failed';
-    dispatch({ type: ACTION_TYPES.SET_ERROR, payload: errorMessage });
-    return { success: false, error: errorMessage };
-  } finally {
-    dispatch({ type: ACTION_TYPES.SET_LOADING, payload: false });
-  }
-};
-
+  // Register
   const register = async (userData) => {
     try {
       dispatch({ type: ACTION_TYPES.SET_LOADING, payload: true });
@@ -178,6 +185,7 @@ const login = async (credentials) => {
     }
   };
 
+  // Update profile
   const updateProfile = async (profileData) => {
     try {
       const response = await authService.updateProfile(profileData);
