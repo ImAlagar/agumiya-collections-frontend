@@ -3,6 +3,7 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback } 
 import { authService } from '../services/api/authService';
 import { STORAGE_KEYS, USER_TYPES } from '../config/constants';
 import { storageManager } from '../services/storage/storageManager'; // ✅ use global storageManager
+import { useCart } from './CartContext';
 
 // Action types
 const ACTION_TYPES = {
@@ -56,6 +57,7 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+   const { handleUserLogout } = useCart(); // Add this
 
   // Restore login state from storage
   const checkExistingAuth = useCallback(async () => {
@@ -210,6 +212,26 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: ACTION_TYPES.CLEAR_ERROR });
   };
 
+  const logout = async () => {
+    try {
+      // Clear user's cart FIRST
+      handleUserLogout();
+      
+      // Then clear auth state
+      setUser(null);
+      setToken(null);
+      setIsAuthenticated(false);
+      setIsAdmin(false);
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      
+      console.log('Successfully logged out and cart cleared');
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
+    }
+  };
+
   const value = {
     user: state.user,
     isLoading: state.isLoading,
@@ -218,6 +240,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin: state.userType === USER_TYPES.ADMIN,
     userType: state.userType,
     login,
+    logout,
     register,
     logout: handleLogout,
     updateProfile,

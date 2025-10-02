@@ -33,7 +33,6 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
   ];
 
   const settingsSubmenu = [
-    { path: '/admin/settings/general', label: 'General Settings', icon: Settings },
     { path: '/admin/settings/coupons', label: 'Coupon Management', icon: Ticket },
     { path: '/admin/settings/admins', label: 'Admin Registration', icon: UserPlus },
   ];

@@ -25,14 +25,15 @@ const initialState = {
     status: 'all',
     sortBy: 'createdAt',
     sortOrder: 'desc',
-    limit: 10
+    limit: 5
   },
   pagination: {
     currentPage: 1,
     totalPages: 1,
     totalCount: 0,
     hasNext: false,
-    hasPrev: false
+    hasPrev: false,
+    limit: 5
   }
 };
 
@@ -47,11 +48,8 @@ const usersReducer = (state, action) => {
         ...state,
         users,
         pagination: {
-          currentPage: pagination.currentPage || 1,
-          totalPages: pagination.totalPages || 1,
-          totalCount: pagination.totalCount || 0,
-          hasNext: pagination.hasNext || false,
-          hasPrev: pagination.hasPrev || false
+          ...state.pagination,
+          ...pagination
         },
         isLoading: false,
         error: null
@@ -104,14 +102,14 @@ const UsersContext = createContext();
 export const UsersProvider = ({ children }) => {
   const [state, dispatch] = useReducer(usersReducer, initialState);
 
-  const fetchUsers = useCallback(async (page = state.pagination.currentPage, filters = {}) => {
+  const fetchUsers = useCallback(async (page = 1, filters = {}) => {
     try {
       dispatch({ type: USER_ACTIONS.SET_LOADING, payload: true });
       
       const currentFilters = { ...state.filters, ...filters };
       
       const params = {
-        page,
+        page: page,
         limit: currentFilters.limit,
         search: currentFilters.search,
         status: currentFilters.status === 'all' ? '' : currentFilters.status,
@@ -129,14 +127,25 @@ export const UsersProvider = ({ children }) => {
       const response = await userService.getAllUsers(params);
       
       if (response.success) {
+        const apiData = response.data;
+        
+        // Calculate pagination properties
+        const currentPage = apiData.currentPage || page;
+        const totalPages = apiData.totalPages || 1;
+        const totalCount = apiData.totalCount || 0;
+        const limit = currentFilters.limit || 5;
+
         dispatch({
           type: USER_ACTIONS.SET_USERS,
           payload: {
-            users: response.data.users || response.data || [],
-            pagination: response.data.pagination || {
-              currentPage: page,
-              totalPages: 1,
-              totalCount: response.data.length || 0
+            users: apiData.users || [],
+            pagination: {
+              currentPage,
+              totalPages,
+              totalCount,
+              limit,
+              hasPrev: currentPage > 1,
+              hasNext: currentPage < totalPages
             }
           }
         });
@@ -150,7 +159,20 @@ export const UsersProvider = ({ children }) => {
         payload: error.message || 'Failed to load users. Please try again.' 
       });
     }
-  }, [state.filters, state.pagination.currentPage]);
+  }, [state.filters]);
+
+  const updatePageSize = useCallback(async (newLimit) => {
+    // Update filters with new limit
+    dispatch({ 
+      type: USER_ACTIONS.SET_FILTERS, 
+      payload: { limit: newLimit } 
+    });
+    
+    // Fetch users with new page size, reset to page 1
+    setTimeout(() => {
+      fetchUsers(1, { limit: newLimit });
+    }, 0);
+  }, [fetchUsers]);
 
   const fetchUserById = useCallback(async (id) => {
     try {
@@ -217,6 +239,7 @@ export const UsersProvider = ({ children }) => {
     fetchUsers,
     fetchUserById,
     fetchUserStats,
+    updatePageSize,
     updateUserStatus,
     setFilters,
     updateFilters,

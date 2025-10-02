@@ -7,8 +7,10 @@ import logo from '../../../assets/images/logo.png';
 import { useAuth } from '../../../contexts/AuthProvider';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { SEO } from '../../../contexts/SEOContext';
+import { useCart } from '../../../contexts/CartContext'; // Add this import
 
 const AdminLogin = () => {
+     const { handleUserLogin } = useCart(); // Add this
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -58,6 +60,7 @@ const handleSubmit = async (e) => {
         });
 
         if (result.success) {
+              handleUserLogin(`admin_${result.user.id}`);
             // Redirect to intended page or admin dashboard
             const from = location.state?.from?.pathname || '/admin';
             navigate(from, { replace: true });

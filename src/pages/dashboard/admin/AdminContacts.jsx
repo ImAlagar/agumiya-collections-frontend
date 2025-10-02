@@ -1,7 +1,7 @@
 // src/pages/AdminContacts.js
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Plus, Filter, Download, RefreshCwIcon } from 'lucide-react';
+import { Mail, Plus, Filter, Download, RefreshCwIcon, Menu, X } from 'lucide-react';
 import { useContacts } from '../../../contexts/ContactsContext';
 import { useTheme } from '../../../contexts/ThemeContext';
 import ContactStats from '../../../components/admin/contact/ContactStats';
@@ -30,6 +30,7 @@ const AdminContacts = () => {
   const [selectedContact, setSelectedContact] = useState(null);
   const [showContactDetails, setShowContactDetails] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -115,6 +116,7 @@ const AdminContacts = () => {
 
   const handleFilterChange = (newFilters) => {
     updateFilters(newFilters);
+    setShowMobileFilters(false);
   };
 
   const handleClearFilters = () => {
@@ -125,6 +127,7 @@ const AdminContacts = () => {
       sortBy: 'createdAt',
       sortOrder: 'desc'
     });
+    setShowMobileFilters(false);
   };
 
   const handlePageChange = (page) => {
@@ -136,12 +139,16 @@ const AdminContacts = () => {
     fetchContactStats();
   };
 
+  const toggleMobileFilters = () => {
+    setShowMobileFilters(!showMobileFilters);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900  sm:px-4 ">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-          <div className="flex items-center space-x-3 mb-4 sm:mb-0">
+        <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between">
+          <div className="flex items-center space-x-3">
             <div className={`p-2 rounded-lg ${
               theme === 'dark' ? 'bg-blue-900/20' : 
               theme === 'smokey' ? 'bg-blue-800/10' : 'bg-blue-100'
@@ -151,30 +158,39 @@ const AdminContacts = () => {
               }`} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                 Contact Management
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
                 Manage and respond to customer inquiries
               </p>
             </div>
           </div>
           
-          <div className="flex space-x-3">
+          <div className="flex space-x-2 sm:space-x-3">
+            {/* Mobile Filter Toggle */}
+            <button
+              onClick={toggleMobileFilters}
+              className="sm:hidden flex items-center space-x-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              {showMobileFilters ? <X className="w-4 h-4" /> : <Filter className="w-4 h-4" />}
+              <span>Filters</span>
+            </button>
+
             <button
               onClick={handleExportContacts}
-              className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <Download className="w-4 h-4" />
-              <span>Export</span>
+              <span className="hidden sm:inline">Export</span>
             </button>
             <button
               onClick={handleRefresh}
               disabled={isLoading}
-              className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 sm:gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
             >
               <RefreshCwIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </div>
@@ -185,13 +201,13 @@ const AdminContacts = () => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
+          className="mb-6 p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
         >
           <div className="flex justify-between items-center">
-            <p className="text-red-800 dark:text-red-300">{error}</p>
+            <p className="text-sm sm:text-base text-red-800 dark:text-red-300">{error}</p>
             <button
               onClick={clearError}
-              className="text-red-800 dark:text-red-300 hover:text-red-900 dark:hover:text-red-200"
+              className="text-red-800 dark:text-red-300 hover:text-red-900 dark:hover:text-red-200 text-lg"
             >
               ×
             </button>
@@ -202,12 +218,56 @@ const AdminContacts = () => {
       {/* Contact Statistics */}
       {stats && <ContactStats stats={stats} />}
 
-      {/* Filters */}
+      {/* Mobile Filters Overlay */}
+      <AnimatePresence>
+        {showMobileFilters && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 z-40 sm:hidden"
+              onClick={() => setShowMobileFilters(false)}
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed top-0 right-0 bottom-0 w-80 max-w-full bg-white dark:bg-gray-800 shadow-xl z-50 sm:hidden overflow-y-auto"
+            >
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Filters
+                  </h3>
+                  <button
+                    onClick={() => setShowMobileFilters(false)}
+                    className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4">
+                <ContactFilters
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  onClearFilters={handleClearFilters}
+                  isMobile={true}
+                />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Desktop Filters */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="mb-6"
+        className="mb-6 hidden sm:block"
       >
         <ContactFilters
           filters={filters}
@@ -234,29 +294,15 @@ const AdminContacts = () => {
         />
       </motion.div>
 
-      {/* Contact Details Sidebar */}
+      {/* Contact Details Modal */}
       <AnimatePresence>
-        {showContactDetails && (
-          <div className="fixed inset-0 z-50">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black bg-opacity-50"
-              onClick={handleCloseContactDetails}
-            />
-            
-            {/* Sidebar */}
-            <div className="absolute inset-y-0 right-0 max-w-lg w-full">
-              <ContactDetails
-                contact={selectedContact || currentContact}
-                onClose={handleCloseContactDetails}
-                onStatusUpdate={handleStatusUpdate}
-                isLoading={!selectedContact && !currentContact}
-              />
-            </div>
-          </div>
+        {showContactDetails && selectedContact && (
+          <ContactDetails
+            contact={selectedContact}
+            onClose={handleCloseContactDetails}
+            onStatusUpdate={handleStatusUpdate}
+            actionLoading={actionLoading}
+          />
         )}
       </AnimatePresence>
     </div>

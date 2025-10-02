@@ -13,7 +13,7 @@ import { ProductsProvider } from './contexts/ProductsContext';
 import { OrdersProvider } from './contexts/OrdersContext';
 import { AuthProvider } from './contexts/AuthProvider';
 import { UsersProvider } from './contexts/UsersContext';
-import { ContactsProvider } from './contexts/ContactsContext'; // 👈 ADD THIS
+import { ContactsProvider } from './contexts/ContactsContext';
 import { CartProvider } from './contexts/CartContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { SearchProvider } from './contexts/SearchContext';
@@ -23,29 +23,29 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <SEOProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <CouponProvider>
-          <SearchProvider>
-            <LoadingProvider>
-              <ProductsProvider>
-                <CurrencyProvider>
-                  <OrdersProvider>
-                    <UsersProvider>
-                      <ContactsProvider> {/* 👈 ADD THIS */}
-                        <CartProvider>
-                          <ProgressLoader />
-                          <Loader />
-                          <RouterProvider router={router}/>
-                        </CartProvider>
-                      </ContactsProvider> {/* 👈 ADD THIS */}
-                    </UsersProvider>  
-                  </OrdersProvider>
-                </CurrencyProvider>
-              </ProductsProvider>
-            </LoadingProvider>
-          </SearchProvider>
-          </CouponProvider>
-        </AuthProvider>
+        <CartProvider> {/* 👈 MOVE CartProvider OUTSIDE AuthProvider */}
+          <AuthProvider> {/* 👈 Now AuthProvider can use useCart */}
+            <CouponProvider>
+              <SearchProvider>
+                <LoadingProvider>
+                  <ProductsProvider>
+                    <CurrencyProvider>
+                      <OrdersProvider>
+                        <UsersProvider>
+                          <ContactsProvider>
+                            <ProgressLoader />
+                            <Loader />
+                            <RouterProvider router={router}/>
+                          </ContactsProvider>
+                        </UsersProvider>  
+                      </OrdersProvider>
+                    </CurrencyProvider>
+                  </ProductsProvider>
+                </LoadingProvider>
+              </SearchProvider>
+            </CouponProvider>
+          </AuthProvider>
+        </CartProvider> {/* 👈 CartProvider now wraps AuthProvider */}
       </ThemeProvider>
     </SEOProvider>
   </StrictMode>,

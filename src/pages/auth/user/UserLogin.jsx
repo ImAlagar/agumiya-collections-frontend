@@ -5,6 +5,8 @@ import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useAuth } from '../../../contexts/AuthProvider.jsx';
 import { USER_TYPES } from '../../../config/constants.jsx'; // Add this import
+import { useCart } from '../../../contexts/CartContext'; // Add this import
+
 
 const UserLogin = () => {
   const [formData, setFormData] = useState({
@@ -15,6 +17,7 @@ const UserLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const { login, error, clearError } = useAuth();
+  const { handleUserLogin } = useCart(); // Add this
   const navigate = useNavigate();
   const { theme } = useTheme();
 
@@ -116,6 +119,8 @@ const handleSubmit = async (e) => {
     const result = await login(credentials);
     
     if (result.success) {
+     handleUserLogin(result.user.id || result.user._id); 
+
       navigate('/', { replace: true });
     }
     // No else needed - error is displayed via {error} in UI

@@ -329,12 +329,6 @@ const ProductDetails = () => {
                     </span>
                   )}
 
-                  <div className="flex items-center space-x-1 text-xs sm:text-sm">
-                    <FiStar className="text-yellow-400 fill-current" size={14} />
-                    <span className="text-gray-600 dark:text-gray-400">
-                      {product.rating || '4.5'} (128 reviews)
-                    </span>
-                  </div>
                 </div>
 
                 {/* Enhanced Price Section */}
@@ -364,7 +358,6 @@ const ProductDetails = () => {
                   {userCurrency !== 'USD' && currentOriginalPrice && (
                     <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
                       <span>Original: {currentOriginalPrice}</span>
-                      <span className="text-green-600 font-medium">• Auto-converted</span>
                     </div>
                   )}
                 </div>
@@ -385,39 +378,40 @@ const ProductDetails = () => {
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {displayVariants.map((variant) => {
-                      const { formatted: variantFormattedPrice } = formatPrice(variant.price, userCurrency);
-                      const { formatted: variantOriginalPrice } = formatPrice(variant.price, 'USD');
-                      
-                      return (
-                        <button
-                          key={variant.id}
-                          onClick={() => setSelectedVariant(variant)}
-                          className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 text-left transition-all ${
-                            selectedVariant?.id === variant.id
-                              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                          }`}
-                        >
-                          <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
-                            {variant.title}
-                          </p>
-                          <p className="text-blue-600 dark:text-blue-400 font-bold text-base sm:text-lg">
-                            {variantFormattedPrice}
-                          </p>
-                          {userCurrency !== 'USD' && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {variantOriginalPrice}
+                    {displayVariants
+                      .filter((variant, index, self) => {
+                        const cleanTitle = variant.title.split('/')[0].trim();
+                        return self.findIndex(v => v.title.split('/')[0].trim() === cleanTitle) === index;
+                      })
+                      .map((variant) => {
+                        const { formatted: variantFormattedPrice } = formatPrice(variant.price, userCurrency);
+                        const { formatted: variantOriginalPrice } = formatPrice(variant.price, 'USD');
+                        
+                        // Clean the title by removing everything after first slash
+                        const cleanTitle = variant.title.split('/')[0].trim();
+                        
+                        return (
+                          <button
+                            key={variant.id}
+                            onClick={() => setSelectedVariant(variant)}
+                            className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 text-left transition-all ${
+                              selectedVariant?.id === variant.id
+                                ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                            }`}
+                          >
+                            <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                              {cleanTitle}
                             </p>
-                          )}
-                          {variant.description && (
-                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              {variant.description}
-                            </p>
-                          )}
-                        </button>
-                      );
-                    })}
+
+                            {variant.description && (
+                              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                {variant.description}
+                              </p>
+                            )}
+                          </button>
+                        );
+                      })}
                   </div>
 
                   {/* Show More/Less Button */}

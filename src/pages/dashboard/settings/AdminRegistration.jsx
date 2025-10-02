@@ -170,14 +170,6 @@ const AdminRegistration = () => {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/admin/settings/general')}
-                className="p-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
-              >
-                <ArrowLeft className="text-gray-600 dark:text-gray-400" size={20} />
-              </motion.button>
               <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-2xl">
                 <UserPlus className="text-purple-600 dark:text-purple-400" size={32} />
               </div>

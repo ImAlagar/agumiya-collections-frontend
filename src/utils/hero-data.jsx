@@ -1,6 +1,6 @@
 // src/utils/hero-data.js
 import hero6 from "../assets/images/hero-slide6.png";
-import hero7 from "../assets/images/hero-slide7.png";
+import hero5 from "../assets/images/home.png";
 import hero8 from "../assets/images/hero-slide8.png";
 import hero9 from "../assets/images/hero-slide5.png";
 
@@ -33,7 +33,7 @@ export const heroSlides = [
   },
   {
     id: 3,
-    image: hero7,
+    image: hero5,
     title: "Home & Living",
     subtitle: "Comfort Redefined",
     description: "Transform your space with our premium home collection. Quality and comfort in every detail.",

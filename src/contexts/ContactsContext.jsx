@@ -26,14 +26,15 @@ const initialState = {
     inquiryType: 'all',
     sortBy: 'createdAt',
     sortOrder: 'desc',
-    limit: 10
+    limit: 5 // Changed from 10 to 5
   },
   pagination: {
     currentPage: 1,
     totalPages: 1,
     totalCount: 0,
     hasNext: false,
-    hasPrev: false
+    hasPrev: false,
+    limit: 5 // Added limit here too
   }
 };
 
@@ -48,11 +49,8 @@ const contactsReducer = (state, action) => {
         ...state,
         contacts,
         pagination: {
-          currentPage: pagination.currentPage || 1,
-          totalPages: pagination.totalPages || 1,
-          totalCount: pagination.totalCount || 0,
-          hasNext: pagination.hasNext || false,
-          hasPrev: pagination.hasPrev || false
+          ...state.pagination,
+          ...pagination
         },
         isLoading: false,
         error: null
@@ -105,54 +103,80 @@ const ContactsContext = createContext();
 export const ContactsProvider = ({ children }) => {
   const [state, dispatch] = useReducer(contactsReducer, initialState);
 
-  const fetchContacts = useCallback(async (page = state.pagination.currentPage, filters = {}) => {
-    try {
-      dispatch({ type: CONTACT_ACTIONS.SET_LOADING, payload: true });
-      
-      const currentFilters = { ...state.filters, ...filters };
-      
-      const params = {
-        page,
-        limit: currentFilters.limit,
-        search: currentFilters.search,
-        status: currentFilters.status === 'all' ? '' : currentFilters.status,
-        inquiryType: currentFilters.inquiryType === 'all' ? '' : currentFilters.inquiryType,
-        sortBy: currentFilters.sortBy,
-        sortOrder: currentFilters.sortOrder
-      };
+const fetchContacts = useCallback(async (page = 1, filters = {}) => {
+  try {
+    dispatch({ type: CONTACT_ACTIONS.SET_LOADING, payload: true });
+    
+    const currentFilters = { ...state.filters, ...filters };
+    
+    const params = {
+      page: page || 1,
+      limit: currentFilters.limit || 5,
+      search: currentFilters.search,
+      status: currentFilters.status === 'all' ? '' : currentFilters.status,
+      inquiryType: currentFilters.inquiryType === 'all' ? '' : currentFilters.inquiryType,
+      sortBy: currentFilters.sortBy,
+      sortOrder: currentFilters.sortOrder
+    };
 
-      // Clean up empty params
-      Object.keys(params).forEach(key => {
-        if (params[key] === '' || params[key] === null || params[key] === undefined) {
-          delete params[key];
+    // Clean up empty params
+    Object.keys(params).forEach(key => {
+      if (params[key] === '' || params[key] === null || params[key] === undefined) {
+        delete params[key];
+      }
+    });
+
+    const response = await contactService.getAllContacts(params);
+    
+    if (response.success) {
+      const apiData = response.data;
+      
+      // ✅ FIX: Map API pagination to component expected format
+      const apiPagination = apiData.pagination || {};
+      const currentPage = apiPagination.currentPage || page;
+      const totalPages = apiPagination.totalPages || 1;
+      const totalCount = apiPagination.totalItems || apiPagination.totalCount || 0; // Map totalItems to totalCount
+      const limit = currentFilters.limit || 5;
+
+      dispatch({
+        type: CONTACT_ACTIONS.SET_CONTACTS,
+        payload: {
+          contacts: apiData.inquiries || apiData.contacts || apiData || [],
+          pagination: {
+            currentPage,
+            totalPages,
+            totalCount, // ✅ Now using totalCount
+            limit,
+            hasPrev: apiPagination.hasPrev !== undefined ? apiPagination.hasPrev : currentPage > 1,
+            hasNext: apiPagination.hasNext !== undefined ? apiPagination.hasNext : currentPage < totalPages
+          }
         }
       });
-
-      const response = await contactService.getAllContacts(params);
-      
-      if (response.success) {
-        dispatch({
-          type: CONTACT_ACTIONS.SET_CONTACTS,
-          payload: {
-            contacts: response.data.inquiries || response.data || [],
-            pagination: response.data.pagination || {
-              currentPage: page,
-              totalPages: 1,
-              totalCount: response.data.length || 0
-            }
-          }
-        });
-      } else {
-        throw new Error(response.message || 'Failed to fetch contacts');
-      }
-    } catch (error) {
-      console.error('Fetch contacts error:', error);
-      dispatch({ 
-        type: CONTACT_ACTIONS.SET_ERROR, 
-        payload: error.message || 'Failed to load contacts. Please try again.' 
-      });
+    } else {
+      throw new Error(response.message || 'Failed to fetch contacts');
     }
-  }, [state.filters, state.pagination.currentPage]);
+  } catch (error) {
+    console.error('Fetch contacts error:', error);
+    dispatch({ 
+      type: CONTACT_ACTIONS.SET_ERROR, 
+      payload: error.message || 'Failed to load contacts. Please try again.' 
+    });
+  }
+}, [state.filters]);
+
+  // Add page size update function
+  const updatePageSize = useCallback(async (newLimit) => {
+    // Update filters with new limit
+    dispatch({ 
+      type: CONTACT_ACTIONS.SET_FILTERS, 
+      payload: { limit: newLimit } 
+    });
+    
+    // Fetch contacts with new page size, reset to page 1
+    setTimeout(() => {
+      fetchContacts(1, { limit: newLimit });
+    }, 0);
+  }, [fetchContacts]);
 
   const fetchContactById = useCallback(async (id) => {
     try {
@@ -237,6 +261,7 @@ export const ContactsProvider = ({ children }) => {
     submitContact,
     setFilters,
     updateFilters,
+    updatePageSize, // Add this new function
     clearError
   };
 

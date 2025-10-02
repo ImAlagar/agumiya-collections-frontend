@@ -21,6 +21,7 @@ const AdminOrders = () => {
     updateOrderStatus,
     retryPrintifyOrder,
     updateFilters,
+    updatePageSize, // Add this
     clearError
   } = useOrders();
 
@@ -31,8 +32,6 @@ const AdminOrders = () => {
   const [actionLoading, setActionLoading] = useState(null);
   const [stats, setStats] = useState(null);
   const [localFilters, setLocalFilters] = useState(filters);
-
-  // Remove the calculateOverallOrderStats function and overallOrderStats state
 
   // Load orders and stats on component mount
   useEffect(() => {
@@ -60,6 +59,11 @@ const AdminOrders = () => {
   // Handle page change
   const handlePageChange = (newPage) => {
     fetchOrders(newPage);
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (newSize) => {
+    updatePageSize(newSize);
   };
 
   // View order details
@@ -218,7 +222,7 @@ const AdminOrders = () => {
         </motion.div>
       )}
 
-      {/* Order Statistics Dashboard - REPLACED SECTION */}
+      {/* Order Statistics Dashboard */}
       <OrderStatsDashboard orders={orders} />
 
       {/* Filters Section */}
@@ -247,6 +251,7 @@ const AdminOrders = () => {
           onRetryPrintify={handleRetryPrintify}
           actionLoading={actionLoading}
           onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange} // Add this prop
         />
       </div>
 
@@ -267,15 +272,6 @@ const AdminOrders = () => {
         </div>
       )}
 
-      {/* Status Update Modal */}
-      {showStatusModal && statusUpdateOrder && (
-        <StatusUpdateModal
-          order={statusUpdateOrder}
-          onClose={handleCloseModals}
-          onConfirm={handleStatusConfirm}
-          isLoading={actionLoading === 'status-update'}
-        />
-      )}
     </motion.div>
   );
 };

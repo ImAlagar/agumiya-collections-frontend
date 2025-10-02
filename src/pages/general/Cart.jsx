@@ -1,15 +1,16 @@
 // src/pages/general/Cart.js
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../contexts/CartContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { FiShoppingBag, FiTrash2, FiPlus, FiMinus, FiArrowRight, FiShoppingCart } from 'react-icons/fi';
+import { useAuth } from '../../contexts/AuthProvider';
 
 const Cart = () => {
   const { cartItems, updateQuantity, removeFromCart, clearCart, total } = useCart();
   const { formatPrice, userCurrency, getCurrencySymbol } = useCurrency();
-
+  const { isAuthenticated } = useAuth(); // Add this
   // Calculate totals using the total from cart context
   const subtotal = total || cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shipping = 10; // Fixed shipping cost
@@ -30,6 +31,8 @@ const Cart = () => {
     hidden: { opacity: 0, x: -20 },
     visible: { opacity: 1, x: 0 }
   };
+
+
 
   if (cartItems.length === 0) {
     return (
@@ -82,6 +85,10 @@ const Cart = () => {
     );
   }
 
+
+    useEffect(() => {
+    // This will make the cart re-render when auth state changes
+  }, [isAuthenticated]);
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -3,10 +3,16 @@ import React, { createContext, useContext, useReducer, useEffect } from 'react';
 
 const CartContext = createContext();
 
+// Generate user-specific cart key
+const getCartKey = (userId = 'guest') => {
+  return `agumiya_cart_${userId}`;
+};
+
 // Load cart from localStorage
-const loadCartFromStorage = () => {
+const loadCartFromStorage = (userId = 'guest') => {
   try {
-    const savedCart = localStorage.getItem('agumiya_cart');
+    const cartKey = getCartKey(userId);
+    const savedCart = localStorage.getItem(cartKey);
     return savedCart ? JSON.parse(savedCart) : { items: [] };
   } catch (error) {
     console.error('Error loading cart from storage:', error);
@@ -15,9 +21,10 @@ const loadCartFromStorage = () => {
 };
 
 // Save cart to localStorage
-const saveCartToStorage = (cartState) => {
+const saveCartToStorage = (cartState, userId = 'guest') => {
   try {
-    localStorage.setItem('agumiya_cart', JSON.stringify(cartState));
+    const cartKey = getCartKey(userId);
+    localStorage.setItem(cartKey, JSON.stringify(cartState));
   } catch (error) {
     console.error('Error saving cart to storage:', error);
   }
@@ -65,7 +72,7 @@ const cartReducer = (state, action) => {
           item.id === action.payload.id && item.variantId === action.payload.variantId
             ? { ...item, quantity: action.payload.quantity }
             : item
-        ).filter(item => item.quantity > 0) // Remove items with quantity 0
+        ).filter(item => item.quantity > 0)
       };
       break;
 
@@ -79,7 +86,23 @@ const cartReducer = (state, action) => {
     case 'LOAD_CART':
       newState = {
         ...state,
-        items: action.payload.items || []
+        items: action.payload.items || [],
+        currentUserId: action.payload.userId || 'guest'
+      };
+      break;
+
+    case 'SWITCH_USER_CART':
+      newState = {
+        ...state,
+        items: action.payload.items || [],
+        currentUserId: action.payload.userId
+      };
+      break;
+
+    case 'RESET_TO_GUEST':
+      newState = {
+        items: [],
+        currentUserId: 'guest'
       };
       break;
 
@@ -87,24 +110,36 @@ const cartReducer = (state, action) => {
       return state;
   }
 
-  // Save to localStorage after every state change
-  saveCartToStorage(newState);
   return newState;
 };
 
 export const CartProvider = ({ children }) => {
   const [state, dispatch] = useReducer(cartReducer, {
-    items: []
+    items: [],
+    currentUserId: 'guest'
   });
 
   // Load cart from localStorage on component mount
   useEffect(() => {
-    const savedCart = loadCartFromStorage();
-    dispatch({ type: 'LOAD_CART', payload: savedCart });
+    const savedCart = loadCartFromStorage('guest');
+    dispatch({ 
+      type: 'LOAD_CART', 
+      payload: { 
+        items: savedCart.items,
+        userId: 'guest'
+      } 
+    });
   }, []);
 
+  // Save to localStorage whenever cart items or user changes
+  useEffect(() => {
+    if (state.currentUserId && state.items) {
+      saveCartToStorage({ items: state.items }, state.currentUserId);
+      console.log('💾 Saved cart for user:', state.currentUserId, 'items:', state.items.length);
+    }
+  }, [state.items, state.currentUserId]);
+
   const addToCart = (product) => {
-    // Ensure product has required fields
     const cartProduct = {
       id: product.id,
       name: product.name,
@@ -133,6 +168,60 @@ export const CartProvider = ({ children }) => {
     dispatch({ type: 'CLEAR_CART' });
   };
 
+  // Handle user login - switch to user's cart
+  const handleUserLogin = (userId) => {
+    if (userId && userId !== state.currentUserId) {
+      console.log('🔐 User logging in:', userId);
+      console.log('🛒 Current cart before login:', state.items.length, 'items');
+      
+      // Save current guest cart before switching (if there are items)
+      if (state.items.length > 0 && state.currentUserId === 'guest') {
+        console.log('💾 Saving guest cart before login');
+        saveCartToStorage({ items: state.items }, 'guest');
+      }
+      
+      // Load user's cart
+      const userCart = loadCartFromStorage(userId);
+      console.log('📥 Loading user cart:', userCart.items.length, 'items');
+      
+      dispatch({ 
+        type: 'SWITCH_USER_CART', 
+        payload: { 
+          items: userCart.items,
+          userId: userId
+        } 
+      });
+      
+      console.log('✅ User cart loaded successfully');
+    }
+  };
+
+  // Handle user logout - switch to guest cart
+  const handleUserLogout = () => {
+    console.log('🔐 User logging out:', state.currentUserId);
+    console.log('🛒 Current cart before logout:', state.items.length, 'items');
+    
+    // Save user's cart before logging out (so they get it back when they login)
+    if (state.currentUserId !== 'guest' && state.items.length > 0) {
+      console.log('💾 Saving user cart before logout');
+      saveCartToStorage({ items: state.items }, state.currentUserId);
+    }
+    
+    // Load guest cart (don't clear it completely)
+    const guestCart = loadCartFromStorage('guest');
+    console.log('📥 Loading guest cart:', guestCart.items.length, 'items');
+    
+    dispatch({ 
+      type: 'SWITCH_USER_CART', 
+      payload: { 
+        items: guestCart.items,
+        userId: 'guest'
+      } 
+    });
+    
+    console.log('✅ Switched to guest cart after logout');
+  };
+
   const total = state.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalItems = state.items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -143,8 +232,11 @@ export const CartProvider = ({ children }) => {
       removeFromCart,
       updateQuantity,
       clearCart,
+      handleUserLogin,
+      handleUserLogout,
       total,
-      totalItems
+      totalItems,
+      currentUserId: state.currentUserId
     }}>
       {children}
     </CartContext.Provider>

@@ -88,13 +88,17 @@ const UserOrderStats = ({ user }) => {
   // If no orders, show a placeholder message
   if (totalOrders === 0) {
     return (
-      <div className="text-center py-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-        <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-600 dark:text-gray-400">No order history available</p>
-        <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="text-center py-6 sm:py-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg"
+      >
+        <AlertCircle className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">No order history available</p>
+        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-500 mt-1">
           This user hasn't placed any orders yet
         </p>
-      </div>
+      </motion.div>
     );
   }
 
@@ -105,14 +109,14 @@ const UserOrderStats = ({ user }) => {
     if (trend === 'neutral') return null;
     
     return (
-      <div className={`ml-2 inline-flex items-center ${isPositive ? colors.text : 'text-red-500'}`}>
-        <TrendingUp className={`w-4 h-4 ${isPositive ? '' : 'rotate-180'}`} />
+      <div className={`ml-1 sm:ml-2 inline-flex items-center ${isPositive ? colors.text : 'text-red-500'}`}>
+        <TrendingUp className={`w-3 h-3 sm:w-4 sm:h-4 ${isPositive ? '' : 'rotate-180'}`} />
       </div>
     );
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {statCards.map((stat, index) => {
         const Icon = stat.icon;
         const colors = getColorClasses(stat.color);
@@ -124,27 +128,27 @@ const UserOrderStats = ({ user }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
             whileHover={{ scale: 1.02 }}
-            className={`${colors.bg} ${colors.border} rounded-lg p-4 border-2 min-h-[100px] flex flex-col justify-between`}
+            className={`${colors.bg} ${colors.border} rounded-lg p-3 sm:p-4 border-2 min-h-[90px] sm:min-h-[100px] flex flex-col justify-between`}
           >
             <div className="flex items-center justify-between mb-2">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1 truncate">
                   {stat.title}
                 </p>
                 <div className="flex items-center">
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">
                     {stat.value}
                   </p>
                   <TrendIndicator trend={stat.trend} color={stat.color} />
                 </div>
               </div>
               
-              <div className={`p-2 rounded-lg ${colors.bg}`}>
-                <Icon className={`w-5 h-5 ${colors.icon}`} />
+              <div className={`p-1 sm:p-2 rounded-lg ${colors.bg} flex-shrink-0 ml-2`}>
+                <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${colors.icon}`} />
               </div>
             </div>
             
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-auto">
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
               {stat.description}
             </p>
           </motion.div>

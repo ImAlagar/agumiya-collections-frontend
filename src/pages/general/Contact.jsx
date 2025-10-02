@@ -7,7 +7,6 @@ import {
   CheckCircle, 
   Send, 
   MessageCircle, 
-  Calendar, 
   ExternalLink,
   AlertCircle
 } from "lucide-react";
@@ -283,7 +282,7 @@ const handleSubmit = async (e) => {
           }`}
         >
           <Clock size={18} />
-          <span className="font-medium">Average response time: 2 hours</span>
+          <span className="font-medium">Average response time: 24 hours</span>
         </motion.div>
 
         {/* Unique Grid Layout */}

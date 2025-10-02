@@ -1,17 +1,10 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { 
-  Facebook, 
-  Instagram, 
-  Twitter, 
-  Youtube, 
-  Linkedin,
-  MessageCircle, 
   Heart,
   ArrowUp
 } from 'lucide-react';
-import { contactInfo, customerService, paymentMethods, quickLinks, shopCategories, socialLinks } from '../../../utils/data.jsx';
+import { contactInfo, customerService, quickLinks, shopCategories, socialLinks } from '../../../utils/data.jsx';
 import { motion } from 'framer-motion';
 
 const Footer = () => {

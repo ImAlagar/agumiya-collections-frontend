@@ -3,6 +3,34 @@
 @tailwind components;
 @tailwind utilities;
 
+
+/* src/index.css */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+}
+
+.dark {
+  --bg-primary: #1a202c;
+  --bg-secondary: #2d3748;
+  --text-primary: #f7fafc;
+  --text-secondary: #e2e8f0;
+}
+
+.smokey {
+  --bg-primary: #2d3748;
+  --bg-secondary: #4a5568;
+  --text-primary: #f7fafc;
+  --text-secondary: #e2e8f0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
 /* Base font setup */
 @layer base {
   html {

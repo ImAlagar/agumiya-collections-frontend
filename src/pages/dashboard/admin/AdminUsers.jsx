@@ -1,12 +1,13 @@
+// src/components/admin/AdminUsers.jsx
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Filter, Download, ShoppingCart, CheckCircle, DollarSign, RefreshCwIcon } from 'lucide-react';
+import { Users, Download, RefreshCwIcon } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useUsers } from '../../../contexts/UsersContext';
-import UserStats from '../../../components/admin/user/UserStats';
 import UserFilters from '../../../components/admin/user/UserFilters';
 import UserTable from '../../../components/admin/user/UserTable';
 import UserDetails from '../../../components/admin/user/UserDetails';
+import UserStats from '../../../components/admin/user/UserStats';
 
 const AdminUsers = () => {
   const { theme } = useTheme();
@@ -22,6 +23,7 @@ const AdminUsers = () => {
     fetchUserById,
     fetchUserStats,
     updateUserStatus,
+    updatePageSize,
     updateFilters,
     clearError
   } = useUsers();
@@ -29,34 +31,28 @@ const AdminUsers = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
- 
 
   useEffect(() => {
     const initializeData = async () => {
       await fetchUsers(1);
       await fetchUserStats();
-      calculateOverallOrderStats();
+      // Removed the undefined function call
     };
 
     initializeData();
   }, [fetchUsers, fetchUserStats]);
 
+  const handlePageSizeChange = (newSize) => {
+    updatePageSize(newSize);
+  };
 
-
-
-
-  // Add the missing handleExportUsers function
   const handleExportUsers = () => {
-    // Implement export functionality
-    
-    // Example implementation:
     if (users && users.length > 0) {
       const csvContent = convertToCSV(users);
       downloadCSV(csvContent, 'users_export.csv');
     }
   };
 
-  // Helper function to convert users data to CSV
   const convertToCSV = (usersData) => {
     const headers = ['Name', 'Email', 'Phone', 'Status', 'Total Orders', 'Total Spent', 'Registered Date'];
     const rows = usersData.map(user => [
@@ -72,7 +68,6 @@ const AdminUsers = () => {
     return [headers, ...rows].map(row => row.map(field => `"${field}"`).join(',')).join('\n');
   };
 
-  // Helper function to download CSV
   const downloadCSV = (content, filename) => {
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -91,7 +86,6 @@ const AdminUsers = () => {
     setSelectedUser(user);
     setShowUserDetails(true);
     
-    // Fetch full user details if needed
     if (!user.orders) {
       try {
         await fetchUserById(user.id);
@@ -114,11 +108,8 @@ const AdminUsers = () => {
         isActive: !user.isActive 
       });
       
-      if (result.success) {
-        // Update the selected user if it's the one being viewed
-        if (selectedUser && selectedUser.id === user.id) {
-          setSelectedUser(result.user);
-        }
+      if (result.success && selectedUser && selectedUser.id === user.id) {
+        setSelectedUser(result.user);
       }
     } catch (error) {
       console.error('Error updating user status:', error);
@@ -147,11 +138,12 @@ const AdminUsers = () => {
   const handleRefresh = () => {
     fetchUsers(pagination.currentPage);
   };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center space-x-3 mb-4 sm:mb-0">
             <div className={`p-2 rounded-lg ${
               theme === 'dark' ? 'bg-blue-900/20' : 
@@ -179,14 +171,14 @@ const AdminUsers = () => {
               <Download className="w-4 h-4" />
               <span>Export</span>
             </button>
-           <button
-            onClick={handleRefresh}
-            disabled={isLoading}
-            className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
-          >
-            <RefreshCwIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+            >
+              <RefreshCwIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
           </div>
         </div>
       </div>
@@ -209,8 +201,6 @@ const AdminUsers = () => {
           </div>
         </motion.div>
       )}
-
-
 
       {/* User Statistics */}
       {stats && <UserStats stats={stats} />}
@@ -244,34 +234,10 @@ const AdminUsers = () => {
           onUpdateStatus={handleStatusUpdate}
           actionLoading={actionLoading}
           onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
         />
       </motion.div>
 
-      {/* User Details Sidebar */}
-      <AnimatePresence>
-        {showUserDetails && (
-          <div className="fixed inset-0 z-50">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black bg-opacity-50"
-              onClick={handleCloseUserDetails}
-            />
-            
-            {/* Sidebar */}
-            <div className="absolute inset-y-0 right-0 max-w-lg w-full">
-              <UserDetails
-                user={selectedUser || currentUser}
-                onClose={handleCloseUserDetails}
-                onStatusUpdate={handleStatusUpdate}
-                isLoading={!selectedUser && !currentUser}
-              />
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

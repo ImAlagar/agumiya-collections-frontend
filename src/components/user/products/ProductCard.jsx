@@ -191,20 +191,11 @@ const ProductCard = ({ product }) => {
                 ✓ Fast Shipping
               </span>
             )}
-            {hasVariants && (
-              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium">
-                ⚡ Customizable
-              </span>
-            )}
             {product.isPremium && (
               <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium">
                 ✨ Premium
               </span>
             )}
-            {/* Currency feature badge */}
-            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-medium">
-              💱 Auto-converted
-            </span>
           </div>
         </div>
       </Link>

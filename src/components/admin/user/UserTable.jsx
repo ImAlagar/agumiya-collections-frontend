@@ -1,7 +1,7 @@
 // src/components/admin/user/UserTable.js
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, User, Mail, Calendar, ShoppingCart, Loader, Shield, CheckCircle, XCircle } from 'lucide-react';
+import { Eye, User, Mail, Calendar, ShoppingCart, Loader, CheckCircle, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import UserDetails from './UserDetails';
 
@@ -9,7 +9,9 @@ const UserTable = ({
   users, 
   isLoading, 
   pagination, 
-  onPageChange 
+  onPageChange,
+  onPageSizeChange,
+  onViewUser,
 }) => {
   const { theme } = useTheme();
   const [selectedUser, setSelectedUser] = useState(null);
@@ -41,6 +43,9 @@ const UserTable = ({
   const handleRowClick = (user) => {
     setSelectedUser(user);
     setShowDetails(true);
+    if (onViewUser) {
+      onViewUser(user);
+    }
   };
 
   const handleCloseDetails = () => {
@@ -56,11 +61,8 @@ const UserTable = ({
     });
   };
 
-  // Safe ID display function
   const formatUserId = (id) => {
     if (!id) return 'N/A';
-    
-    // Convert to string first, then truncate
     const idString = String(id);
     return idString.length > 8 ? `${idString.slice(0, 8)}...` : idString;
   };
@@ -134,8 +136,29 @@ const UserTable = ({
         animate="visible"
         className="overflow-hidden"
       >
+        {/* Page Size Selector */}
+        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Total: {pagination?.totalCount || 0} users
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Show:</span>
+            <select 
+              value={pagination?.limit || 5}
+              onChange={(e) => onPageSizeChange && onPageSizeChange(Number(e.target.value))}
+              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+            <span className="text-sm text-gray-600 dark:text-gray-400">per page</span>
+          </div>
+        </div>
+
         {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block">
           <table className="w-full min-w-max">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
@@ -147,7 +170,7 @@ const UserTable = ({
               </tr>
             </thead>
             <tbody>
-              {users.map((user, index) => (
+              {users.map((user) => (
                 <motion.tr
                   key={user.id}
                   variants={itemVariants}
@@ -289,7 +312,7 @@ const UserTable = ({
         </div>
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
+        {pagination && pagination.totalPages > 1 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -303,8 +326,9 @@ const UserTable = ({
               <button
                 onClick={() => onPageChange(pagination.currentPage - 1)}
                 disabled={!pagination.hasPrev}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 font-medium"
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
               >
+                <ChevronLeft className="w-4 h-4" />
                 Previous
               </button>
               
@@ -325,7 +349,7 @@ const UserTable = ({
                     <button
                       key={pageNum}
                       onClick={() => onPageChange(pageNum)}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
                         pagination.currentPage === pageNum
                           ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
                           : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -340,9 +364,10 @@ const UserTable = ({
               <button
                 onClick={() => onPageChange(pagination.currentPage + 1)}
                 disabled={!pagination.hasNext}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 font-medium"
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
               >
                 Next
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </motion.div>

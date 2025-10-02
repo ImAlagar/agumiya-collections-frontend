@@ -152,8 +152,7 @@ const StatCard = ({
       animate="visible"
       whileHover="hover"
       whileTap="tap"
-      className={`${colors.bg} ${colors.hoverBg} ${colors.border} rounded-xl p-6 border-2 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-300 backdrop-blur-sm`}
-    >
+      className={`${colors.bg} ${colors.hoverBg} ${colors.border} rounded-xl p-4 sm:p-6 border-2 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-300 backdrop-blur-sm`}    >
       <div className="flex items-center justify-between">
         <motion.div variants={valueVariants} className="flex-1">
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
@@ -215,9 +214,9 @@ const StatCard = ({
         <motion.div
           variants={iconVariants}
           whileHover="hover"
-          className={`p-3 rounded-2xl ${colors.bg} backdrop-blur-sm border ${colors.border} relative`}
+          className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl ${colors.bg} backdrop-blur-sm border ${colors.border} relative`}
         >
-          <Icon className={`w-7 h-7 ${colors.icon}`} />
+          <Icon className={`w-5 h-5 sm:w-7 sm:h-7 ${colors.icon}`} />
           
           {/* Alert indicator for negative changes */}
           {change < 0 && (

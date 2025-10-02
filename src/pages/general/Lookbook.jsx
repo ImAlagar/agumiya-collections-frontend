@@ -2,10 +2,12 @@
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const Lookbook = () => {
   const [selectedCollection, setSelectedCollection] = useState('all');
   const [currentSlide, setCurrentSlide] = useState(0);
+  const { theme } = useTheme();
 
   // Hero slider images with fashion-focused Unsplash URLs
   const heroSlides = [
@@ -138,8 +140,96 @@ const Lookbook = () => {
     }
   };
 
+  // Theme-based styling function
+  const getThemeStyles = () => {
+    switch (theme) {
+      case 'light':
+        return {
+          background: 'bg-gray-50',
+          text: 'text-gray-900',
+          subtitle: 'text-gray-600',
+          card: 'bg-white',
+          button: {
+            primary: 'bg-black text-white hover:bg-gray-800',
+            secondary: 'bg-gray-200 text-gray-700 hover:bg-gray-300',
+            active: 'bg-black text-white shadow-lg',
+            inactive: 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          },
+          tag: 'bg-gray-100 text-gray-700',
+          overlay: 'bg-black bg-opacity-0 group-hover:bg-opacity-10',
+          inspiration: {
+            background: 'bg-gray-900',
+            text: 'text-white',
+            subtitle: 'text-gray-300'
+          }
+        };
+      case 'dark':
+        return {
+          background: 'bg-gray-900',
+          text: 'text-white',
+          subtitle: 'text-gray-300',
+          card: 'bg-gray-800',
+          button: {
+            primary: 'bg-white text-black hover:bg-gray-200',
+            secondary: 'bg-gray-700 text-gray-200 hover:bg-gray-600',
+            active: 'bg-white text-black shadow-lg',
+            inactive: 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+          },
+          tag: 'bg-gray-700 text-gray-200',
+          overlay: 'bg-black bg-opacity-0 group-hover:bg-opacity-20',
+          inspiration: {
+            background: 'bg-black',
+            text: 'text-white',
+            subtitle: 'text-gray-300'
+          }
+        };
+      case 'smokey':
+        return {
+          background: 'bg-gray-800',
+          text: 'text-white',
+          subtitle: 'text-gray-300',
+          card: 'bg-gray-700',
+          button: {
+            primary: 'bg-white text-black hover:bg-gray-200',
+            secondary: 'bg-gray-600 text-gray-200 hover:bg-gray-500',
+            active: 'bg-white text-black shadow-lg',
+            inactive: 'bg-gray-600 text-gray-200 hover:bg-gray-500'
+          },
+          tag: 'bg-gray-600 text-gray-200',
+          overlay: 'bg-black bg-opacity-0 group-hover:bg-opacity-30',
+          inspiration: {
+            background: 'bg-gray-900',
+            text: 'text-white',
+            subtitle: 'text-gray-300'
+          }
+        };
+      default:
+        return {
+          background: 'bg-gray-50',
+          text: 'text-gray-900',
+          subtitle: 'text-gray-600',
+          card: 'bg-white',
+          button: {
+            primary: 'bg-black text-white hover:bg-gray-800',
+            secondary: 'bg-gray-200 text-gray-700 hover:bg-gray-300',
+            active: 'bg-black text-white shadow-lg',
+            inactive: 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          },
+          tag: 'bg-gray-100 text-gray-700',
+          overlay: 'bg-black bg-opacity-0 group-hover:bg-opacity-10',
+          inspiration: {
+            background: 'bg-gray-900',
+            text: 'text-white',
+            subtitle: 'text-gray-300'
+          }
+        };
+    }
+  };
+
+  const styles = getThemeStyles();
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen ${styles.background}`}>
       {/* Enhanced Hero Section with Slider */}
       <section className="relative h-screen bg-black text-white overflow-hidden">
         {/* Background Slides */}
@@ -275,7 +365,7 @@ const Lookbook = () => {
       </section>
 
       {/* Collection Filter Section */}
-      <section className="py-16 bg-white">
+      <section className={`py-16 ${theme === 'light' ? 'bg-white' : styles.card}`}>
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -283,8 +373,10 @@ const Lookbook = () => {
             transition={{ duration: 0.8 }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl font-bold mb-6">Browse Collections</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
+            <h2 className={`text-4xl font-bold mb-6 ${styles.text}`}>
+              Browse Collections
+            </h2>
+            <p className={`text-xl ${styles.subtitle} max-w-2xl mx-auto mb-8`}>
               Explore our curated seasonal collections and find inspiration for every occasion
             </p>
             <div className="flex flex-wrap justify-center gap-4">
@@ -296,8 +388,8 @@ const Lookbook = () => {
                   whileTap={{ scale: 0.95 }}
                   className={`px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 ${
                     selectedCollection === season
-                      ? 'bg-black text-white shadow-lg'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      ? styles.button.active
+                      : styles.button.inactive
                   }`}
                 >
                   {season.charAt(0).toUpperCase() + season.slice(1)}
@@ -321,24 +413,24 @@ const Lookbook = () => {
                 className="group cursor-pointer"
                 whileHover={{ y: -5 }}
               >
-                <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500">
+                <div className={`${styles.card} rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500`}>
                   <div className="aspect-[3/4] relative overflow-hidden">
                     <img
                       src={look.image}
                       alt={look.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300" />
+                    <div className={`absolute inset-0 ${styles.overlay} transition-all duration-300`} />
                   </div>
                   
                   <div className="p-6">
-                    <h3 className="text-xl font-bold mb-2">{look.title}</h3>
-                    <p className="text-gray-600 mb-4">{look.description}</p>
+                    <h3 className={`text-xl font-bold mb-2 ${styles.text}`}>{look.title}</h3>
+                    <p className={`${styles.subtitle} mb-4`}>{look.description}</p>
                     <div className="flex flex-wrap gap-2">
                       {look.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                          className={`px-3 py-1 ${styles.tag} rounded-full text-sm`}
                         >
                           #{tag}
                         </span>
@@ -357,10 +449,10 @@ const Lookbook = () => {
               animate={{ opacity: 1 }}
               className="text-center py-16"
             >
-              <h3 className="text-2xl font-bold text-gray-500 mb-4">
+              <h3 className={`text-2xl font-bold ${styles.subtitle} mb-4`}>
                 No looks found for this collection
               </h3>
-              <p className="text-gray-600 text-lg">
+              <p className={`${styles.subtitle} text-lg`}>
                 Try selecting a different season or check back later for new additions.
               </p>
             </motion.div>
@@ -369,7 +461,7 @@ const Lookbook = () => {
       </section>
 
       {/* Inspiration Section */}
-      <section className="py-20 bg-black text-white">
+      <section className={`py-20 ${styles.inspiration.background} ${styles.inspiration.text}`}>
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -380,7 +472,7 @@ const Lookbook = () => {
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
               Style Inspiration
             </h2>
-            <p className="text-xl md:text-2xl text-gray-300 mb-8">
+            <p className={`text-xl md:text-2xl ${styles.inspiration.subtitle} mb-8`}>
               Get inspired by our latest collections and create looks that reflect your unique personality. 
               From casual everyday wear to special occasion outfits, find your perfect style.
             </p>

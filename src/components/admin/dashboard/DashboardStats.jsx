@@ -12,7 +12,7 @@ const DashboardStats = ({ data, timeRange }) => {
       title: "Total Sales",
       value: `$${(data.sales?.total || 0).toLocaleString()}`,
       change: data.sales?.growth || 0,
-      icon: DollarSign,
+      icon: DollarSign,   
       color: "green",
       subtitle: `This ${timeRange}`,
       description: "Total revenue generated",
@@ -66,7 +66,7 @@ const DashboardStats = ({ data, timeRange }) => {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8"
     >
       {stats.map((stat, index) => (
         <StatCard

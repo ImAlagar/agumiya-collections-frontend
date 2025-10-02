@@ -5,11 +5,13 @@ import { FiUser, FiSettings, FiLogOut, FiShoppingBag, FiHeart, FiCreditCard, FiM
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useAuth } from '../../../contexts/AuthProvider';
+import { useCart } from '../../../contexts/CartContext'; // Add this import
 
 const Profile = () => {
   const [isOpen, setIsOpen] = useState(false);
   const profileRef = useRef(null);
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { handleUserLogout } = useCart(); // Add this
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,9 +40,23 @@ const Profile = () => {
   }, []);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/');
-    setIsOpen(false);
+    try {
+      // Clear user's cart before logging out
+      handleUserLogout();
+      
+      // Perform the actual logout
+      await logout();
+      
+      // Navigate to home and close profile dropdown
+      navigate('/');
+      setIsOpen(false);
+      
+      // Optional: Show success message
+      console.log('Successfully logged out and cart cleared');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Optional: Show error message to user
+    }
   };
 
   const getInitials = (name) => {
@@ -63,7 +79,7 @@ const Profile = () => {
     return 'Member';
   };
 
-  // Menu items configuration - ADD DEBUG LOGGING
+  // Menu items configuration
   const menuItems = [
     { icon: FiUser, label: 'My Profile', path: '/profile' },
     { icon: FiShoppingBag, label: 'My Orders', path: '/myorders' },

@@ -183,7 +183,7 @@ const UserStats = ({ stats }) => {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
+      className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6"
     >
       {statCards.map((stat, index) => {
         const Icon = stat.icon;
@@ -198,13 +198,13 @@ const UserStats = ({ stats }) => {
             className={`${colors.bg} ${colors.hoverBg} ${colors.border} rounded-xl p-6 border-2 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-300 backdrop-blur-sm`}
           >
             <div className="flex items-center justify-between">
-              <motion.div variants={valueVariants} className="flex-1">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+              <motion.div variants={valueVariants} className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-2 truncate">
                   {stat.title}
                 </p>
                 <div className="flex items-baseline">
                   <motion.p 
-                    className="text-3xl font-bold text-gray-900 dark:text-white"
+                    className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white truncate"
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ 
@@ -219,19 +219,19 @@ const UserStats = ({ stats }) => {
                 </div>
                 
                 <motion.div 
-                  className="mt-3"
+                  className="mt-2 sm:mt-3"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.6 }}
                 >
                   {stat.change && (
-                    <p className={`text-sm font-medium ${colors.text} flex items-center`}>
-                      <TrendingUp className="w-3 h-3 mr-1" />
+                    <p className={`text-xs sm:text-sm font-medium ${colors.text} flex items-center truncate`}>
+                      <TrendingUp className="w-3 h-3 mr-1 flex-shrink-0" />
                       +{stat.change.toLocaleString()} this month
                     </p>
                   )}
                   {stat.percentage && (
-                    <p className={`text-sm font-medium ${colors.text}`}>
+                    <p className={`text-xs sm:text-sm font-medium ${colors.text} truncate`}>
                       {stat.percentage}% of total
                     </p>
                   )}
@@ -241,16 +241,16 @@ const UserStats = ({ stats }) => {
               <motion.div
                 variants={iconVariants}
                 whileHover="hover"
-                className={`p-3 rounded-2xl ${colors.bg} backdrop-blur-sm border ${colors.border}`}
+                className={`p-2 sm:p-3 rounded-2xl ${colors.bg} backdrop-blur-sm border ${colors.border} flex-shrink-0 ml-3`}
               >
-                <Icon className={`w-7 h-7 ${colors.icon}`} />
+                <Icon className={`w-5 h-5 sm:w-7 sm:h-7 ${colors.icon}`} />
               </motion.div>
             </div>
 
             {/* Animated progress bar for percentages */}
             {(stat.percentage || stat.change) && (
               <motion.div 
-                className="mt-4 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"
+                className="mt-3 sm:mt-4 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"
                 initial={{ width: 0 }}
                 animate={{ width: "100%" }}
                 transition={{ delay: 0.8, duration: 1 }}

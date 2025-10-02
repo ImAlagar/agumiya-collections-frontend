@@ -165,7 +165,7 @@ const OrderTable = ({
         className="overflow-hidden"
       >
         {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block ">
           <table className="w-full min-w-max">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">

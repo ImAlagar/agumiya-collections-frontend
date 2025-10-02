@@ -29,7 +29,6 @@ import UserForgotPassword from "../pages/auth/user/UserForgotPassword";
 import UserResetPassword from "../pages/auth/user/UserResetPassword";
 
 // Import individual settings pages
-import GeneralSettings from "../pages/dashboard/settings/GeneralSettings";
 import CouponManagement from "../pages/dashboard/settings/CouponManagement";
 import AdminRegistration from "../pages/dashboard/settings/AdminRegistration";
 
@@ -140,10 +139,6 @@ const router = createBrowserRouter([
             {
                 path: 'contacts',
                 element: <AdminContacts />,
-            },
-            {
-                path: 'settings/general',
-                element: <GeneralSettings />,
             },
             {
                 path: 'settings/coupons',

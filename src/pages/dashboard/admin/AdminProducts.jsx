@@ -20,6 +20,7 @@ const AdminProducts = () => {
     fetchProducts, 
     syncProducts,
     updateFilters,
+    updatePageSize,
     clearError 
   } = useProducts();
 
@@ -43,6 +44,10 @@ const AdminProducts = () => {
 
   const handlePageChange = (page) => {
     fetchProducts(page);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    updatePageSize(newSize);
   };
 
   const handleEdit = (product) => {
@@ -148,21 +153,10 @@ const AdminProducts = () => {
           pagination={pagination}
           onEdit={handleEdit}
           onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
         />
       </div>
 
-      {/* Product Modal */}
-      {isModalOpen && (
-        <ProductModal
-          product={selectedProduct}
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          onSuccess={() => {
-            handleCloseModal();
-            handleRefresh();
-          }}
-        />
-      )}
     </motion.div>
   );
 };

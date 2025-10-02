@@ -32,7 +32,6 @@ const Header = () => {
     popularSearches,
     isLoading,
     getSearchSuggestions,
-    performGlobalSearch,
     loadRecentSearches,
     loadPopularSearches,
     saveToRecentSearches,
@@ -137,10 +136,10 @@ const Header = () => {
 
   // Announcement bar content
   const announcementContent = [
-    "🚚 Free shipping worldwide on orders over $100",
-    "🎁 Special 20% off for new customers - Use code: WELCOME20",
+    "🚚 Free shipping worldwide on orders over $50",
+    "🎁 Special 20% off for new customers",
     "⭐ Premium quality products with 100% satisfaction guarantee",
-    "📞 Contact us: +1 (555) 123-AGUM | ✉️ info@agumiyacollections.com"
+    "✉️ info@agumiyacollections.com"
   ];
 
   const themeIcons = {
@@ -412,10 +411,6 @@ const Header = () => {
 
             {/* Contact Info Overlay - Right Side */}
             <div className="absolute right-4 top-1/2 transform -translate-y-1/2 hidden md:flex items-center space-x-4 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">
-              <div className="flex items-center space-x-1 text-xs">
-                <Phone size={12} />
-                <span>+1 (555) 123-AGUM</span>
-              </div>
               <div className="flex items-center space-x-1 text-xs">
                 <Mail size={12} />
                 <span>info@agumiya.com</span>

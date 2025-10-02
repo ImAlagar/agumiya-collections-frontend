@@ -1,6 +1,7 @@
 // src/components/ui/products/FeaturedProducts.jsx
 import { motion } from 'framer-motion';
 import { Star, ShoppingBag } from 'lucide-react';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const featuredProducts = [
   {
@@ -41,10 +42,50 @@ const featuredProducts = [
   }
 ];
 
-
 const FeaturedProducts = () => {
+  const { theme } = useTheme();
+
+  const getThemeStyles = () => {
+    switch (theme) {
+      case 'light':
+        return {
+          background: 'bg-gray-50',
+          text: 'text-gray-900',
+          subtitle: 'text-gray-600',
+          card: 'bg-white',
+          rating: 'text-gray-400'
+        };
+      case 'dark':
+        return {
+          background: 'bg-gray-900',
+          text: 'text-white',
+          subtitle: 'text-gray-300',
+          card: 'bg-gray-800',
+          rating: 'text-gray-400'
+        };
+      case 'smokey':
+        return {
+          background: 'bg-gray-800',
+          text: 'text-white',
+          subtitle: 'text-gray-300',
+          card: 'bg-gray-700',
+          rating: 'text-gray-400'
+        };
+      default:
+        return {
+          background: 'bg-gray-50',
+          text: 'text-gray-900',
+          subtitle: 'text-gray-600',
+          card: 'bg-white',
+          rating: 'text-gray-400'
+        };
+    }
+  };
+
+  const styles = getThemeStyles();
+
   return (
-    <section className="py-20 bg-gray-950">
+    <section className={`py-20 ${styles.background}`}>
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 50 }}
@@ -52,10 +93,10 @@ const FeaturedProducts = () => {
           transition={{ duration: 0.8 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-light text-white mb-4">
+          <h2 className={`text-4xl md:text-5xl font-light ${styles.text} mb-4`}>
             Featured Products
           </h2>
-          <p className="text-gray-400">Handpicked excellence from our luxury collection</p>
+          <p className={styles.subtitle}>Handpicked excellence from our luxury collection</p>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -66,7 +107,7 @@ const FeaturedProducts = () => {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
               whileHover={{ y: -5 }}
-              className="group bg-gray-900 rounded-2xl overflow-hidden"
+              className={`group ${styles.card} rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300`}
             >
               <div className="relative overflow-hidden">
                 <img
@@ -88,7 +129,7 @@ const FeaturedProducts = () => {
                   </div>
                 )}
                 
-                <button className="absolute top-4 right-4 p-2 bg-white/10 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300">
+                <button className="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300">
                   <ShoppingBag className="w-4 h-4 text-white" />
                 </button>
               </div>
@@ -99,18 +140,18 @@ const FeaturedProducts = () => {
                     <Star
                       key={i}
                       className={`w-4 h-4 ${
-                        i < Math.floor(product.rating) ? "text-yellow-400 fill-current" : "text-gray-600"
+                        i < Math.floor(product.rating) ? "text-yellow-400 fill-current" : styles.rating
                       }`}
                     />
                   ))}
-                  <span className="text-gray-400 text-sm ml-2">({product.rating})</span>
+                  <span className={`${styles.rating} text-sm ml-2`}>({product.rating})</span>
                 </div>
                 
-                <h3 className="text-white font-semibold mb-2">{product.name}</h3>
+                <h3 className={`${styles.text} font-semibold mb-2`}>{product.name}</h3>
                 
                 <div className="flex items-center gap-2">
                   <span className="text-orange-500 font-bold text-lg">{product.price}</span>
-                  <span className="text-gray-400 line-through text-sm">{product.originalPrice}</span>
+                  <span className={`${styles.subtitle} line-through text-sm`}>{product.originalPrice}</span>
                 </div>
               </div>
             </motion.div>

@@ -108,14 +108,6 @@ const CouponManagement = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center justify-between sm:justify-start sm:space-x-4">
             <div className="flex items-center space-x-4">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/admin/settings/general')}
-                className="p-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
-              >
-                <ArrowLeft className="text-gray-600 dark:text-gray-400" size={20} />
-              </motion.button>
               <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-2xl">
                 <Ticket className="text-orange-600 dark:text-orange-400" size={24} sm:size={32} />
               </div>

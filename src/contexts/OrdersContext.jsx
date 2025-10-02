@@ -19,21 +19,22 @@ const initialState = {
   currentOrder: null,
   isLoading: false,
   error: null,
-  stats: null, // Added stats
+  stats: null,
   filters: {
     search: '',
     status: 'all',
     paymentStatus: 'all',
     sortBy: 'createdAt',
     sortOrder: 'desc',
-    limit: 10
+    limit: 5 // Changed from 10 to 5
   },
   pagination: {
     currentPage: 1,
     totalPages: 1,
     totalCount: 0,
     hasNext: false,
-    hasPrev: false
+    hasPrev: false,
+    limit: 5 // Added limit here too
   }
 };
 
@@ -48,11 +49,8 @@ const ordersReducer = (state, action) => {
         ...state,
         orders,
         pagination: {
-          currentPage: pagination.currentPage || 1,
-          totalPages: pagination.totalPages || 1,
-          totalCount: pagination.totalCount || 0,
-          hasNext: pagination.hasNext || false,
-          hasPrev: pagination.hasPrev || false
+          ...state.pagination,
+          ...pagination
         },
         isLoading: false,
         error: null
@@ -105,15 +103,15 @@ const OrdersContext = createContext();
 export const OrdersProvider = ({ children }) => {
   const [state, dispatch] = useReducer(ordersReducer, initialState);
 
-  const fetchOrders = useCallback(async (page = state.pagination.currentPage, filters = {}) => {
+  const fetchOrders = useCallback(async (page = 1, filters = {}) => {
     try {
       dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
       
       const currentFilters = { ...state.filters, ...filters };
       
       const params = {
-        page,
-        limit: currentFilters.limit,
+        page: page || 1,
+        limit: currentFilters.limit || 5,
         search: currentFilters.search,
         status: currentFilters.status === 'all' ? '' : currentFilters.status,
         paymentStatus: currentFilters.paymentStatus === 'all' ? '' : currentFilters.paymentStatus,
@@ -131,14 +129,25 @@ export const OrdersProvider = ({ children }) => {
       const response = await orderService.getAllOrders(params);
       
       if (response.success) {
+        const apiData = response.data;
+        
+        // Calculate pagination properties
+        const currentPage = apiData.currentPage || page;
+        const totalPages = apiData.totalPages || 1;
+        const totalCount = apiData.totalCount || 0;
+        const limit = currentFilters.limit || 5;
+
         dispatch({
           type: ORDER_ACTIONS.SET_ORDERS,
           payload: {
-            orders: response.data.orders || response.data || [],
-            pagination: response.data.pagination || {
-              currentPage: page,
-              totalPages: 1,
-              totalCount: response.data.length || 0
+            orders: apiData.orders || apiData || [],
+            pagination: {
+              currentPage,
+              totalPages,
+              totalCount,
+              limit,
+              hasPrev: currentPage > 1,
+              hasNext: currentPage < totalPages
             }
           }
         });
@@ -152,9 +161,21 @@ export const OrdersProvider = ({ children }) => {
         payload: error.message || 'Failed to load orders. Please try again.' 
       });
     }
-  }, [state.filters, state.pagination.currentPage]);
+  }, [state.filters]);
 
-
+  // Add page size update function
+  const updatePageSize = useCallback(async (newLimit) => {
+    // Update filters with new limit
+    dispatch({ 
+      type: ORDER_ACTIONS.SET_FILTERS, 
+      payload: { limit: newLimit } 
+    });
+    
+    // Fetch orders with new page size, reset to page 1
+    setTimeout(() => {
+      fetchOrders(1, { limit: newLimit });
+    }, 0);
+  }, [fetchOrders]);
 
   const fetchOrderById = useCallback(async (id) => {
     try {
@@ -171,25 +192,25 @@ export const OrdersProvider = ({ children }) => {
     }
   }, []);
 
-const createOrder = useCallback(async (orderData) => {
-  try {
-    dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
-    const response = await orderService.createOrder(orderData);
-    
-    if (response.success) {
-      dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: false });
-      return { success: true, order: response.data };
-    } else {
-      throw new Error(response.message || 'Failed to create order');
+  const createOrder = useCallback(async (orderData) => {
+    try {
+      dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
+      const response = await orderService.createOrder(orderData);
+      
+      if (response.success) {
+        dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: false });
+        return { success: true, order: response.data };
+      } else {
+        throw new Error(response.message || 'Failed to create order');
+      }
+    } catch (error) {
+      dispatch({ 
+        type: ORDER_ACTIONS.SET_ERROR, 
+        payload: error.message || 'Failed to create order. Please try again.' 
+      });
+      return { success: false, error: error.message };
     }
-  } catch (error) {
-    dispatch({ 
-      type: ORDER_ACTIONS.SET_ERROR, 
-      payload: error.message || 'Failed to create order. Please try again.' 
-    });
-    return { success: false, error: error.message };
-  }
-}, []);
+  }, []);
 
   const fetchOrderStats = useCallback(async () => {
     try {
@@ -261,6 +282,7 @@ const createOrder = useCallback(async (orderData) => {
     retryPrintifyOrder,
     setFilters,
     updateFilters,
+    updatePageSize, // Add this new function
     clearError
   };
 

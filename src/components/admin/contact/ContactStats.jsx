@@ -81,7 +81,7 @@ const ContactStats = ({ stats }) => {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.15,
+        staggerChildren: 0.1,
         delayChildren: 0.1
       }
     }
@@ -90,22 +90,20 @@ const ContactStats = ({ stats }) => {
   const cardVariants = {
     hidden: { 
       opacity: 0, 
-      y: 30,
-      scale: 0.95
+      y: 20,
     },
     visible: {
       opacity: 1,
       y: 0,
-      scale: 1,
       transition: {
         type: "spring",
         stiffness: 100,
         damping: 15,
-        duration: 0.5
+        duration: 0.4
       }
     },
     hover: {
-      y: -8,
+      y: -4,
       scale: 1.02,
       transition: {
         type: "spring",
@@ -124,10 +122,10 @@ const ContactStats = ({ stats }) => {
       <motion.div
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        transition={{ delay: 0.5, type: "spring" }}
-        className={`ml-2 inline-flex items-center ${isPositive ? colors.text : 'text-red-500'}`}
+        transition={{ delay: 0.3, type: "spring" }}
+        className={`ml-1 sm:ml-2 inline-flex items-center ${isPositive ? colors.text : 'text-red-500'}`}
       >
-        <TrendingUp className={`w-3 h-3 ${isPositive ? '' : 'rotate-180'}`} />
+        <TrendingUp className={`w-3 h-3 sm:w-4 sm:h-4 ${isPositive ? '' : 'rotate-180'}`} />
       </motion.div>
     );
   };
@@ -137,7 +135,7 @@ const ContactStats = ({ stats }) => {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6"
     >
       {statCards.map((stat, index) => {
         const Icon = stat.icon;
@@ -148,22 +146,22 @@ const ContactStats = ({ stats }) => {
             key={stat.title}
             variants={cardVariants}
             whileHover="hover"
-            className={`${colors.bg} ${colors.hoverBg} ${colors.border} rounded-xl p-6 border-2 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-300 backdrop-blur-sm`}
+            className={`${colors.bg} ${colors.hoverBg} ${colors.border} rounded-xl p-4 sm:p-6 border-2 cursor-pointer shadow-sm hover:shadow-lg transition-shadow duration-300 backdrop-blur-sm`}
           >
             <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 truncate">
                   {stat.title}
                 </p>
                 <div className="flex items-baseline">
                   <motion.p 
-                    className="text-3xl font-bold text-gray-900 dark:text-white"
+                    className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white truncate"
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ 
                       type: "spring", 
                       stiffness: 200, 
-                      delay: 0.4 + index * 0.1 
+                      delay: 0.2 + index * 0.1 
                     }}
                   >
                     {stat.value.toLocaleString()}
@@ -172,19 +170,19 @@ const ContactStats = ({ stats }) => {
                 </div>
                 
                 <motion.div 
-                  className="mt-3"
+                  className="mt-2 sm:mt-3 space-y-1"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.6 }}
+                  transition={{ delay: 0.4 }}
                 >
                   {stat.change && (
-                    <p className={`text-sm font-medium ${colors.text} flex items-center`}>
-                      <TrendingUp className="w-3 h-3 mr-1" />
-                      +{stat.change.toLocaleString()} today
+                    <p className={`text-xs font-medium ${colors.text} flex items-center`}>
+                      <TrendingUp className="w-3 h-3 mr-1 flex-shrink-0" />
+                      <span className="truncate">+{stat.change.toLocaleString()} today</span>
                     </p>
                   )}
                   {stat.percentage && (
-                    <p className={`text-sm font-medium ${colors.text}`}>
+                    <p className={`text-xs font-medium ${colors.text} truncate`}>
                       {stat.percentage}% of total
                     </p>
                   )}
@@ -194,27 +192,27 @@ const ContactStats = ({ stats }) => {
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 0.3 + index * 0.1, type: "spring" }}
+                transition={{ delay: 0.1 + index * 0.1, type: "spring" }}
                 whileHover={{ rotate: 360, scale: 1.1 }}
-                className={`p-3 rounded-2xl ${colors.bg} backdrop-blur-sm border ${colors.border}`}
+                className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl ${colors.bg} backdrop-blur-sm border ${colors.border} flex-shrink-0 ml-3`}
               >
-                <Icon className={`w-7 h-7 ${colors.icon}`} />
+                <Icon className={`w-5 h-5 sm:w-7 sm:h-7 ${colors.icon}`} />
               </motion.div>
             </div>
 
             {/* Animated progress bar for percentages */}
             {(stat.percentage || stat.change) && (
               <motion.div 
-                className="mt-4 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"
+                className="mt-3 sm:mt-4 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"
                 initial={{ width: 0 }}
                 animate={{ width: "100%" }}
-                transition={{ delay: 0.8, duration: 1 }}
+                transition={{ delay: 0.6, duration: 0.8 }}
               >
                 <motion.div
                   className={`h-full rounded-full ${colors.bg}`}
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(stat.percentage || 50, 100)}%` }}
-                  transition={{ delay: 1, duration: 1.5, ease: "easeOut" }}
+                  transition={{ delay: 0.8, duration: 1.2, ease: "easeOut" }}
                 />
               </motion.div>
             )}
