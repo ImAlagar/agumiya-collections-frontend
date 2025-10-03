@@ -2,12 +2,10 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useOrders } from '../../../contexts/OrdersContext';
-import OrderDetails from '../../../components/admin/order/OrderDetails';
 import OrderFilters from '../../../components/admin/order/OrderFilters';
 import OrderTable from '../../../components/admin/order/OrderTable';
-import StatusUpdateModal from '../../../components/admin/order/StatusUpdateModal';
 import { CheckCircle, TrainTrackIcon, RefreshCwIcon } from 'lucide-react';
-import OrderStatsDashboard from '../../../components/admin/order/OrderStatsDashboard';
+import OrderStats from '../../../components/admin/stats/OrderStats';
 
 const AdminOrders = () => {
   const {
@@ -113,13 +111,6 @@ const AdminOrders = () => {
     }
   };
 
-  // Close modals
-  const handleCloseModals = () => {
-    setShowDetails(false);
-    setShowStatusModal(false);
-    setSelectedOrder(null);
-    setStatusUpdateOrder(null);
-  };
 
   const handleFilterChange = (newFilters) => {
     setLocalFilters(prev => ({ ...prev, ...newFilters }));
@@ -219,7 +210,7 @@ const AdminOrders = () => {
       )}
 
       {/* Order Statistics Dashboard - REPLACED SECTION */}
-      <OrderStatsDashboard orders={orders} />
+      <OrderStats orders={orders} />
 
       {/* Filters Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
@@ -249,6 +240,19 @@ const AdminOrders = () => {
           onPageChange={handlePageChange}
         />
       </div>
+
+      {/* Sync Status Banner */}
+      {isLoading && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
+        >
+          <RefreshCwIcon className="w-4 h-4 animate-spin" />
+          <span>Loading Orders...</span>
+        </motion.div>
+      )}
+      
 
     </motion.div>
   );

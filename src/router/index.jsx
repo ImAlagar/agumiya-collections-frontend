@@ -11,7 +11,6 @@ import UserRegister from "../pages/auth/user/UserRegister";
 import AdminLogin from "../pages/auth/admin/AdminLogin";
 import AdminLayout from "../layouts/AdminLayout";
 import AdminDashboard from "../pages/dashboard/admin/AdminDashboard";
-import AdminProducts from "../pages/dashboard/admin/AdminProducts";
 import AdminOrders from "../pages/dashboard/admin/AdminOrders";
 import AdminUsers from "../pages/dashboard/admin/AdminUsers";
 import ProtectedRoute from "../components/admin/auth/ProtectedRoute";
@@ -31,6 +30,11 @@ import UserResetPassword from "../pages/auth/user/UserResetPassword";
 // Import individual settings pages
 import CouponManagement from "../pages/dashboard/settings/CouponManagement";
 import AdminRegistration from "../pages/dashboard/settings/AdminRegistration";
+import AdminProduct from "../pages/dashboard/admin/AdminProduct";
+import PrivacyPolicy from "../pages/general/PrivacyPolicy";
+import TermsAndConditions from "../pages/general/TermsAndConditions";
+import ShippingPolicy from "../pages/general/ShippingPolicy";
+import CancellationRefundPolicy from "../pages/general/CancellationRefundPolicy";
 
 const router = createBrowserRouter([
     {
@@ -98,6 +102,22 @@ const router = createBrowserRouter([
                 path: 'lookbook',
                 element: <Lookbook />,
             },
+            {
+                path: 'privacy',
+                element: <PrivacyPolicy />,
+            },
+            {
+                path: 'terms',
+                element: <TermsAndConditions />,
+            },
+            {
+                path: 'shipping',
+                element: <ShippingPolicy />,
+            },
+            {
+                path: 'cancellation-refund',
+                element: <CancellationRefundPolicy />,
+            },
         ],
     },
     {
@@ -130,7 +150,7 @@ const router = createBrowserRouter([
             },
             {
                 path: 'products',
-                element: <AdminProducts />,
+                element: <AdminProduct />,
             },
             {
                 path: 'users',

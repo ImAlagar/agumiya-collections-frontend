@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart3, Award, ShoppingCart, RefreshCw, Settings, Menu, X } from 'lucide-react';
 
 // Components
-import DashboardStats from '../../../components/admin/dashboard/DashboardStats';
 import SalesOverview from '../../../components/admin/dashboard/SalesOverview';
 import BestSellingProducts from '../../../components/admin/dashboard/BestSellingProducts';
 import OrderVolume from '../../../components/admin/dashboard/OrderVolume';
@@ -13,6 +12,7 @@ import ShippingTaxSettings from '../../../components/admin/dashboard/ShippingTax
 
 // Custom Hook
 import { useDashboardData } from '../../../hooks/useDashboardData';
+import DashboardStats from '../../../components/admin/stats/DashboardStats';
 
 const AdminDashboard = () => {
   const [timeRange, setTimeRange] = useState('month');
@@ -149,7 +149,7 @@ const AdminDashboard = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="mb-8 px-4 sm:px-6 lg:px-8"
+        className="mb-8 px-4 py-4 sm:px-6 lg:px-8"
       >
         <div className="relative">
           {/* Mobile Dropdown */}

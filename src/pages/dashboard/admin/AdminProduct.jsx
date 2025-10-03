@@ -4,12 +4,12 @@ import { useProducts } from '../../../contexts/ProductsContext';
 import ProductTable from '../../../components/admin/products/ProductTable';
 import ProductFilters from '../../../components/admin/products/ProductFilters';
 import SyncProducts from '../../../components/admin/products/SyncProducts';
-import ProductStats from '../../../components/admin/products/ProductStats';
 import { pageVariants, pageTransition } from '../../../contexts/ProductsContext';
-import { RefreshCwIcon, PlusIcon } from 'lucide-react';
+import { RefreshCwIcon } from 'lucide-react';
+import ProductStats from '../../../components/admin/stats/ProductStats';
 
-const AdminProducts = () => {
-  const { 
+const AdminProduct = () => {
+   const { 
     products, 
     isLoading, 
     error, 
@@ -172,19 +172,20 @@ const AdminProducts = () => {
         />
       </div>
 
-      {/* Sync Status Banner */}
-      {isLoading && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
-        >
-          <RefreshCwIcon className="w-4 h-4 animate-spin" />
-          <span>Loading products...</span>
-        </motion.div>
-      )}
+        {/* Sync Status Banner */}
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
+          >
+            <RefreshCwIcon className="w-4 h-4 animate-spin" />
+            <span>Loading products...</span>
+          </motion.div>
+        )}
+        
     </motion.div>
   );
 };
 
-export default AdminProducts;
+export default AdminProduct

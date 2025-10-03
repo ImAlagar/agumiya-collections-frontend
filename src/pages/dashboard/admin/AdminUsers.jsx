@@ -6,8 +6,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { useUsers } from '../../../contexts/UsersContext';
 import UserFilters from '../../../components/admin/user/UserFilters';
 import UserTable from '../../../components/admin/user/UserTable';
-import UserDetails from '../../../components/admin/user/UserDetails';
-import UserStats from '../../../components/admin/user/UserStats';
+import UserStats from '../../../components/admin/stats/UserStats';
 
 const AdminUsers = () => {
   const { theme } = useTheme();
@@ -210,7 +209,7 @@ const AdminUsers = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="mb-6"
+        className="mb-6 py-4"
       >
         <UserFilters
           filters={filters}

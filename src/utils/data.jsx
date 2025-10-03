@@ -24,17 +24,18 @@ import {
   Instagram, 
   Mail,
   Truck,
-  Gift,
-  ShoppingBag,
   Shield,
+  Undo2,
+  FileText,
 } from 'lucide-react';
 
 // Quick links matching NavLinks
 export const quickLinks = [
-  { name: "Home", href: "/" },
-  { name: "About", href: "/about" },
-  { name: "Shop", href: "/shop" },
-  { name: "Contact", href: "/contact" }
+  { name: 'Home', href: '/' },
+  { name: 'About', href: '/about' },
+  { name: 'Shop', href: '/shop' },
+  { name: 'Contact', href: '/contact' },
+  { name: 'Lookbook', href: '/lookbook' },
 ];
 
 // Shop categories
@@ -49,9 +50,26 @@ export const shopCategories = [
 
 // Customer service links
 export const customerService = [
-  { name: "Shipping Info", href: "/shipping", icon: <Truck size={14} /> },
-  { name: "Returns & Exchanges", href: "/returns", icon: <Gift size={14} /> },
-  { name: "Size Guide", href: "/size-guide", icon: <ShoppingBag size={14} /> },
+  { 
+    name: 'Shipping Info', 
+    href: '/shipping',
+    icon: <Truck className="w-4 h-4" />
+  },
+  { 
+    name: 'Returns & Exchanges', 
+    href: '/cancellation-refund',
+    icon: <Undo2 className="w-4 h-4" />
+  },
+  { 
+    name: 'Privacy Policy', 
+    href: '/privacy',
+    icon: <Shield className="w-4 h-4" />
+  },
+  { 
+    name: 'Terms & Conditions', 
+    href: '/terms',
+    icon: <FileText className="w-4 h-4" />
+  },
 ];
 
 // Social links

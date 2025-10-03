@@ -4,10 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Plus, Filter, Download, RefreshCwIcon, Menu, X } from 'lucide-react';
 import { useContacts } from '../../../contexts/ContactsContext';
 import { useTheme } from '../../../contexts/ThemeContext';
-import ContactStats from '../../../components/admin/contact/ContactStats';
 import ContactFilters from '../../../components/admin/contact/ContactFilters';
 import ContactTable from '../../../components/admin/contact/ContactTable';
-import ContactDetails from '../../../components/admin/contact/ContactDetails';
+import ContactStats from '../../../components/admin/stats/ContactStats';
 
 const AdminContacts = () => {
   const { theme } = useTheme();
@@ -267,7 +266,7 @@ const AdminContacts = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="mb-6 hidden sm:block"
+        className="mb-6 py-4 hidden sm:block"
       >
         <ContactFilters
           filters={filters}
@@ -281,7 +280,7 @@ const AdminContacts = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+        className="bg-white mt-4 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
       >
         <ContactTable
           contacts={contacts}
