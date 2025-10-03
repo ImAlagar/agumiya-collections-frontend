@@ -1,14 +1,12 @@
-// src/pages/dashboard/admin/AdminProducts.jsx
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useProducts } from '../../../contexts/ProductsContext';
 import ProductTable from '../../../components/admin/products/ProductTable';
 import ProductFilters from '../../../components/admin/products/ProductFilters';
-import ProductModal from '../../../components/admin/products/ProductModal';
 import SyncProducts from '../../../components/admin/products/SyncProducts';
 import ProductStats from '../../../components/admin/products/ProductStats';
 import { pageVariants, pageTransition } from '../../../contexts/ProductsContext';
-import { PlusIcon, RefreshCwIcon } from 'lucide-react';
+import { RefreshCwIcon, PlusIcon } from 'lucide-react';
 
 const AdminProducts = () => {
   const { 
@@ -73,6 +71,24 @@ const AdminProducts = () => {
     fetchProducts(pagination.currentPage);
   };
 
+  const handleSync = async () => {
+    try {
+      const result = await syncProducts();
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Debug pagination
+  useEffect(() => {
+    console.log('📊 Current pagination state:', {
+      productsCount: products.length,
+      pagination,
+      filters
+    });
+  }, [products, pagination, filters]);
+
   if (error) {
     return (
       <motion.div
@@ -120,7 +136,7 @@ const AdminProducts = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <SyncProducts onSync={syncProducts} />
+          <SyncProducts onSync={handleSync} />
           <button
             onClick={handleRefresh}
             disabled={isLoading}
@@ -129,7 +145,6 @@ const AdminProducts = () => {
             <RefreshCwIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-
         </div>
       </div>
 
@@ -157,6 +172,17 @@ const AdminProducts = () => {
         />
       </div>
 
+      {/* Sync Status Banner */}
+      {isLoading && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
+        >
+          <RefreshCwIcon className="w-4 h-4 animate-spin" />
+          <span>Loading products...</span>
+        </motion.div>
+      )}
     </motion.div>
   );
 };

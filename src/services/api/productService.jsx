@@ -1,99 +1,97 @@
-// src/services/api/productService.js
-import apiClient from '../../config/api';
-import { API_ENDPOINTS } from '../../config/constants';
-
-// Unified error handler for product service
-const handleProductError = (error, defaultMessage) => {
-  const message = error.apiMessage || error.response?.data?.message || error.message || defaultMessage;
-  throw new Error(message);
-};
+import apiClient from "../../config/api";
 
 export const productService = {
+  // Sync products with longer timeout
+  async syncProducts(shopId) {
+    try {
+      console.log(`🔄 Starting sync for shop: ${shopId}`);
+      const response = await apiClient.get(`/products/sync/${shopId}`, {
+        timeout: 120000 // 2 minutes timeout for sync
+      });
+      return response.data;
+    } catch (error) {
+      console.error('💥 Sync products error:', error);
+      
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Sync is taking longer than expected. Products are being processed in the background.');
+      }
+      
+      throw new Error(error.response?.data?.message || error.message || 'Failed to sync products');
+    }
+  },
+
   async getAllProducts(params = {}) {
     try {
-      const response = await apiClient.get(API_ENDPOINTS.PRODUCTS, { params });
-      return response.data; // Return data instead of full response
+      const response = await apiClient.get('/products', { 
+        params,
+        timeout: 30000 
+      });
+      return response.data;
     } catch (error) {
-      throw handleProductError(error, 'Failed to fetch products');
+      console.error('Get all products error:', error);
+      throw error;
     }
   },
 
   async getProductById(id) {
     try {
-      const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/${id}`);
-      return response.data; // Return data instead of full response
+      const response = await apiClient.get(`/products/${id}`, {
+        timeout: 30000
+      });
+      return response.data;
     } catch (error) {
-      console.error('❌ Product service error:', error);
-      throw handleProductError(error, 'Failed to fetch product');
+      console.error('Get product by ID error:', error);
+      throw error;
     }
   },
 
-  async getProductVariants(productId) {
+  async getFilteredProducts(filters = {}) {
     try {
-      const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/${productId}/variants`);
+      const response = await apiClient.get('/products/filter', {
+        params: filters,
+        timeout: 30000
+      });
       return response.data;
     } catch (error) {
-      throw handleProductError(error, 'Failed to fetch product variants');
-    }
-  },
-
-  async syncProducts(shopId) {
-    try {
-      const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS_SYNC}/${shopId}`);
-      return response.data;
-    } catch (error) {
-      throw handleProductError(error, 'Failed to sync products');
+      console.error('Get filtered products error:', error);
+      throw error;
     }
   },
 
   async updateProduct(id, productData) {
     try {
-      const response = await apiClient.put(`${API_ENDPOINTS.PRODUCTS}/${id}`, productData);
+      const response = await apiClient.put(`/products/${id}`, productData, {
+        timeout: 30000
+      });
       return response.data;
     } catch (error) {
-      throw handleProductError(error, 'Failed to update product');
+      console.error('Update product error:', error);
+      throw error;
     }
   },
 
   async deleteProduct(id) {
     try {
-      const response = await apiClient.delete(`${API_ENDPOINTS.PRODUCTS}/${id}`);
-      return response.data;
-    } catch (error) {
-      throw handleProductError(error, 'Failed to delete product');
-    }
-  },
-
-  async searchProducts(query, params = {}) {
-    try {
-      const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/search`, {
-        params: { ...params, search: query }
+      const response = await apiClient.delete(`/products/${id}`, {
+        timeout: 30000
       });
       return response.data;
     } catch (error) {
-      throw handleProductError(error, 'Failed to search products');
-    }
-  },
-
-  async filterProducts(filters = {}) {
-    try {
-      const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/filter`, {
-        params: filters
-      });
-      return response.data;
-    } catch (error) {
-      throw handleProductError(error, 'Failed to filter products');
+      console.error('Delete product error:', error);
+      throw error;
     }
   },
 
   async getSimilarProducts(productId, limit = 4) {
     try {
-      const response = await apiClient.get(`${API_ENDPOINTS.PRODUCTS}/${productId}/similar`, {
-        params: { limit }
+      const response = await apiClient.get(`/products/${productId}/similar`, {
+        params: { limit },
+        timeout: 30000
       });
       return response.data;
     } catch (error) {
-      throw handleProductError(error, 'Failed to fetch similar products');
+      console.error('Get similar products error:', error);
+      throw error;
     }
   }
 };

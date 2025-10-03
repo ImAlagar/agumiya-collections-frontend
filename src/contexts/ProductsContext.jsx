@@ -127,64 +127,73 @@ export const ProductsProvider = ({ children }) => {
   }, [state.filters]);
 
   // Fetch products - FIXED VERSION
-  const fetchProducts = useCallback(async (page = 1, filters = {}) => {
-    try {
-      dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
-      
-      // Use ref to get current filters to avoid stale closures
-      const currentFilters = { ...filtersRef.current, ...filters };
-      
-      const params = {
-        page: page || 1,
-        limit: currentFilters.limit || 5,
-        sortBy: currentFilters.sortBy || 'name',
-        sortOrder: currentFilters.sortOrder || 'asc'
-      };
+const fetchProducts = useCallback(async (page = 1, filters = {}) => {
+  try {
+    dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
+    
+    // Use ref to get current filters to avoid stale closures
+    const currentFilters = { ...filtersRef.current, ...filters };
+    
+    const params = {
+      page: page || 1,
+      limit: currentFilters.limit || 5,
+      ...(currentFilters.sortBy && { sortBy: currentFilters.sortBy }),
+      ...(currentFilters.sortOrder && { sortOrder: currentFilters.sortOrder }),
+      ...(currentFilters.search?.trim() && { search: currentFilters.search.trim() }),
+      ...(currentFilters.category && currentFilters.category !== 'All' && { category: currentFilters.category }),
+      ...(currentFilters.inStock && currentFilters.inStock !== 'all' && { inStock: currentFilters.inStock })
+    };
 
-      // Add filters if present
-      if (currentFilters.search?.trim()) params.search = currentFilters.search.trim();
-      if (currentFilters.category !== 'All') params.category = currentFilters.category;
-      if (currentFilters.inStock !== 'all') params.inStock = currentFilters.inStock;
+    console.log('🔄 Fetching products with params:', params);
 
-      const hasFilters = params.search || params.category || params.inStock;
-      const endpoint = hasFilters ? '/products/filter' : '/products';
+    const hasFilters = params.search || (params.category && params.category !== 'All') || (params.inStock && params.inStock !== 'all');
+    const endpoint = hasFilters ? '/products/filter' : '/products';
 
+    const response = await apiClient.get(endpoint, { params });
 
-      const response = await apiClient.get(endpoint, { params });
+    console.log('✅ API Response:', response.data);
 
-      // Extract data
-      const apiData = response.data?.data || response.data || {};
-      const products = Array.isArray(apiData.products) ? apiData.products : 
-                     Array.isArray(apiData.data) ? apiData.data :
-                     Array.isArray(apiData) ? apiData : [];
-      const pagination = apiData.pagination || {};
-
-      const mappedPagination = {
-        currentPage: pagination.currentPage || page,
-        totalPages: pagination.totalPages || 1,
-        totalCount: pagination.totalCount || products.length,
-        limit: currentFilters.limit || 5,
-        hasNext: pagination.hasNext !== undefined ? pagination.hasNext : (pagination.currentPage || page) < (pagination.totalPages || 1),
-        hasPrev: pagination.hasPrev !== undefined ? pagination.hasPrev : (pagination.currentPage || page) > 1
-      };
-
-
-      dispatch({
-        type: PRODUCT_ACTIONS.SET_PRODUCTS,
-        payload: {
-          products: products,
-          pagination: mappedPagination
-        }
-      });
-
-    } catch (error) {
-      console.error('💥 Fetch products error:', error);
-      dispatch({ 
-        type: PRODUCT_ACTIONS.SET_ERROR, 
-        payload: error.message || 'Failed to load products. Please try again.' 
-      });
+    // Extract data - handle different response formats
+    const apiData = response.data?.data || response.data;
+    
+    if (!apiData) {
+      throw new Error('Invalid response format from server');
     }
-  }, []);
+
+    // Handle both formats: { products: [], pagination: {} } and direct array
+    const products = Array.isArray(apiData.products) ? apiData.products : 
+                   Array.isArray(apiData.data) ? apiData.data :
+                   Array.isArray(apiData) ? apiData : [];
+
+    const paginationData = apiData.pagination || apiData;
+
+    const mappedPagination = {
+      currentPage: paginationData.currentPage || page,
+      totalPages: paginationData.totalPages || 1,
+      totalCount: paginationData.totalCount || products.length,
+      limit: paginationData.limit || currentFilters.limit || 5,
+      hasNext: paginationData.hasNext !== undefined ? paginationData.hasNext : (paginationData.currentPage || page) < (paginationData.totalPages || 1),
+      hasPrev: paginationData.hasPrev !== undefined ? paginationData.hasPrev : (paginationData.currentPage || page) > 1
+    };
+
+    console.log('📊 Mapped pagination:', mappedPagination);
+
+    dispatch({
+      type: PRODUCT_ACTIONS.SET_PRODUCTS,
+      payload: {
+        products: products,
+        pagination: mappedPagination
+      }
+    });
+
+  } catch (error) {
+    console.error('💥 Fetch products error:', error);
+    dispatch({ 
+      type: PRODUCT_ACTIONS.SET_ERROR, 
+      payload: error.message || 'Failed to load products. Please try again.' 
+    });
+  }
+}, []);
 
   // Update page size - FIXED VERSION
   const updatePageSize = useCallback(async (newLimit) => {
@@ -281,42 +290,78 @@ export const ProductsProvider = ({ children }) => {
   }, [fetchProducts]);
 
   // Sync products
-  const syncProducts = useCallback(async (shopId = '23342579') => {
-    try {
-      dispatch({ 
-        type: PRODUCT_ACTIONS.SET_SYNC_STATUS, 
-        payload: { isSyncing: true, message: 'Syncing products...' } 
-      });
+// Sync products with better error handling
+const syncProducts = useCallback(async (shopId = '23342579') => {
+  try {
+    dispatch({ 
+      type: PRODUCT_ACTIONS.SET_SYNC_STATUS, 
+      payload: { isSyncing: true, message: 'Starting sync... This may take a few minutes.' } 
+    });
 
-      const response = await productService.syncProducts(shopId);
-      
-      if (response.success) {
-        dispatch({ 
-          type: PRODUCT_ACTIONS.SET_SYNC_STATUS, 
-          payload: { 
-            isSyncing: false, 
-            message: response.data?.message || 'Products synced successfully',
-            lastSync: new Date().toISOString()
-          } 
-        });
-        
-        // Refresh products after sync
-        await fetchProducts(1);
-        
-        return { success: true, count: response.data?.count };
-      } else {
-        throw new Error(response.message || 'Sync failed');
-      }
-    } catch (error) {
-      console.error('Sync products error:', error);
+    console.log('🔄 Starting product sync...');
+    
+    const response = await productService.syncProducts(shopId);
+    
+    console.log('✅ Sync response:', response);
+
+    if (response.success) {
       dispatch({ 
         type: PRODUCT_ACTIONS.SET_SYNC_STATUS, 
-        payload: { isSyncing: false, message: error.message } 
+        payload: { 
+          isSyncing: false, 
+          message: response.data?.message || 'Products synced successfully!',
+          lastSync: new Date().toISOString(),
+          count: response.data?.count,
+          published: response.data?.published
+        } 
       });
-      dispatch({ type: PRODUCT_ACTIONS.SET_ERROR, payload: error.message });
-      return { success: false, error: error.message };
+      
+      // Refresh products after sync with a small delay
+      setTimeout(() => {
+        fetchProducts(1);
+      }, 2000);
+      
+      return { 
+        success: true, 
+        count: response.data?.count,
+        published: response.data?.published,
+        message: response.data?.message 
+      };
+    } else {
+      throw new Error(response.message || 'Sync failed');
     }
-  }, [fetchProducts]);
+  } catch (error) {
+    console.error('💥 Sync products error:', error);
+    
+    let errorMessage = 'Failed to sync products. Please try again.';
+    
+    if (error.message.includes('longer than expected')) {
+      errorMessage = 'Sync is processing in background. Products will appear shortly.';
+    } else if (error.message.includes('timeout')) {
+      errorMessage = 'Sync is taking longer than expected. Products are being processed in the background.';
+    } else if (error.response) {
+      errorMessage = error.response.data?.message || errorMessage;
+    }
+    
+    dispatch({ 
+      type: PRODUCT_ACTIONS.SET_SYNC_STATUS, 
+      payload: { 
+        isSyncing: false, 
+        message: errorMessage 
+      } 
+    });
+    
+    dispatch({ 
+      type: PRODUCT_ACTIONS.SET_ERROR, 
+      payload: errorMessage 
+    });
+    
+    return { 
+      success: false, 
+      error: errorMessage 
+    };
+  }
+}, [fetchProducts]);
 
   // Fetch product by ID (alias for getProductById)
   const fetchProductById = useCallback(async (id) => {

@@ -1,4 +1,3 @@
-// src/components/admin/products/ProductTable.jsx
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Loader from '../../common/Loader';
@@ -9,8 +8,6 @@ import { Package, Image as ImageIcon, Calendar, ChevronLeft, ChevronRight } from
 const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSizeChange, onEdit }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
-
-
 
   const handleRowClick = (product) => {
     setSelectedProduct(product);
@@ -260,8 +257,8 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
           ))}
         </div>
 
-        {/* Pagination - ALWAYS SHOW if we have pagination data */}
-        {pagination && (
+        {/* Pagination - FIXED VERSION */}
+        {pagination && pagination.totalPages > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -269,58 +266,113 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
             className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700 gap-4"
           >
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of {pagination.totalCount} products
+              Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to{' '}
+              {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of{' '}
+              {pagination.totalCount} products
             </div>
             
-            {/* Pagination Controls - Show even if only one page for consistency */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onPageChange(pagination.currentPage - 1)}
-                disabled={!pagination.hasPrev}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </button>
-              
-              <div className="flex gap-1">
-                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (pagination.totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (pagination.currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (pagination.currentPage >= pagination.totalPages - 2) {
-                    pageNum = pagination.totalPages - 4 + i;
-                  } else {
-                    pageNum = pagination.currentPage - 2 + i;
-                  }
+            {/* Pagination Controls */}
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onPageChange && onPageChange(pagination.currentPage - 1)}
+                  disabled={!pagination.hasPrev}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </button>
+                
+                <div className="flex gap-1">
+                  {/* Show page numbers */}
+                  {(() => {
+                    const pages = [];
+                    const totalPages = pagination.totalPages;
+                    const currentPage = pagination.currentPage;
+                    
+                    // Always show first page
+                    pages.push(
+                      <button
+                        key={1}
+                        onClick={() => onPageChange && onPageChange(1)}
+                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
+                          currentPage === 1
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                            : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        1
+                      </button>
+                    );
 
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => onPageChange(pageNum)}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
-                        pagination.currentPage === pageNum
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                          : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
+                    // Show ellipsis if needed after first page
+                    if (currentPage > 3) {
+                      pages.push(
+                        <span key="ellipsis1" className="px-2 text-gray-500">
+                          ...
+                        </span>
+                      );
+                    }
+
+                    // Show pages around current page
+                    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                      if (i !== 1 && i !== totalPages) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => onPageChange && onPageChange(i)}
+                            className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
+                              currentPage === i
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                                : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+                    }
+
+                    // Show ellipsis if needed before last page
+                    if (currentPage < totalPages - 2) {
+                      pages.push(
+                        <span key="ellipsis2" className="px-2 text-gray-500">
+                          ...
+                        </span>
+                      );
+                    }
+
+                    // Always show last page if there is more than one page
+                    if (totalPages > 1) {
+                      pages.push(
+                        <button
+                          key={totalPages}
+                          onClick={() => onPageChange && onPageChange(totalPages)}
+                          className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
+                            currentPage === totalPages
+                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                              : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {totalPages}
+                        </button>
+                      );
+                    }
+
+                    return pages;
+                  })()}
+                </div>
+
+                <button
+                  onClick={() => onPageChange && onPageChange(pagination.currentPage + 1)}
+                  disabled={!pagination.hasNext}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-
-              <button
-                onClick={() => onPageChange(pagination.currentPage + 1)}
-                disabled={!pagination.hasNext}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            )}
           </motion.div>
         )}
       </motion.div>
