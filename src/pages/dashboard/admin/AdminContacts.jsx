@@ -293,18 +293,6 @@ const AdminContacts = () => {
           onPageChange={handlePageChange}
         />
       </motion.div>
-
-      {/* Contact Details Modal */}
-      <AnimatePresence>
-        {showContactDetails && selectedContact && (
-          <ContactDetails
-            contact={selectedContact}
-            onClose={handleCloseContactDetails}
-            onStatusUpdate={handleStatusUpdate}
-            actionLoading={actionLoading}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 };

@@ -9,13 +9,11 @@ import {
   ShoppingCart, 
   Users,
   X,
-  ChevronLeft,
   Contact,
   Settings,
   Ticket,
   UserPlus,
   ChevronDown,
-  ChevronRight
 } from 'lucide-react';
 import logo from '../../../assets/images/logo.png';
 

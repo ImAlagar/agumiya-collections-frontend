@@ -460,7 +460,7 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap sm:flex-row gap-3">
                   {/* Add to Cart button */}
                   <button
                     ref={addToCartRef}
@@ -472,7 +472,7 @@ const ProductDetails = () => {
                       whileTap={{
                         scale: 0.95,
                       }}
-                      className="relative z-10 flex items-center space-x-2"
+                      className="relative z-10 flex  items-center space-x-2"
                     >
                       <FiShoppingCart size={18} className="sm:hidden" />
                       <FiShoppingCart size={20} className="hidden sm:block" />
@@ -494,16 +494,6 @@ const ProductDetails = () => {
                     className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-3 sm:py-4 px-5 sm:px-8 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-lg transition-colors"
                   >
                     Buy Now
-                  </button>
-
-                  <button className="px-4 sm:px-6 py-3 sm:py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg sm:rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <FiHeart size={18} className="sm:hidden" />
-                    <FiHeart size={20} className="hidden sm:block" />
-                  </button>
-
-                  <button className="px-4 sm:px-6 py-3 sm:py-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg sm:rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <FiShare2 size={18} className="sm:hidden" />
-                    <FiShare2 size={20} className="hidden sm:block" />
                   </button>
                 </div>
               </div>

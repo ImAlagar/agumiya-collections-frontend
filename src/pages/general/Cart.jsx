@@ -100,7 +100,7 @@ const Cart = () => {
         >
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-              <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2">
                 Shopping Cart
               </h1>
               <p className="text-gray-600 dark:text-gray-400 text-lg">
@@ -129,7 +129,7 @@ const Cart = () => {
               animate="visible"
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
             >
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
+              <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
                   <FiShoppingCart className="mr-3 text-blue-600" size={24} />
                   Cart Items
@@ -149,59 +149,98 @@ const Cart = () => {
                       initial="hidden"
                       animate="visible"
                       exit={{ opacity: 0, x: -20, transition: { duration: 0.3 } }}
-                      className="flex items-center p-6 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+                      className="flex flex-col sm:flex-row items-start sm:items-center p-4 sm:p-6 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
                     >
-                      {/* Product Image */}
-                      <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        className="relative flex-shrink-0"
-                      >
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-24 h-24 lg:w-28 lg:h-28 object-cover rounded-xl shadow-md"
-                        />
-                        <div className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shadow-lg">
-                          {item.quantity}
-                        </div>
-                      </motion.div>
-                      
-                      {/* Product Info */}
-                      <div className="flex-1 ml-6 min-w-0">
-                        <h3 className="font-semibold text-gray-900 dark:text-white text-lg lg:text-xl line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                          {item.name}
-                        </h3>
-                        
-                        {item.variant?.title && (
-                          <p className="text-blue-600 dark:text-blue-400 font-medium text-sm mt-1">
-                            {item.variant.title}
-                          </p>
-                        )}
-                        
-                        <div className="flex items-center space-x-2 mt-2">
-                          <p className="text-lg font-bold text-gray-900 dark:text-white">
-                            {singlePriceFormatted}
-                          </p>
-                          <span className="text-gray-400">×</span>
-                          <span className="text-gray-600 dark:text-gray-400 font-medium">
+                      {/* Product Image & Basic Info */}
+                      <div className="flex items-center w-full sm:w-auto mb-4 sm:mb-0">
+                        {/* Product Image */}
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          className="relative flex-shrink-0"
+                        >
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 object-cover rounded-xl shadow-md"
+                          />
+                          <div className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-xs sm:text-sm font-bold shadow-lg">
                             {item.quantity}
-                          </span>
-                          <span className="text-gray-400">=</span>
-                          <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                            {itemTotalFormatted}
-                          </p>
-                        </div>
+                          </div>
+                        </motion.div>
+                        
+                        {/* Product Info - Mobile Layout */}
+                        <div className="flex-1 ml-4 sm:ml-6 min-w-0 sm:hidden">
+                          <h3 className="font-semibold text-gray-900 dark:text-white text-base line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {item.name}
+                          </h3>
+                          
+                          {item.variant?.title && (
+                            <p className="text-blue-600 dark:text-blue-400 font-medium text-xs mt-1">
+                              {item.variant.title}
+                            </p>
+                          )}
+                          
+                          <div className="flex items-center space-x-1 mt-2">
+                            <p className="text-base font-bold text-gray-900 dark:text-white">
+                              {singlePriceFormatted}
+                            </p>
+                            <span className="text-gray-400 text-sm">×</span>
+                            <span className="text-gray-600 dark:text-gray-400 font-medium text-sm">
+                              {item.quantity}
+                            </span>
+                            <span className="text-gray-400 text-sm">=</span>
+                            <p className="text-base font-bold text-blue-600 dark:text-blue-400">
+                              {itemTotalFormatted}
+                            </p>
+                          </div>
 
-                        {/* Original USD Price if different currency */}
-                        {userCurrency !== 'USD' && (
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            ≈ {formatPrice(item.price * item.quantity, 'USD').formatted}
-                          </p>
-                        )}
+                          {/* Original USD Price if different currency */}
+                          {userCurrency !== 'USD' && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              ≈ {formatPrice(item.price * item.quantity, 'USD').formatted}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Product Info - Desktop Layout */}
+                      <div className="hidden sm:flex flex-1 ml-6 min-w-0">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-gray-900 dark:text-white text-lg lg:text-xl line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {item.name}
+                          </h3>
+                          
+                          {item.variant?.title && (
+                            <p className="text-blue-600 dark:text-blue-400 font-medium text-sm mt-1">
+                              {item.variant.title}
+                            </p>
+                          )}
+                          
+                          <div className="flex items-center space-x-2 mt-2">
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">
+                              {singlePriceFormatted}
+                            </p>
+                            <span className="text-gray-400">×</span>
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">
+                              {item.quantity}
+                            </span>
+                            <span className="text-gray-400">=</span>
+                            <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                              {itemTotalFormatted}
+                            </p>
+                          </div>
+
+                          {/* Original USD Price if different currency */}
+                          {userCurrency !== 'USD' && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              ≈ {formatPrice(item.price * item.quantity, 'USD').formatted}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
                       {/* Quantity Controls & Remove */}
-                      <div className="flex items-center space-x-4 ml-4">
+                      <div className="flex items-center justify-between w-full sm:w-auto sm:justify-end sm:space-x-4 sm:ml-4 mt-4 sm:mt-0">
                         {/* Quantity Controls */}
                         <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 shadow-sm">
                           <motion.button
@@ -209,12 +248,12 @@ const Cart = () => {
                             whileTap={{ scale: 0.9 }}
                             onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
                             disabled={item.quantity <= 1}
-                            className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="p-2 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
-                            <FiMinus size={16} />
+                            <FiMinus size={14} className="sm:w-4" />
                           </motion.button>
                           
-                          <span className="px-3 py-2 text-gray-900 dark:text-white font-semibold min-w-[40px] text-center border-l border-r border-gray-300 dark:border-gray-600">
+                          <span className="px-2 sm:px-3 py-2 text-gray-900 dark:text-white font-semibold min-w-[30px] sm:min-w-[40px] text-center border-l border-r border-gray-300 dark:border-gray-600 text-sm sm:text-base">
                             {item.quantity}
                           </span>
                           
@@ -222,9 +261,9 @@ const Cart = () => {
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                            className="p-2 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
                           >
-                            <FiPlus size={16} />
+                            <FiPlus size={14} className="sm:w-4" />
                           </motion.button>
                         </div>
                         
@@ -233,10 +272,10 @@ const Cart = () => {
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           onClick={() => removeFromCart(item.id)}
-                          className="p-3 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors group/remove"
+                          className="p-2 sm:p-3 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors group/remove ml-2 sm:ml-0"
                           title="Remove item"
                         >
-                          <FiTrash2 size={18} className="group-hover/remove:scale-110 transition-transform" />
+                          <FiTrash2 size={16} className="sm:w-5 group-hover/remove:scale-110 transition-transform" />
                         </motion.button>
                       </div>
                     </motion.div>
@@ -254,10 +293,10 @@ const Cart = () => {
             >
               <Link
                 to="/shop"
-                className="flex items-center justify-center space-x-3 border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-500 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-400 p-6 rounded-2xl transition-all duration-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 group"
+                className="flex items-center justify-center space-x-3 border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-500 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-400 p-4 sm:p-6 rounded-2xl transition-all duration-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 group text-sm sm:text-base"
               >
-                <FiPlus size={24} className="group-hover:scale-110 transition-transform" />
-                <span className="text-lg font-semibold">Continue Shopping</span>
+                <FiPlus size={20} className="sm:w-6 group-hover:scale-110 transition-transform" />
+                <span className="font-semibold">Continue Shopping</span>
               </Link>
             </motion.div>
           </div>

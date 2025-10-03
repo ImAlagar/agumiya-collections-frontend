@@ -8,7 +8,8 @@ import {
   Send, 
   MessageCircle, 
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  Globe
 } from "lucide-react";
 import { useContacts } from "../../contexts/ContactsContext";
 
@@ -24,6 +25,7 @@ const Contact = () => {
     message: "",
     inquiryType: "GENERAL",
     phone: "",
+    country: "", // 🔥 NEW FIELD - Added country
   });
   const { submitContact } = useContacts();
   const [showSuccess, setShowSuccess] = useState(false);
@@ -51,8 +53,6 @@ const Contact = () => {
     // Clear error when user starts typing
     if (error) setError(null);
   };
-
-
 
   const validateForm = () => {
     if (!formData.name.trim()) {
@@ -82,55 +82,56 @@ const Contact = () => {
     return true;
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError(null);
-  
-  // Validate form
-  if (!validateForm()) {
-    return;
-  }
-
-  setIsSubmitting(true);
-
-  try {
-    const submissionData = {
-      name: formData.name.trim(),
-      email: formData.email.trim(),
-      subject: formData.subject,
-      message: formData.message.trim(),
-      inquiryType: formData.inquiryType,
-      phone: formData.phone.trim(),
-    };
-
-    // Use the context method instead of direct fetch
-    const result = await submitContact(submissionData);
-
-    if (result.success) {
-      // Success case
-      setShowSuccess(true);
-      setFormData({ 
-        name: "", 
-        email: "", 
-        subject: "", 
-        message: "", 
-        inquiryType: "GENERAL",
-        phone: "",
-      });
-      
-      // Hide success message after 5 seconds
-      setTimeout(() => setShowSuccess(false), 5000);
-    } else {
-      throw new Error(result.error || 'Submission failed');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    
+    // Validate form
+    if (!validateForm()) {
+      return;
     }
-  } catch (error) {
-    console.error('Contact form submission error:', error);
-    setError(error.message || 'Failed to send message. Please try again.');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
 
+    setIsSubmitting(true);
+
+    try {
+      const submissionData = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        subject: formData.subject,
+        message: formData.message.trim(),
+        inquiryType: formData.inquiryType,
+        phone: formData.phone.trim(),
+        country: formData.country.trim(), // 🔥 NEW FIELD - Added country
+      };
+
+      // Use the context method instead of direct fetch
+      const result = await submitContact(submissionData);
+
+      if (result.success) {
+        // Success case
+        setShowSuccess(true);
+        setFormData({ 
+          name: "", 
+          email: "", 
+          subject: "", 
+          message: "", 
+          inquiryType: "GENERAL",
+          phone: "",
+          country: "", // 🔥 NEW FIELD - Reset country
+        });
+        
+        // Hide success message after 5 seconds
+        setTimeout(() => setShowSuccess(false), 5000);
+      } else {
+        throw new Error(result.error || 'Submission failed');
+      }
+    } catch (error) {
+      console.error('Contact form submission error:', error);
+      setError(error.message || 'Failed to send message. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Theme-based background colors
   const getBackgroundColor = () => {
@@ -204,6 +205,39 @@ const handleSubmit = async (e) => {
       default: return "bg-red-50 border-red-200";
     }
   };
+
+  // Common countries for dropdown
+  const countries = [
+    "United States",
+    "Canada",
+    "United Kingdom",
+    "Australia",
+    "Germany",
+    "France",
+    "Japan",
+    "India",
+    "Brazil",
+    "Mexico",
+    "Spain",
+    "Italy",
+    "Netherlands",
+    "Sweden",
+    "Norway",
+    "Denmark",
+    "Finland",
+    "Switzerland",
+    "Austria",
+    "Belgium",
+    "Portugal",
+    "Ireland",
+    "New Zealand",
+    "South Africa",
+    "Singapore",
+    "United Arab Emirates",
+    "South Korea",
+    "China",
+    "Other"
+  ];
 
   return (
     <section
@@ -594,10 +628,44 @@ const handleSubmit = async (e) => {
                 />
               </motion.div>
 
+              {/* 🔥 NEW FIELD - Country Dropdown */}
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.5, delay: 0.55 }}
+              >
+                <label 
+                  htmlFor="country" 
+                  className={`block mb-2 font-medium ${getTextColor()}`}
+                >
+                  Country
+                </label>
+                <div className="relative">
+                  <select
+                    id="country"
+                    value={formData.country}
+                    onChange={(e) => handleInputChange('country', e.target.value)}
+                    className={`w-full px-4 py-3 rounded-lg border focus:border-transparent focus:ring-2 focus:ring-blue-500 transition-all appearance-none ${
+                      getInputBackground()} ${getInputBorder()} ${getTextColor()}`}
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select your country</option>
+                    {countries.map((country) => (
+                      <option key={country} value={country}>
+                        {country}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <Globe size={18} className={getSecondaryTextColor()} />
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5, delay: 0.6 }}
               >
                 <label 
                   htmlFor="inquiryType" 
@@ -628,7 +696,7 @@ const handleSubmit = async (e) => {
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: 0.6 }}
+                transition={{ duration: 0.5, delay: 0.65 }}
               >
                 <label 
                   htmlFor="subject" 
@@ -652,7 +720,7 @@ const handleSubmit = async (e) => {
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: 0.65 }}
+                transition={{ duration: 0.5, delay: 0.7 }}
               >
                 <label 
                   htmlFor="message" 
@@ -672,6 +740,7 @@ const handleSubmit = async (e) => {
                   disabled={isSubmitting}
                 />
               </motion.div>
+
               <motion.button
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
