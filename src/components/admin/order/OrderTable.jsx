@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import Loader from '../../common/Loader';
 import OrderDetails from './OrderDetails';
 import { itemVariants, staggerVariants } from '../../../contexts/ProductsContext';
-import { Package, Calendar, User, CreditCard, Truck, Mail, Phone } from 'lucide-react';
+import { Package, Calendar, User, CreditCard, Truck, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
   const statusConfig = {
@@ -83,7 +83,12 @@ const OrderTable = ({
   orders, 
   isLoading, 
   pagination, 
-  onPageChange 
+  onPageChange,
+  onPageSizeChange,
+  onViewOrder,
+  onUpdateStatus,
+  onRetryPrintify,
+  actionLoading
 }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -125,6 +130,9 @@ const OrderTable = ({
   const handleRowClick = (order) => {
     setSelectedOrder(order);
     setShowDetails(true);
+    if (onViewOrder) {
+      onViewOrder(order);
+    }
   };
 
   const handleCloseDetails = () => {
@@ -164,8 +172,29 @@ const OrderTable = ({
         animate="visible"
         className="overflow-hidden"
       >
+        {/* Page Size Selector */}
+        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Total: {pagination?.totalCount || 0} orders
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Show:</span>
+            <select 
+              value={pagination?.limit || 5}
+              onChange={(e) => onPageSizeChange && onPageSizeChange(Number(e.target.value))}
+              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+            <span className="text-sm text-gray-600 dark:text-gray-400">per page</span>
+          </div>
+        </div>
+
         {/* Desktop Table */}
-        <div className="hidden md:block ">
+        <div className="hidden md:block">
           <table className="w-full min-w-max">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
@@ -343,7 +372,12 @@ const OrderTable = ({
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700 gap-4"
+          >
             <div className="text-sm text-gray-600 dark:text-gray-400">
               Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of {pagination.totalCount} orders
             </div>
@@ -351,8 +385,9 @@ const OrderTable = ({
               <button
                 onClick={() => onPageChange(pagination.currentPage - 1)}
                 disabled={!pagination.hasPrev}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
               >
+                <ChevronLeft className="w-4 h-4" />
                 Previous
               </button>
               
@@ -373,9 +408,9 @@ const OrderTable = ({
                     <button
                       key={pageNum}
                       onClick={() => onPageChange(pageNum)}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
                         pagination.currentPage === pageNum
-                          ? 'bg-blue-600 text-white'
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
                           : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                     >
@@ -388,12 +423,13 @@ const OrderTable = ({
               <button
                 onClick={() => onPageChange(pagination.currentPage + 1)}
                 disabled={!pagination.hasNext}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
               >
                 Next
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
       </motion.div>
 

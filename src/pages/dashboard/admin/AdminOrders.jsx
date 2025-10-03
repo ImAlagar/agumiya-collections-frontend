@@ -21,7 +21,6 @@ const AdminOrders = () => {
     updateOrderStatus,
     retryPrintifyOrder,
     updateFilters,
-    updatePageSize, // Add this
     clearError
   } = useOrders();
 
@@ -32,6 +31,8 @@ const AdminOrders = () => {
   const [actionLoading, setActionLoading] = useState(null);
   const [stats, setStats] = useState(null);
   const [localFilters, setLocalFilters] = useState(filters);
+
+  // Remove the calculateOverallOrderStats function and overallOrderStats state
 
   // Load orders and stats on component mount
   useEffect(() => {
@@ -59,11 +60,6 @@ const AdminOrders = () => {
   // Handle page change
   const handlePageChange = (newPage) => {
     fetchOrders(newPage);
-  };
-
-  // Handle page size change
-  const handlePageSizeChange = (newSize) => {
-    updatePageSize(newSize);
   };
 
   // View order details
@@ -222,7 +218,7 @@ const AdminOrders = () => {
         </motion.div>
       )}
 
-      {/* Order Statistics Dashboard */}
+      {/* Order Statistics Dashboard - REPLACED SECTION */}
       <OrderStatsDashboard orders={orders} />
 
       {/* Filters Section */}
@@ -251,26 +247,8 @@ const AdminOrders = () => {
           onRetryPrintify={handleRetryPrintify}
           actionLoading={actionLoading}
           onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange} // Add this prop
         />
       </div>
-
-      {/* Order Details Sidebar */}
-      {showDetails && selectedOrder && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleCloseModals} />
-          <div className="relative w-full max-w-2xl h-full">
-            <OrderDetails
-              order={selectedOrder} 
-              onClose={handleCloseModals}
-              onStatusUpdate={() => {
-                setShowDetails(false);
-                handleStatusUpdate(selectedOrder);
-              }}
-            />
-          </div>
-        </div>
-      )}
 
     </motion.div>
   );
