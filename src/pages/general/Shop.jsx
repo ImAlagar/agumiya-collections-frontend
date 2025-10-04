@@ -278,16 +278,7 @@ const Shop = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4"
-          >
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                Shop All Products
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                Discover our complete collection with real-time currency conversion
-              </p>
-            </div>
-            
+          >         
             {/* Currency Selector */}
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">

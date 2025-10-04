@@ -348,7 +348,7 @@ const UserRegister = () => {
       className={`min-h-screen flex items-center justify-center bg-gradient-to-br ${themeStyles.background} p-3 sm:p-4 md:p-6`}
     >
       <div className="w-full max-w-4xl mx-auto">
-        <div className={`grid grid-cols-1 lg:grid-cols-2 ${themeStyles.cardBg} rounded-xl sm:rounded-2xl shadow-lg sm:shadow-2xl overflow-hidden border ${themeStyles.cardBorder} max-h-[95vh] sm:max-h-[90vh]`}>
+        <div className={`grid grid-cols-1 lg:grid-cols-2 ${themeStyles.cardBg} rounded-xl sm:rounded-2xl shadow-lg sm:shadow-2xl overflow-hidden border ${themeStyles.cardBorder}`}>
           
           {/* Left Side - Branding */}
           <div className="hidden lg:flex bg-gradient-to-br from-blue-600 to-purple-700 p-6 lg:p-8 relative overflow-hidden">
@@ -411,7 +411,7 @@ const UserRegister = () => {
           </div>
 
           {/* Right Side - Registration Form */}
-          <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto">
+          <div className="p-4 sm:p-6 lg:p-8">
             <motion.div 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -439,7 +439,7 @@ const UserRegister = () => {
                 </motion.div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 flex-1">
+              <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
                 <div className="grid grid-cols-1 gap-2 sm:gap-3">
                   {/* Full Name */}
                   <div className="relative">
@@ -673,25 +673,26 @@ const UserRegister = () => {
                   </div>
                 </div>
 
-                {/* Submit Button - Fixed at bottom on mobile */}
-                <div className="sticky bottom-0 bg-inherit pt-3 pb-2 sm:pt-4 sm:pb-0">
-                <button
-                  type="submit"
-                  disabled={!allRequirementsMet || !passwordsMatch || isLoading}
-                  className={`w-full bg-gradient-to-r ${themeStyles.button.gradient} text-white py-2.5 rounded-lg font-semibold transition-all duration-300 disabled:${themeStyles.button.disabled} shadow-lg hover:shadow-xl transform hover:scale-[1.02] text-sm`}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Creating Account...
-                    </div>
-                  ) : (
-                    'Create Account'
-                  )}
-                </button>
+                {/* Submit Button - Improved positioning */}
+                <div className="pt-4 pb-2">
+                  <button
+                    type="submit"
+                    disabled={!allRequirementsMet || !passwordsMatch || isLoading || Object.keys(errors).length > 0}
+                    className={`w-full bg-gradient-to-r ${themeStyles.button.gradient} text-white py-3 rounded-lg font-semibold transition-all duration-300 disabled:${themeStyles.button.disabled} shadow-lg hover:shadow-xl transform hover:scale-[1.02] text-sm sm:text-base`}
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Creating Account...
+                      </div>
+                    ) : (
+                      'Create Account'
+                    )}
+                  </button>
+
                   {/* Login Link */}
-                  <div className="text-center mt-2 sm:mt-3">
-                    <p className={`text-xs ${themeStyles.text.secondary}`}>
+                  <div className="text-center mt-3 sm:mt-4">
+                    <p className={`text-xs sm:text-sm ${themeStyles.text.secondary}`}>
                       Already have an account?{' '}
                       <Link 
                         to="/login" 
