@@ -77,7 +77,7 @@ export const socialLinks = [
   { 
     name: "Facebook", 
     icon: <Facebook className="w-5 h-5" />,
-    url: "https://facebook.com/agumiyacollections"
+    url: "https://www.facebook.com/profile.php?id=61581576428542"
   },
   { 
     name: "Instagram", 

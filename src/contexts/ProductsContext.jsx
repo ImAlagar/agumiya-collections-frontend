@@ -140,74 +140,70 @@ export const ProductsProvider = ({ children }) => {
   // ========================
   // 🔸 Fetch Products
   // ========================
-  const fetchProducts = useCallback(async (page = 1, filters = {}) => {
-    try {
-      dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
+const fetchProducts = useCallback(async (page = 1, filters = {}) => {
+  try {
+    dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
 
-      const currentFilters = { ...filtersRef.current, ...filters };
-      const params = {
-        page: page || 1,
-        limit: currentFilters.limit || 5,
-        ...(currentFilters.sortBy && { sortBy: currentFilters.sortBy }),
-        ...(currentFilters.sortOrder && { sortOrder: currentFilters.sortOrder }),
-        ...(currentFilters.search?.trim() && { search: currentFilters.search.trim() }),
-        ...(currentFilters.category &&
-          currentFilters.category !== "All" && { category: currentFilters.category }),
-        ...(currentFilters.inStock &&
-          currentFilters.inStock !== "all" && { inStock: currentFilters.inStock }),
-      };
+    const currentFilters = { ...filtersRef.current, ...filters };
+    const params = {
+      page: page || 1,
+      limit: currentFilters.limit || 5,
+      ...(currentFilters.sortBy && { sortBy: currentFilters.sortBy }),
+      ...(currentFilters.sortOrder && { sortOrder: currentFilters.sortOrder }),
+      ...(currentFilters.search?.trim() && { search: currentFilters.search.trim() }),
+      ...(currentFilters.category &&
+        currentFilters.category !== "All" && { category: currentFilters.category }),
+      ...(currentFilters.inStock &&
+        currentFilters.inStock !== "all" && { inStock: currentFilters.inStock === 'true' }), // Fix boolean conversion
+    };
 
+    console.log('🔍 Fetching products with params:', params); // Debug log
 
-      const hasFilters =
-        params.search ||
-        (params.category && params.category !== "All") ||
-        (params.inStock && params.inStock !== "all");
+    // Always use the main products endpoint with query parameters
+    const response = await apiClient.get("/products", { params });
 
-      const endpoint = hasFilters ? "/products/filter" : "/products";
-      const response = await apiClient.get(endpoint, { params });
+    const apiData = response.data?.data || response.data;
+    if (!apiData) throw new Error("Invalid response format from server");
 
+    const products = Array.isArray(apiData.products)
+      ? apiData.products
+      : Array.isArray(apiData.data)
+      ? apiData.data
+      : Array.isArray(apiData)
+      ? apiData
+      : [];
 
-      const apiData = response.data?.data || response.data;
-      if (!apiData) throw new Error("Invalid response format from server");
+    const paginationData = apiData.pagination || apiData;
 
-      const products = Array.isArray(apiData.products)
-        ? apiData.products
-        : Array.isArray(apiData.data)
-        ? apiData.data
-        : Array.isArray(apiData)
-        ? apiData
-        : [];
+    const mappedPagination = {
+      currentPage: paginationData.currentPage || page,
+      totalPages: paginationData.totalPages || 1,
+      totalCount: paginationData.totalCount || products.length,
+      limit: paginationData.limit || currentFilters.limit || 5,
+      hasNext:
+        paginationData.hasNext !== undefined
+          ? paginationData.hasNext
+          : (paginationData.currentPage || page) < (paginationData.totalPages || 1),
+      hasPrev:
+        paginationData.hasPrev !== undefined
+          ? paginationData.hasPrev
+          : (paginationData.currentPage || page) > 1,
+    };
 
-      const paginationData = apiData.pagination || apiData;
-
-      const mappedPagination = {
-        currentPage: paginationData.currentPage || page,
-        totalPages: paginationData.totalPages || 1,
-        totalCount: paginationData.totalCount || products.length,
-        limit: paginationData.limit || currentFilters.limit || 5,
-        hasNext:
-          paginationData.hasNext !== undefined
-            ? paginationData.hasNext
-            : (paginationData.currentPage || page) < (paginationData.totalPages || 1),
-        hasPrev:
-          paginationData.hasPrev !== undefined
-            ? paginationData.hasPrev
-            : (paginationData.currentPage || page) > 1,
-      };
-
-
-      dispatch({
-        type: PRODUCT_ACTIONS.SET_PRODUCTS,
-        payload: { products, pagination: mappedPagination },
-      });
-    } catch (error) {
-      console.error("💥 Fetch products error:", error);
-      dispatch({
-        type: PRODUCT_ACTIONS.SET_ERROR,
-        payload: error.message || "Failed to load products. Please try again.",
-      });
-    }
-  }, []);
+    dispatch({
+      type: PRODUCT_ACTIONS.SET_PRODUCTS,
+      payload: { products, pagination: mappedPagination },
+    });
+  } catch (error) {
+    console.error("💥 Fetch products error:", error);
+    console.error("💥 Error details:", error.response?.data); // Add detailed error logging
+    
+    dispatch({
+      type: PRODUCT_ACTIONS.SET_ERROR,
+      payload: error.response?.data?.message || error.message || "Failed to load products. Please try again.",
+    });
+  }
+}, []);
 
   // ========================
   // 🔸 Update Page Size
