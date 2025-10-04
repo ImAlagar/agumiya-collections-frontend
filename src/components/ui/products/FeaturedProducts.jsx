@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion';
 import { Star, ShoppingBag } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { Link } from 'react-router-dom';
 
 const featuredProducts = [
   {
@@ -86,7 +87,7 @@ const FeaturedProducts = () => {
 
   return (
     <section className={`py-20 ${styles.background}`}>
-      <div className="container mx-auto px-6">
+      <Link to={'shop'} className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -157,7 +158,7 @@ const FeaturedProducts = () => {
             </motion.div>
           ))}
         </div>
-      </div>
+      </Link>
     </section>
   );
 };

@@ -81,16 +81,18 @@ export const productService = {
     }
   },
 
-  async getSimilarProducts(productId, limit = 4) {
-    try {
-      const response = await apiClient.get(`/products/${productId}/similar`, {
-        params: { limit },
-        timeout: 30000
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Get similar products error:', error);
-      throw error;
-    }
+// In your productService.js file
+async getSimilarProducts(productId, limit = 4) {
+  try {
+    const response = await apiClient.get(`/products/${productId}/similar`, {
+      params: { limit },
+      timeout: 30000
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Get similar products error:', error);
+    // Return empty array instead of throwing error
+    return { success: true, data: [] };
   }
+}
 };

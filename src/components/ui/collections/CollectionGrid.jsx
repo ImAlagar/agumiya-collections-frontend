@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion';
 import { ShoppingBag, Heart } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { Link } from 'react-router-dom';
 
 const collections = [
   {
@@ -109,7 +110,7 @@ const CollectionGrid = () => {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <Link to={'/shop'} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {collections.map((collection, index) => (
             <motion.div
               key={collection.id}
@@ -151,7 +152,7 @@ const CollectionGrid = () => {
               </div>
             </motion.div>
           ))}
-        </div>
+        </Link>
       </div>
     </section>
   );

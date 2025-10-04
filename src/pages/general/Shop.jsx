@@ -143,11 +143,17 @@ const Shop = () => {
     clearError 
   } = useProducts();
 
+  // Initialize local filters with proper structure
   const [localFilters, setLocalFilters] = useState({
-    ...filters,
-    priceRange: [0, 1000],
+    search: '',
+    category: 'All',
     categories: [],
-    availability: 'all'
+    priceRange: [0, 1000],
+    inStock: 'all',
+    sortBy: 'name',
+    sortOrder: 'asc',
+    limit: 12, // Set to 12 products per page
+    page: 1
   });
 
   // Safe products array
@@ -164,19 +170,35 @@ const Shop = () => {
     ]
   }), []);
 
+  // Initialize with 12 products per page
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(1, 12); // First page, 12 products
   }, [fetchProducts]);
 
+  // Sync local filters with context filters
   useEffect(() => {
-    setLocalFilters(prev => ({ ...prev, ...filters }));
+    if (filters) {
+      setLocalFilters(prev => ({ 
+        ...prev, 
+        ...filters,
+        limit: 12 // Ensure limit is always 12
+      }));
+    }
   }, [filters]);
 
   const handleFilterChange = useCallback((newFilters) => {
-    const updatedFilters = { ...localFilters, ...newFilters };
+    const updatedFilters = { 
+      ...localFilters, 
+      ...newFilters, 
+      page: 1, // Reset to first page when filters change
+      limit: 12 // Always 12 products per page
+    };
     setLocalFilters(updatedFilters);
     updateFilters(updatedFilters);
-  }, [localFilters, updateFilters]);
+    
+    // Fetch products with new filters
+    fetchProducts(1, 12, updatedFilters);
+  }, [localFilters, updateFilters, fetchProducts]);
 
   const handlePriceRangeChange = useCallback((newRange) => {
     handleFilterChange({ priceRange: newRange });
@@ -191,23 +213,27 @@ const Shop = () => {
       inStock: 'all',
       sortBy: 'name',
       sortOrder: 'asc',
-      limit: 10
+      limit: 12,
+      page: 1
     };
     setLocalFilters(resetFilters);
     updateFilters(resetFilters);
-  }, [updateFilters]);
+    fetchProducts(1, 12, resetFilters);
+  }, [updateFilters, fetchProducts]);
 
   const activeFilterCount = useMemo(() => {
+    if (!localFilters) return 0;
+    
     let count = 0;
-    if (localFilters.categories.length > 0) count++;
-    if (localFilters.priceRange[0] > 0 || localFilters.priceRange[1] < 1000) count++;
-    if (localFilters.inStock !== 'all') count++;
+    if (localFilters.categories && localFilters.categories.length > 0) count++;
+    if (localFilters.priceRange && (localFilters.priceRange[0] > 0 || localFilters.priceRange[1] < 1000)) count++;
+    if (localFilters.inStock && localFilters.inStock !== 'all') count++;
     return count;
   }, [localFilters]);
 
   const handlePageChange = useCallback((newPage) => {
-    fetchProducts(newPage);
-  }, [fetchProducts]);
+    fetchProducts(newPage, 12, localFilters);
+  }, [fetchProducts, localFilters]);
 
   // Generate structured data for SEO
   const productStructuredData = {
@@ -232,6 +258,15 @@ const Shop = () => {
         "category": product.category || 'Uncategorized'
       }
     }))
+  };
+
+  // Safe pagination values
+  const safePagination = pagination || {
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    hasPrev: false,
+    hasNext: false
   };
 
   return (
@@ -273,21 +308,6 @@ const Shop = () => {
             )}
           </AnimatePresence>
 
-          {/* Header with Currency Selector */}
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4"
-          >         
-            {/* Currency Selector */}
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                Display prices in:
-              </span>
-              <CurrencySelector />
-            </div>
-          </motion.div>
-
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Filters Sidebar */}
             <motion.div 
@@ -324,8 +344,8 @@ const Shop = () => {
                 <FilterSection title="Price Range">
                   <RangeSlider
                     label="Price Range"
-                    value={localFilters.priceRange}
-                    onChange={handlePriceRangeChange}
+                    value={localFilters.priceRange?.[1] || 1000}
+                    onChange={(value) => handlePriceRangeChange([localFilters.priceRange?.[0] || 0, value])}
                     min={0}
                     max={1000}
                     step={10}
@@ -338,7 +358,7 @@ const Shop = () => {
                   <ChipFilter
                     label=""
                     options={filterOptions.categories}
-                    value={localFilters.categories}
+                    value={localFilters.categories || []}
                     onChange={(value) => handleFilterChange({ categories: value })}
                     multiSelect={true}
                   />
@@ -361,7 +381,7 @@ const Shop = () => {
                           type="radio"
                           name="availability"
                           value={option.value}
-                          checked={localFilters.inStock === option.value}
+                          checked={(localFilters.inStock || 'all') === option.value}
                           onChange={(e) => handleFilterChange({ inStock: e.target.value })}
                           className="w-4 h-4 text-primary-600 focus:ring-primary-500"
                         />
@@ -397,13 +417,13 @@ const Shop = () => {
                           <span>Loading...</span>
                         </span>
                       ) : (
-                        `${pagination.totalCount} products found`
+                        `${safePagination.totalCount} products found`
                       )}
                     </p>
                   </div>
                   
                   {/* Active Filters Display */}
-                  {activeFilterCount > 0 && (
+                  {activeFilterCount > 0 && localFilters.categories && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -420,7 +440,7 @@ const Shop = () => {
                           <span>{filterOptions.categories.find(c => c.value === category)?.label}</span>
                           <button
                             onClick={() => handleFilterChange({
-                              categories: localFilters.categories.filter(c => c !== category)
+                              categories: (localFilters.categories || []).filter(c => c !== category)
                             })}
                             className="hover:text-primary-600"
                           >
@@ -434,30 +454,16 @@ const Shop = () => {
                 
                 {/* Sort Options */}
                 <div className="flex items-center space-x-4">
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm px-4 py-2">
-                    <select
-                      value={`${filters.sortBy}-${filters.sortOrder}`}
-                      onChange={(e) => {
-                        const [sortBy, sortOrder] = e.target.value.split('-');
-                        handleFilterChange({ sortBy, sortOrder });
-                      }}
-                      className="bg-transparent border-0 focus:ring-0 text-gray-900 dark:text-white font-medium cursor-pointer"
-                    >
-                      <option value="name-asc">Name: A-Z</option>
-                      <option value="name-desc">Name: Z-A</option>
-                      <option value="price-asc">Price: Low to High</option>
-                      <option value="price-desc">Price: High to Low</option>
-                      <option value="createdAt-desc">Newest First</option>
-                      <option value="createdAt-asc">Oldest First</option>
-                      <option value="rating-desc">Highest Rated</option>
-                    </select>
-                  </div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                        Display prices in:
+                      </span>
+                      <CurrencySelector />
                 </div>
               </motion.div>
 
               {/* Products Grid */}
               {isLoading ? (
-                <ProductGridSkeleton count={filters.limit} />
+                <ProductGridSkeleton count={12} />
               ) : (
                 <motion.div
                   variants={staggerVariants}
@@ -519,7 +525,7 @@ const Shop = () => {
               )}
 
               {/* Pagination */}
-              {!isLoading && pagination.totalPages > 1 && (
+              {!isLoading && safePagination.totalPages > 1 && (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -527,8 +533,8 @@ const Shop = () => {
                   className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-12"
                 >
                   <button
-                    onClick={() => handlePageChange(pagination.currentPage - 1)}
-                    disabled={!pagination.hasPrev}
+                    onClick={() => handlePageChange(safePagination.currentPage - 1)}
+                    disabled={!safePagination.hasPrev}
                     className="flex items-center space-x-2 px-6 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-lg transition-all duration-300 transform hover:-translate-x-1 w-full sm:w-auto"
                   >
                     <span>←</span>
@@ -537,13 +543,13 @@ const Shop = () => {
                   
                   <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg px-6 py-3 w-full sm:w-auto text-center">
                     <span className="font-semibold text-gray-700 dark:text-gray-300">
-                      Page <span className="text-primary-600 dark:text-primary-400">{pagination.currentPage}</span> of {pagination.totalPages}
+                      Page <span className="text-primary-600 dark:text-primary-400">{safePagination.currentPage}</span> of {safePagination.totalPages}
                     </span>
                   </div>
                   
                   <button
-                    onClick={() => handlePageChange(pagination.currentPage + 1)}
-                    disabled={!pagination.hasNext}
+                    onClick={() => handlePageChange(safePagination.currentPage + 1)}
+                    disabled={!safePagination.hasNext}
                     className="flex items-center space-x-2 px-6 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-lg transition-all duration-300 transform hover:translate-x-1 w-full sm:w-auto"
                   >
                     <span>Next</span>

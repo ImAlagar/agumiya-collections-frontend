@@ -7,9 +7,6 @@ import { useCart } from '../../contexts/CartContext';
 import { SEO } from '../../contexts/SEOContext';
 import {
   FiShoppingCart,
-  FiHeart,
-  FiShare2,
-  FiStar,
   FiTruck,
   FiShield,
   FiArrowLeft,
@@ -22,14 +19,19 @@ import {
 import FlyingItem from '../../components/user/products/FlyingItem';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import CurrencySelector from '../../components/common/CurrencySelector';
+import SimilarProducts from '../../components/user/products/SimilarProducts';
+import EnhancedSimilarProducts from '../../components/user/products/EnhancedSimilarProducts';
 
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getProductById, similarProducts } = useProducts();
+   const { 
+    getProductById, 
+    getSimilarProducts // ✅ Make sure this is imported
+  } = useProducts();
   const { formatPrice, userCurrency, convertPrice, getCurrencySymbol } = useCurrency();
   const { addToCart } = useCart();
-
+  const [similarProducts, setSimilarProducts] = useState([]);
   const [product, setProduct] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
@@ -62,6 +64,23 @@ const ProductDetails = () => {
     };
     loadProduct();
   }, [id, getProductById]);
+
+
+ useEffect(() => {
+    const loadSimilarProducts = async () => {
+      if (product) {
+        try {
+          const similar = await getSimilarProducts(product.id, 4);
+          setSimilarProducts(similar);
+        } catch (error) {
+          console.error('Error loading similar products:', error);
+          setSimilarProducts([]);
+        }
+      }
+    };
+    
+    loadSimilarProducts();
+  }, [product, getSimilarProducts]); // ✅ Make sure getSimilarProducts is in dependencies
 
   // Navigation functions for desktop arrows
   const nextImage = () => {
@@ -795,41 +814,14 @@ const ProductDetails = () => {
             </div>
           </div>
 
-          {/* Similar Products section */}
-          {similarProducts && similarProducts.length > 0 && (
-            <section className="mt-12 sm:mt-16">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-5 sm:mb-8">
-                You May Also Like
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                {similarProducts.slice(0, 4).map((similarProduct) => {
-                  const { formatted: similarFormattedPrice } = formatPrice(similarProduct.price, userCurrency);
-                  
-                  return (
-                    <div
-                      key={similarProduct.id}
-                      onClick={() => navigate(`/shop/products/${similarProduct.id}`)}
-                      className="cursor-pointer group"
-                    >
-                      <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-3 sm:p-4 hover:shadow-lg sm:hover:shadow-xl transition-shadow duration-300">
-                        <img
-                          src={similarProduct.images?.[0] || '/api/placeholder/300/300'}
-                          alt={similarProduct.name}
-                          className="w-full h-40 sm:h-48 object-cover rounded-lg mb-3 sm:mb-4 group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <h3 className="font-medium sm:font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2 line-clamp-2 text-sm sm:text-base">
-                          {similarProduct.name}
-                        </h3>
-                        <p className="text-blue-600 dark:text-blue-400 font-bold text-sm sm:text-lg">
-                          {similarFormattedPrice}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
+            {similarProducts && similarProducts.length > 0 && (
+              <EnhancedSimilarProducts
+                products={similarProducts}
+                title="Related Products You'll Love"
+                maxDisplay={4}
+                showViewAll={true}
+              />
+            )}
         </div>
       </div>
     </>

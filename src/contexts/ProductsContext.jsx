@@ -41,7 +41,7 @@ const initialState = {
     inStock: "all",
     sortBy: "name",
     sortOrder: "asc",
-    limit: 5,
+    limit: 12,
   },
   pagination: {
     currentPage: 1,
@@ -49,7 +49,7 @@ const initialState = {
     totalCount: 0,
     hasNext: false,
     hasPrev: false,
-    limit: 5,
+    limit: 12,
   },
 };
 
@@ -375,22 +375,25 @@ const fetchProducts = useCallback(async (page = 1, filters = {}) => {
   // ========================
   // 🔸 Get Similar Products
   // ========================
-  const getSimilarProducts = useCallback(async (productId, limit = 4) => {
-    try {
-      const response = await productService.getSimilarProducts(productId, limit);
-      if (response.success) {
-        let similarProducts = [];
-        if (response.data?.data) similarProducts = response.data.data;
-        else if (response.data) similarProducts = response.data;
-        else if (Array.isArray(response)) similarProducts = response;
-        return similarProducts;
-      } else throw new Error(response.message || "Failed to fetch similar products");
-    } catch (error) {
-      console.error("💥 Get similar products error:", error);
-      return [];
+const getSimilarProducts = useCallback(async (productId, limit = 4) => {
+  try {
+    const response = await productService.getSimilarProducts(productId, limit);
+    
+    // Handle different response formats
+    if (response.success) {
+      return response.data || [];
+    } else if (Array.isArray(response)) {
+      return response;
+    } else if (response.data) {
+      return Array.isArray(response.data) ? response.data : [];
     }
-  }, []);
-
+    
+    return [];
+  } catch (error) {
+    console.error("💥 Get similar products error:", error);
+    return [];
+  }
+}, []);
   // ========================
   // 🔸 Clear Error
   // ========================

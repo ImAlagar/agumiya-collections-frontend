@@ -32,48 +32,37 @@ export const SOCIAL_LINKS = [
   {
     name: "Instagram",
     icon: ({ size = 22 }) => (
-      <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" width={size} height={size} viewBox="0 0 24 24">
-        <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.62 5.367 11.987 11.988 11.987s11.987-5.367 11.987-11.987C24.014 5.367 18.647.001 12.017.001zM8.449 16.988c-1.297 0-2.448-.49-3.323-1.297C4.25 14.816 3.76 13.665 3.76 12.368s.49-2.448 1.297-3.323c.875-.807 2.026-1.297 3.323-1.297s2.448.49 3.323 1.297c.807.875 1.297 2.026 1.297 3.323s-.49 2.448-1.297 3.323c-.875.807-2.026 1.297-3.323 1.297z"/>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={size}
+        height={size}
+        fill="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm0 1.5A4.25 4.25 0 0 0 3.5 7.75v8.5A4.25 4.25 0 0 0 7.75 20.5h8.5A4.25 4.25 0 0 0 20.5 16.25v-8.5A4.25 4.25 0 0 0 16.25 3.5h-8.5ZM12 7.25a4.75 4.75 0 1 1 0 9.5 4.75 4.75 0 0 1 0-9.5Zm0 1.5a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5ZM17.75 6a.75.75 0 1 1 0 1.5h-.01a.75.75 0 0 1 0-1.5h.01Z" />
       </svg>
     ),
-    url: "https://instagram.com/agumiyacollections",
+    url: "https://instagram.com/agumiyacollections_com",
     color: "hover:text-pink-400",
     bgcolor: "hover:bg-pink-800",
   },
   {
     name: "Facebook",
     icon: ({ size = 22 }) => (
-      <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" width={size} height={size} viewBox="0 0 24 24">
-        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={size}
+        height={size}
+        fill="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path d="M13.5 22v-8.25h2.77l.41-3.2h-3.18V8.83c0-.93.26-1.56 1.58-1.56h1.69V4.35A22.41 22.41 0 0 0 13.88 4C11.46 4 9.75 5.5 9.75 8.52v2.03H7v3.2h2.75V22h3.75Z" />
       </svg>
     ),
-    url: "https://facebook.com/agumiyacollections",
+    url: "https://www.facebook.com/profile.php?id=61581576428542",
     color: "hover:text-blue-400",
     bgcolor: "hover:bg-blue-800",
   },
 ];
 
 
-export const DEFAULT_HERO_DATA = {
-  title: "I'm Alagar",
-  subtitles: ["Full Stack Developer"],
-  descriptions: ["I build scalable web applications"],
-  buttonText: "Download CV",
-  buttonLink: "#",
-  imageUrl:
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=774&q=80",
-  stats: {
-    projects: "10+",
-    customers: "15+",
-    libraries: "5+",
-    experience: "3+",
-  },
-  // 👇 give at least one background
-  backgrounds: [
-    {
-      imageUrl:
-        "https://images.unsplash.com/photo-1498050108023-c5249f4df085?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80",
-    },
-  ],
-  socialLinks: [],
-};
