@@ -74,14 +74,13 @@ const Profile = () => {
 
   const getUserStatus = () => {
     if (isAdmin) return 'Administrator';
-    if (user?.emailVerified) return 'Verified Member';
-    return 'Member';
+    if (user?.emailVerified) return 'Verified User';
+    return 'User';
   };
 
   // Menu items configuration
   const menuItems = [
     { icon: FiUser, label: 'My Profile', path: '/profile' },
-    { icon: FiShoppingBag, label: 'My Orders', path: '/myorders' },
   ];
 
   const handleMenuClick = (path) => {

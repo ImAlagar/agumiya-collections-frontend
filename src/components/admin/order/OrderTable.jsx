@@ -85,10 +85,7 @@ const OrderTable = ({
   pagination, 
   onPageChange,
   onPageSizeChange,
-  onViewOrder,
-  onUpdateStatus,
-  onRetryPrintify,
-  actionLoading
+  onViewOrder
 }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetails, setShowDetails] = useState(false);

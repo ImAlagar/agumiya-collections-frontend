@@ -7,6 +7,7 @@ import { storageManager } from '../../services/storage/storageManager';
 import { STORAGE_KEYS, USER_TYPES } from '../../config/constants.jsx';
 import { SEO } from '../../contexts/SEOContext.jsx';
 import { useAuth } from '../../contexts/AuthProvider.jsx';
+import { useCurrency } from '../../contexts/CurrencyContext.jsx';
 
 const UserProfile = () => {
   const [userData, setUserData] = useState(null);
@@ -277,13 +278,6 @@ const UserProfile = () => {
                 {activeTab === 'orders' && (
                   <OrderHistory userData={userData} isAdmin={isAdmin} />
                 )}
-                {activeTab === 'settings' && (
-                  <ProfileSettings 
-                    userData={userData} 
-                    isAdmin={isAdmin}
-                    onUpdateProfile={handleUpdateProfile}
-                  />
-                )}
                 {activeTab === 'security' && (
                   <SecuritySettings userData={userData} isAdmin={isAdmin} />
                 )}
@@ -307,7 +301,6 @@ const getNavigationItems = (isAdmin) => {
   const baseItems = [
     { id: 'overview', label: 'Overview', icon: '👤' },
     { id: 'orders', label: 'Orders', icon: '📦' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
     { id: 'security', label: 'Security', icon: '🔒' }
   ];
 
@@ -414,7 +407,7 @@ const ProfileOverview = ({ userData, isAdmin, formatDate, onUpdateProfile }) => 
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Member Since
+              User Since
             </label>
             <p className="text-gray-900 dark:text-white">
               {userData?.createdAt ? formatDate(userData.createdAt) : 'Unknown'}
@@ -512,37 +505,264 @@ const ProfileOverview = ({ userData, isAdmin, formatDate, onUpdateProfile }) => 
 };
 
 // Order History Component
-const OrderHistory = ({ userData, isAdmin }) => (
-  <motion.div
-    key="orders"
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
-  >
-    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-      {isAdmin ? 'Store Orders' : 'Order History'}
-    </h2>
-    <div className="text-center py-12">
-      <div className="text-6xl mb-4">📦</div>
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-        {isAdmin ? 'No orders in store' : 'No orders yet'}
-      </h3>
-      <p className="text-gray-600 dark:text-gray-400 mb-6">
-        {isAdmin ? 'Orders from customers will appear here' : 'Start shopping to see your order history here'}
-      </p>
-      <Link
-        to={isAdmin ? "/admin/products" : "/shop"}
-        className={`inline-flex items-center px-6 py-3 rounded-lg text-white transition-colors ${
-          isAdmin ? 'bg-purple-600 hover:bg-purple-700' : 'bg-indigo-600 hover:bg-indigo-700'
-        }`}
-      >
-        {isAdmin ? 'Manage Products' : 'Start Shopping'}
-      </Link>
-    </div>
-  </motion.div>
-);
+const OrderHistory = ({ userData, isAdmin }) => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const { formatPrice } = useCurrency(); // 👈 ADD THIS HOOK
 
+  useEffect(() => {
+    if (!isAdmin) {
+      loadUserOrders();
+    }
+  }, [isAdmin]);
+
+  const loadUserOrders = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await authService.getUserOrders();
+      
+      if (response && response.success) {
+        setOrders(response.orders || response.data || []);
+      } else {
+        setError(response?.message || 'Failed to load orders');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+      PROCESSING: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      SHIPPED: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+      DELIVERED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      CANCELLED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      CONFIRMED: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+  };
+
+  // 👇 REPLACE THE OLD formatCurrency FUNCTION
+  const formatCurrency = (amount) => {
+    const { formatted } = formatPrice(amount || 0);
+    return formatted;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Safe function to get order display ID
+  const getOrderDisplayId = (order) => {
+    if (order.orderNumber) return order.orderNumber;
+    if (order.id) {
+      // Convert to string and get last 8 characters for display
+      const idStr = order.id.toString();
+      return idStr.length > 8 ? idStr.slice(-8) : idStr;
+    }
+    if (order._id) {
+      // Convert to string and get last 8 characters for display
+      const idStr = order._id.toString();
+      return idStr.length > 8 ? idStr.slice(-8) : idStr;
+    }
+    return 'N/A';
+  };
+
+  // Safe function to get order ID for links
+  const getOrderId = (order) => {
+    return order.id || order._id || 'unknown';
+  };
+
+  if (isAdmin) {
+    return (
+      <motion.div
+        key="orders"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
+      >
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+          Store Orders
+        </h2>
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">📦</div>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            No orders in store
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Orders from customers will appear here
+          </p>
+          <Link
+            to="/admin/products"
+            className="inline-flex items-center px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          >
+            Manage Products
+          </Link>
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      key="orders"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
+    >
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          Order History
+        </h2>
+        <button
+          onClick={loadUserOrders}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+        >
+          <span>🔄</span>
+          <span>Refresh</span>
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full"
+          />
+          <span className="ml-3 text-gray-600 dark:text-gray-400">Loading orders...</span>
+        </div>
+      ) : error ? (
+        <div className="text-center py-8">
+          <div className="text-red-500 dark:text-red-400 mb-4">
+            Error loading orders: {error}
+          </div>
+          <button 
+            onClick={loadUserOrders}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">📦</div>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            No orders yet
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Start shopping to see your order history here
+          </p>
+          <Link
+            to="/shop"
+            className="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+          >
+            Start Shopping
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {orders.map((order, index) => (
+            <motion.div
+              key={getOrderId(order) || index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow"
+            >
+              <div className="p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                  <div className="flex-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        Order #{getOrderDisplayId(order)}
+                      </h3>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 sm:mt-0 ${getStatusColor(order.status)}`}>
+                        {order.status ? 
+                          order.status.charAt(0).toUpperCase() + order.status.slice(1).toLowerCase() 
+                          : 'Unknown'
+                        }
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Placed:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">
+                          {formatDate(order.createdAt || order.orderDate)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Items:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">
+                          {order.items?.length || 0} items
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Total:</span>
+                        <span className="ml-2 font-semibold text-indigo-600 dark:text-indigo-400">
+                          {formatCurrency(order.totalAmount || order.grandTotal || 0)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Order Items Preview */}
+                    {order.items && order.items.length > 0 && (
+                      <div className="mt-4">
+                        <div className="flex flex-wrap gap-2">
+                          {order.items.slice(0, 3).map((item, itemIndex) => (
+                            <div key={itemIndex} className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
+                              <span className="text-sm text-gray-600 dark:text-gray-300">
+                                {item.quantity || 1} × {item.productName || item.name || 'Product'}
+                              </span>
+                              {item.size && (
+                                <span className="text-xs bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">
+                                  {item.size}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                          {order.items.length > 3 && (
+                            <div className="flex items-center bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
+                              <span className="text-sm text-gray-600 dark:text-gray-300">
+                                +{order.items.length - 3} more
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="mt-4 md:mt-0 md:ml-4 flex space-x-2">
+                    <Link
+                      to={`/orders/${getOrderId(order)}`}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center"
+                    >
+                      View Details
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+};
 // Admin-specific Components
 const AdminAnalytics = ({ userData }) => (
   <motion.div
@@ -604,51 +824,6 @@ const AdminManagement = ({ userData }) => (
   </motion.div>
 );
 
-// Profile Settings Component
-const ProfileSettings = ({ userData, isAdmin, onUpdateProfile }) => (
-  <motion.div
-    key="settings"
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
-  >
-    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-      {isAdmin ? 'Admin Settings' : 'Profile Settings'}
-    </h2>
-    <div className="space-y-6">
-      <div className="flex items-center justify-between py-4 border-b border-gray-200 dark:border-gray-600">
-        <div>
-          <h4 className="font-medium text-gray-900 dark:text-white">Email Notifications</h4>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {isAdmin ? 'Receive store updates and alerts' : 'Receive updates about your orders'}
-          </p>
-        </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" className="sr-only peer" defaultChecked />
-          <div className={`w-11 h-6 bg-gray-200 peer-focus:ring-4 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 ${
-            isAdmin 
-              ? 'peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 peer-checked:bg-purple-600'
-              : 'peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 peer-checked:bg-indigo-600'
-          }`}></div>
-        </label>
-      </div>
-      
-      {isAdmin && (
-        <div className="flex items-center justify-between py-4 border-b border-gray-200 dark:border-gray-600">
-          <div>
-            <h4 className="font-medium text-gray-900 dark:text-white">Store Notifications</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Get alerts for new orders and low stock</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" defaultChecked />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
-          </label>
-        </div>
-      )}
-    </div>
-  </motion.div>
-);
 
 // Security Settings Component
 const SecuritySettings = ({ userData, isAdmin }) => (
@@ -662,19 +837,7 @@ const SecuritySettings = ({ userData, isAdmin }) => (
     <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
       Security Settings
     </h2>
-    <div className="space-y-6">
-      <div className="flex items-center justify-between py-4 border-b border-gray-200 dark:border-gray-600">
-        <div>
-          <h4 className="font-medium text-gray-900 dark:text-white">Two-Factor Authentication</h4>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Add an extra layer of security</p>
-        </div>
-        <button className={`font-medium ${
-          isAdmin ? 'text-purple-600 hover:text-purple-700' : 'text-indigo-600 hover:text-indigo-700'
-        }`}>
-          Enable
-        </button>
-      </div>
-      
+
       <div className="flex items-center justify-between py-4 border-b border-gray-200 dark:border-gray-600">
         <div>
           <h4 className="font-medium text-gray-900 dark:text-white">Change Password</h4>
@@ -689,7 +852,7 @@ const SecuritySettings = ({ userData, isAdmin }) => (
           Change
         </Link>
       </div>
-    </div>
+
   </motion.div>
 );
 

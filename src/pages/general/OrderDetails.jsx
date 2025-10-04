@@ -4,11 +4,14 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrders } from '../../contexts/OrdersContext';
 import { SEO } from '../../contexts/SEOContext';
+import { useCurrency } from '../../contexts/CurrencyContext'; // 👈 ADD THIS IMPORT
 
 const OrderDetails = () => {
   const { id } = useParams();
-  const { currentOrder, fetchOrderById, updateOrderStatus, isLoading, error } = useOrders();
+  const { currentOrder, fetchOrderById, isLoading, error } = useOrders();
+  const { formatPrice, getCurrencySymbol } = useCurrency(); // 👈 ADD THIS HOOK
   const [activeTab, setActiveTab] = useState('details');
+  const [localOrder, setLocalOrder] = useState(null);
 
   useEffect(() => {
     if (id) {
@@ -16,31 +19,101 @@ const OrderDetails = () => {
     }
   }, [id, fetchOrderById]);
 
+  // Use local state as fallback
+  useEffect(() => {
+    if (currentOrder) {
+      setLocalOrder(currentOrder);
+    }
+  }, [currentOrder]);
+
+  // Safe status access function
   const getStatusColor = (status) => {
+    if (!status) return 'bg-gray-100 text-gray-800 border-gray-200';
+    
     const statusColors = {
       pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
       confirmed: 'bg-blue-100 text-blue-800 border-blue-200',
+      CONFIRMED: 'bg-blue-100 text-blue-800 border-blue-200',
       processing: 'bg-purple-100 text-purple-800 border-purple-200',
+      PROCESSING: 'bg-purple-100 text-purple-800 border-purple-200',
       shipped: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      SHIPPED: 'bg-indigo-100 text-indigo-800 border-indigo-200',
       delivered: 'bg-green-100 text-green-800 border-green-200',
-      cancelled: 'bg-red-100 text-red-800 border-red-200'
+      DELIVERED: 'bg-green-100 text-green-800 border-green-200',
+      cancelled: 'bg-red-100 text-red-800 border-red-200',
+      CANCELLED: 'bg-red-100 text-red-800 border-red-200'
     };
     return statusColors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
   const getPaymentStatusColor = (status) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
     const statusColors = {
       pending: 'bg-yellow-100 text-yellow-800',
+      PENDING: 'bg-yellow-100 text-yellow-800',
       paid: 'bg-green-100 text-green-800',
+      PAID: 'bg-green-100 text-green-800',
       failed: 'bg-red-100 text-red-800',
-      refunded: 'bg-blue-100 text-blue-800'
+      FAILED: 'bg-red-100 text-red-800',
+      refunded: 'bg-blue-100 text-blue-800',
+      REFUNDED: 'bg-blue-100 text-blue-800'
     };
     return statusColors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  // Safe order data access with proper fallbacks
+  const order = localOrder || currentOrder;
+
+  // Safe data access functions
+  const getOrderNumber = () => {
+    return order?.orderNumber || order?.id || order?._id || 'N/A';
+  };
+
+  const getOrderDate = () => {
+    return order?.createdAt || order?.orderDate || new Date();
+  };
+
+  const getOrderStatus = () => {
+    const status = order?.status || order?.fulfillmentStatus || 'unknown';
+    return typeof status === 'string' ? status : 'unknown';
+  };
+
+  const getPaymentStatus = () => {
+    const status = order?.paymentStatus || 'pending';
+    return typeof status === 'string' ? status : 'pending';
+  };
+
+  const formatStatusText = (status) => {
+    if (!status || typeof status !== 'string') return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  };
+
+  // Calculate totals safely
+  const subtotal = order?.subtotal || order?.totalAmount || 0;
+  const shippingCost = order?.shippingCost || order?.shippingFee || 0;
+  const taxAmount = order?.taxAmount || order?.tax || 0;
+  const totalAmount = order?.totalAmount || (subtotal + shippingCost + taxAmount);
+
+  // 👇 ADD CURRENCY FORMATTING FUNCTIONS
+  const formatCurrency = (amount) => {
+    const { formatted } = formatPrice(amount || 0);
+    return formatted;
+  };
+
+  const formatItemPrice = (price, quantity = 1) => {
+    const { formatted } = formatPrice((price || 0) * quantity);
+    return formatted;
   };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <SEO
+          title="Loading Order | ShopStyle"
+          description="Loading order details"
+        />
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -50,9 +123,13 @@ const OrderDetails = () => {
     );
   }
 
-  if (error || !currentOrder) {
+  if (error || !order) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <SEO
+          title="Order Not Found | ShopStyle"
+          description="Order not found"
+        />
         <div className="text-center">
           <div className="text-6xl mb-4">😔</div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
@@ -61,12 +138,20 @@ const OrderDetails = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             {error || "We couldn't find the order you're looking for."}
           </p>
-          <Link
-            to="/orders"
-            className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-          >
-            View All Orders
-          </Link>
+          <div className="space-y-3">
+            <Link
+              to="/profile?tab=orders"
+              className="block bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            >
+              View All Orders
+            </Link>
+            <Link
+              to="/profile"
+              className="block border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 px-6 py-3 rounded-lg font-semibold transition-colors"
+            >
+              Back to Profile
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -75,9 +160,9 @@ const OrderDetails = () => {
   return (
     <>
       <SEO
-        title={`Order #${currentOrder.orderNumber} | ShopStyle`}
-        description={`Order details for ${currentOrder.orderNumber}`}
-        canonical={`/orders/${currentOrder.id}`}
+        title={`Order #${getOrderNumber()} | ShopStyle`}
+        description={`Order details for ${getOrderNumber()}`}
+        canonical={`/orders/${order.id || order._id}`}
       />
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -88,28 +173,28 @@ const OrderDetails = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <div className="mb-4 md:mb-0">
                 <Link
-                  to="/orders"
+                  to="/profile?tab=orders"
                   className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium mb-4"
                 >
                   ← Back to Orders
                 </Link>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  Order #{currentOrder.orderNumber}
+                  Order #{getOrderNumber()}
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-2">
-                  Placed on {new Date(currentOrder.createdAt).toLocaleDateString()}
+                  Placed on {new Date(getOrderDate()).toLocaleDateString()}
                 </p>
               </div>
-              <div className="text-right">
-                <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border ${getStatusColor(currentOrder.status)}`}>
-                  {currentOrder.status.charAt(0).toUpperCase() + currentOrder.status.slice(1)}
+              <div className="text-left md:text-right">
+                <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border ${getStatusColor(getOrderStatus())}`}>
+                  {formatStatusText(getOrderStatus())}
                 </span>
                 <div className="mt-2">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(currentOrder.paymentStatus)}`}>
-                    Payment: {currentOrder.paymentStatus}
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(getPaymentStatus())}`}>
+                    Payment: {formatStatusText(getPaymentStatus())}
                   </span>
                 </div>
               </div>
@@ -122,12 +207,12 @@ const OrderDetails = () => {
               {/* Tabs */}
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
                 <div className="border-b border-gray-200 dark:border-gray-700">
-                  <nav className="flex -mb-px">
+                  <nav className="flex -mb-px overflow-x-auto">
                     {['details', 'items', 'shipping', 'updates'].map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`py-4 px-6 font-medium text-sm border-b-2 transition-colors ${
+                        className={`flex-shrink-0 py-4 px-6 font-medium text-sm border-b-2 transition-colors ${
                           activeTab === tab
                             ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                             : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
@@ -158,25 +243,25 @@ const OrderDetails = () => {
                               <div className="flex justify-between">
                                 <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
                                 <span className="font-medium text-gray-900 dark:text-white">
-                                  ${currentOrder.subtotal?.toFixed(2)}
+                                  {formatCurrency(subtotal)}
                                 </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-600 dark:text-gray-400">Shipping</span>
                                 <span className="font-medium text-gray-900 dark:text-white">
-                                  ${currentOrder.shippingCost?.toFixed(2)}
+                                  {formatCurrency(shippingCost)}
                                 </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-600 dark:text-gray-400">Tax</span>
                                 <span className="font-medium text-gray-900 dark:text-white">
-                                  ${currentOrder.taxAmount?.toFixed(2)}
+                                  {formatCurrency(taxAmount)}
                                 </span>
                               </div>
                               <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-3">
                                 <span className="text-lg font-semibold text-gray-900 dark:text-white">Total</span>
                                 <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
-                                  ${currentOrder.totalAmount?.toFixed(2)}
+                                  {formatCurrency(totalAmount)}
                                 </span>
                               </div>
                             </div>
@@ -190,14 +275,14 @@ const OrderDetails = () => {
                               <div>
                                 <span className="text-gray-600 dark:text-gray-400">Method</span>
                                 <p className="font-medium text-gray-900 dark:text-white">
-                                  {currentOrder.paymentMethod || 'Credit Card'}
+                                  {order.paymentMethod || 'Credit Card'}
                                 </p>
                               </div>
-                              {currentOrder.transactionId && (
+                              {order.transactionId && (
                                 <div>
                                   <span className="text-gray-600 dark:text-gray-400">Transaction ID</span>
                                   <p className="font-medium text-gray-900 dark:text-white">
-                                    {currentOrder.transactionId}
+                                    {order.transactionId}
                                   </p>
                                 </div>
                               )}
@@ -217,37 +302,45 @@ const OrderDetails = () => {
                           Order Items
                         </h3>
                         <div className="space-y-4">
-                          {currentOrder.items?.map((item, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
-                            >
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                className="w-16 h-16 object-cover rounded-lg"
-                              />
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900 dark:text-white">
-                                  {item.name}
-                                </h4>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  Variant: {item.variant}
-                                </p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  Quantity: {item.quantity}
-                                </p>
+                          {order.items?.length > 0 ? (
+                            order.items.map((item, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                              >
+                                {item.image && (
+                                  <img
+                                    src={item.image}
+                                    alt={item.name}
+                                    className="w-16 h-16 object-cover rounded-lg"
+                                  />
+                                )}
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-gray-900 dark:text-white">
+                                    {item.name || item.productName || 'Product'}
+                                  </h4>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    Variant: {item.variant || item.size || 'Standard'}
+                                  </p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    Quantity: {item.quantity || 1}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold text-gray-900 dark:text-white">
+                                    {formatCurrency(item.price || 0)}
+                                  </p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    {formatItemPrice(item.price || 0, item.quantity || 1)}
+                                  </p>
+                                </div>
                               </div>
-                              <div className="text-right">
-                                <p className="font-semibold text-gray-900 dark:text-white">
-                                  ${item.price?.toFixed(2)}
-                                </p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  ${(item.price * item.quantity).toFixed(2)}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
+                            ))
+                          ) : (
+                            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                              No items found for this order.
+                            </p>
+                          )}
                         </div>
                       </motion.div>
                     )}
@@ -267,12 +360,18 @@ const OrderDetails = () => {
                               Shipping Address
                             </h4>
                             <div className="text-gray-600 dark:text-gray-400 space-y-1">
-                              <p>{currentOrder.shippingAddress?.name}</p>
-                              <p>{currentOrder.shippingAddress?.street}</p>
-                              <p>
-                                {currentOrder.shippingAddress?.city}, {currentOrder.shippingAddress?.state} {currentOrder.shippingAddress?.zipCode}
-                              </p>
-                              <p>{currentOrder.shippingAddress?.country}</p>
+                              {order.shippingAddress ? (
+                                <>
+                                  <p>{order.shippingAddress.name}</p>
+                                  <p>{order.shippingAddress.street}</p>
+                                  <p>
+                                    {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}
+                                  </p>
+                                  <p>{order.shippingAddress.country}</p>
+                                </>
+                              ) : (
+                                <p>No shipping address available</p>
+                              )}
                             </div>
                           </div>
                           <div>
@@ -280,15 +379,15 @@ const OrderDetails = () => {
                               Shipping Method
                             </h4>
                             <p className="text-gray-600 dark:text-gray-400">
-                              {currentOrder.shippingMethod || 'Standard Shipping'}
+                              {order.shippingMethod || 'Standard Shipping'}
                             </p>
-                            {currentOrder.trackingNumber && (
+                            {order.trackingNumber && (
                               <div className="mt-4">
                                 <h4 className="font-medium text-gray-900 dark:text-white mb-2">
                                   Tracking Information
                                 </h4>
                                 <p className="text-primary-600 dark:text-primary-400 font-medium">
-                                  {currentOrder.trackingNumber}
+                                  {order.trackingNumber}
                                 </p>
                               </div>
                             )}
@@ -307,24 +406,30 @@ const OrderDetails = () => {
                           Order Timeline
                         </h3>
                         <div className="space-y-4">
-                          {currentOrder.statusHistory?.map((update, index) => (
-                            <div key={index} className="flex items-start space-x-4">
-                              <div className="w-3 h-3 bg-primary-500 rounded-full mt-2 flex-shrink-0" />
-                              <div className="flex-1">
-                                <p className="font-medium text-gray-900 dark:text-white">
-                                  {update.status.charAt(0).toUpperCase() + update.status.slice(1)}
-                                </p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  {new Date(update.timestamp).toLocaleString()}
-                                </p>
-                                {update.note && (
-                                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
-                                    {update.note}
+                          {order.statusHistory?.length > 0 ? (
+                            order.statusHistory.map((update, index) => (
+                              <div key={index} className="flex items-start space-x-4">
+                                <div className="w-3 h-3 bg-primary-500 rounded-full mt-2 flex-shrink-0" />
+                                <div className="flex-1">
+                                  <p className="font-medium text-gray-900 dark:text-white">
+                                    {formatStatusText(update.status)}
                                   </p>
-                                )}
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    {new Date(update.timestamp).toLocaleString()}
+                                  </p>
+                                  {update.note && (
+                                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                                      {update.note}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))
+                          ) : (
+                            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                              No status updates available.
+                            </p>
+                          )}
                         </div>
                       </motion.div>
                     )}
@@ -347,7 +452,7 @@ const OrderDetails = () => {
                   <button className="w-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 py-2 px-4 rounded-lg font-medium transition-colors">
                     Contact Support
                   </button>
-                  {currentOrder.status === 'pending' && (
+                  {(getOrderStatus() === 'pending' || getOrderStatus() === 'PENDING') && (
                     <button className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium transition-colors">
                       Cancel Order
                     </button>
@@ -362,8 +467,7 @@ const OrderDetails = () => {
                 </h3>
                 <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                   <p>Our support team is here to help with your order.</p>
-                  <p>Email: support@shopstyle.com</p>
-                  <p>Phone: +1 (555) 123-4567</p>
+                  <p>Email: contact@agumiyacollections.com</p>
                 </div>
               </div>
             </div>

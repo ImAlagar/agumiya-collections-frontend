@@ -200,6 +200,15 @@ export const authService = {
     }
   },
 
+  async getUserOrders() {
+  try {
+    const response = await apiClient.get('/orders/my-orders');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to get user orders');
+  }
+},
+
   // ------------------ COMMON METHODS ------------------
   async logout() {
     try {

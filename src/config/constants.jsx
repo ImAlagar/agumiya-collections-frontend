@@ -39,6 +39,7 @@ export const API_ENDPOINTS = {
   COUPONS_STATS: '/coupons/stats',
 
   ORDERS: '/orders',
+  USER_ORDERS: '/orders/my-orders', // Add this line
   ORDER_STATS: '/orders/stats',
 
   // Dashboard endpoints
