@@ -82,50 +82,57 @@ export const OrdersProvider = ({ children }) => {
   const [state, dispatch] = useReducer(ordersReducer, initialState);
 
   // ✅ Fetch All Orders
-  const fetchOrders = useCallback(async (page = 1, filters = {}) => {
-    try {
-      dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
-      const currentFilters = { ...state.filters, ...filters };
-      const params = {
-        page,
-        limit: currentFilters.limit,
-        search: currentFilters.search,
-        status: currentFilters.status === 'all' ? '' : currentFilters.status,
-        paymentStatus: currentFilters.paymentStatus === 'all' ? '' : currentFilters.paymentStatus,
-        sortBy: currentFilters.sortBy,
-        sortOrder: currentFilters.sortOrder
+const fetchOrders = useCallback(async (page = 1, filters = {}) => {
+  try {
+    dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
+    const currentFilters = { ...state.filters, ...filters };
+    const params = {
+      page,
+      limit: currentFilters.limit,
+      search: currentFilters.search,
+      status: currentFilters.status === 'all' ? '' : currentFilters.status,
+      paymentStatus: currentFilters.paymentStatus === 'all' ? '' : currentFilters.paymentStatus,
+      sortBy: currentFilters.sortBy,
+      sortOrder: currentFilters.sortOrder
+    };
+
+    Object.keys(params).forEach((k) => !params[k] && delete params[k]);
+
+    logger.info(`📦 Fetching orders (page ${page}, filters: ${JSON.stringify(params)})`);
+
+    const response = await orderService.getAllOrders(params);
+
+    if (response.success) {
+      // ✅ FIX: Handle the actual API response structure
+      const apiData = response.data;
+      
+      // Your API returns the orders array directly in data
+      const ordersArray = apiData.orders || apiData.data || [];
+      
+      const pagination = {
+        currentPage: apiData.currentPage || page,
+        totalPages: apiData.totalPages || Math.ceil(ordersArray.length / (params.limit || 5)),
+        totalCount: apiData.totalCount || ordersArray.length,
+        limit: currentFilters.limit
       };
 
-      Object.keys(params).forEach((k) => !params[k] && delete params[k]);
-
-      logger.info(`📦 Fetching orders (page ${page}, filters: ${JSON.stringify(params)})`);
-
-      const response = await orderService.getAllOrders(params);
-
-      if (response.success) {
-        const apiData = response.data;
-        const pagination = {
-          currentPage: apiData.currentPage || page,
-          totalPages: apiData.totalPages || 1,
-          totalCount: apiData.totalCount || apiData.orders?.length || 0,
-          limit: currentFilters.limit
-        };
-
-        dispatch({
-          type: ORDER_ACTIONS.SET_ORDERS,
-          payload: { orders: apiData.orders || [], pagination }
-        });
-
-        logger.info(`✅ Loaded ${apiData.orders?.length || 0} orders successfully`);
-      } else throw new Error(response.message || 'Failed to fetch orders');
-    } catch (error) {
-      logger.error(`❌ Fetch orders failed: ${error.message}`);
       dispatch({
-        type: ORDER_ACTIONS.SET_ERROR,
-        payload: error.message || 'Failed to load orders'
+        type: ORDER_ACTIONS.SET_ORDERS,
+        payload: { orders: ordersArray, pagination }
       });
+
+      logger.info(`✅ Loaded ${ordersArray.length} orders successfully`);
+    } else {
+      throw new Error(response.message || 'Failed to fetch orders');
     }
-  }, [state.filters]);
+  } catch (error) {
+    logger.error(`❌ Fetch orders failed: ${error.message}`);
+    dispatch({
+      type: ORDER_ACTIONS.SET_ERROR,
+      payload: error.message || 'Failed to load orders'
+    });
+  }
+}, [state.filters]);
 
   // ✅ Fetch Single Order
   const fetchOrderById = useCallback(async (id) => {
@@ -198,19 +205,48 @@ export const OrdersProvider = ({ children }) => {
   }, []);
 
   // ✅ Fetch Order Stats
-  const fetchOrderStats = useCallback(async () => {
-    try {
-      logger.info('📊 Fetching order statistics...');
-      const response = await orderService.getOrderStats();
-      if (response.success) {
-        dispatch({ type: ORDER_ACTIONS.SET_STATS, payload: response.data });
-        logger.info('✅ Order statistics fetched successfully');
-      } else throw new Error(response.message);
-    } catch (error) {
-      logger.error(`❌ Fetch order stats failed: ${error.message}`);
+// Debug version to see exactly what's happening
+const fetchOrderStats = useCallback(async () => {
+  try {
+    console.log('🔄 [DEBUG] fetchOrderStats called');
+    
+    logger.info('📊 Fetching order statistics...');
+    const response = await orderService.getOrderStats();
+    
+    console.log('📊 [DEBUG] orderService response:', response);
+    
+    if (response && response.success) {
+      dispatch({ type: ORDER_ACTIONS.SET_STATS, payload: response.data });
+      logger.info('✅ Order statistics fetched successfully');
+      
+      const result = {
+        success: true,
+        stats: response.data
+      };
+      console.log('✅ [DEBUG] Returning success:', result);
+      return result;
+    } else {
+      const result = {
+        success: false,
+        error: response?.message || 'No success flag in response',
+        stats: null
+      };
+      console.log('❌ [DEBUG] Returning failure:', result);
+      return result;
     }
-  }, []);
-
+  } catch (error) {
+    console.error('💥 [DEBUG] fetchOrderStats error:', error);
+    logger.error(`❌ Fetch order stats failed: ${error.message}`);
+    
+    const result = {
+      success: false,
+      error: error.message,
+      stats: null
+    };
+    console.log('❌ [DEBUG] Returning error result:', result);
+    return result;
+  }
+}, []);
   const setFilters = useCallback((newFilters) => {
     logger.info(`🔍 Updating filters: ${JSON.stringify(newFilters)}`);
     dispatch({ type: ORDER_ACTIONS.SET_FILTERS, payload: newFilters });

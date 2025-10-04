@@ -1,119 +1,63 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../contexts/CartContext';
-import { useOrders } from '../../contexts/OrdersContext';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthProvider';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useCurrency } from '../../contexts/CurrencyContext'; // ✅ Import currency context
+import { orderService } from '../../services/api/orderService';
+import { paymentService } from '../../services/api/paymentService';
 
 // Import components
 import ShippingStep from '../../components/user/checkout/ShippingStep';
-import PaymentStep from '../../components/user/checkout/PaymentStep';
 import ReviewStep from '../../components/user/checkout/ReviewStep';
+import PaymentStep from '../../components/user/checkout/PaymentStep';
 import ConfirmationStep from '../../components/user/checkout/ConfirmationStep';
 import OrderSummary from '../../components/user/checkout/OrderSummary';
-import NavigationButtons from '../../components/user/checkout/NavigationButtons';
-import { SEO } from '../../contexts/SEOContext';
-import ProfessionalProgressSteps from '../../components/user/checkout/ProfessionalProgressSteps';
-
-// Enhanced SEO configuration for checkout page
-const checkoutStructuredData = (cartItems, grandTotal) => ({
-  '@context': 'https://schema.org',
-  '@type': 'CheckoutPage',
-  'name': 'Checkout | Agumiya Collections',
-  'description': 'Complete your purchase securely',
-  'url': window.location.href,
-  'potentialAction': {
-    '@type': 'ViewAction',
-    'target': window.location.href
-  },
-  'mainEntity': {
-    '@type': 'Order',
-    'orderNumber': 'pending',
-    'orderStatus': 'https://schema.org/OrderProcessing',
-    'acceptedOffer': cartItems.map(item => ({
-      '@type': 'Offer',
-      'itemOffered': {
-        '@type': 'Product',
-        'name': item.name,
-        'image': item.image,
-        'description': item.description || item.name
-      },
-      'price': item.price,
-      'priceCurrency': 'USD',
-      'eligibleQuantity': {
-        '@type': 'QuantitativeValue',
-        'value': item.quantity
-      }
-    })),
-    'priceCurrency': 'USD',
-    'totalPrice': grandTotal
-  }
-});
+import { useAuth } from '../../contexts/AuthProvider';
 
 const Checkout = () => {
   const { cartItems, clearCart } = useCart();
-  const { createOrder, isLoading } = useOrders();
   const [currentStep, setCurrentStep] = useState(1);
   const [formErrors, setFormErrors] = useState({});
   const { isAuthenticated, user } = useAuth();
   const { theme } = useTheme();
+  const { formatPrice } = useCurrency(); // ✅ Use currency context
   const navigate = useNavigate();
+
+  // Order and payment states
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState('pending');
+  const [orderError, setOrderError] = useState('');
 
   const [orderData, setOrderData] = useState({
     shippingAddress: {
-      name: '',
-      street: '',
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      address1: '',
+      address2: '',
       city: '',
-      state: '',
-      zipCode: '',
-      country: ''
+      region: '',
+      country: 'IN',
+      zipCode: ''
     },
-    paymentMethod: 'credit_card',
-    paymentDetails: {
-      cardNumber: '',
-      expiryDate: '',
-      cvv: '',
-      nameOnCard: ''
-    }
+    orderNotes: ''
   });
 
-  // Page transition animations
-  const pageVariants = {
-    initial: { 
-      opacity: 0, 
-      y: 20 
-    },
-    in: { 
-      opacity: 1, 
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut"
-      }
-    },
-    out: { 
-      opacity: 0, 
-      y: -20,
-      transition: {
-        duration: 0.4,
-        ease: "easeIn"
-      }
-    }
-  };
-
-  const pageTransition = {
-    type: "tween",
-    ease: "anticipate",
-    duration: 0.5
-  };
-
-  // Redirect if not authenticated
+  // Redirect if not authenticated or cart empty
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: '/checkout' } });
+      return;
     }
-  }, [isAuthenticated, navigate]);
+    
+    if (!cartItems || cartItems.length === 0) {
+      navigate('/cart');
+      return;
+    }
+  }, [isAuthenticated, cartItems, navigate]);
 
   // Theme-based styles
   const getThemeStyles = () => {
@@ -123,36 +67,14 @@ const Checkout = () => {
         card: 'bg-white',
         text: 'text-gray-900',
         border: 'border-gray-200',
-        input: 'bg-white border border-gray-300',
-        progress: {
-          active: 'bg-blue-600 border-blue-600',
-          completed: 'bg-blue-600 border-blue-600',
-          pending: 'border-gray-300 text-gray-500'
-        }
+        input: 'bg-white border border-gray-300'
       },
       dark: {
         background: 'bg-gradient-to-br from-gray-900 to-blue-900',
         card: 'bg-gray-800',
         text: 'text-white',
         border: 'border-gray-700',
-        input: 'bg-gray-700 border-gray-600',
-        progress: {
-          active: 'bg-blue-400 border-blue-400',
-          completed: 'bg-blue-400 border-blue-400',
-          pending: 'border-gray-600 text-gray-400'
-        }
-      },
-      smokey: {
-        background: 'bg-gradient-to-br from-gray-800 to-purple-900',
-        card: 'bg-gray-700/80 backdrop-blur-sm',
-        text: 'text-white',
-        border: 'border-gray-600',
-        input: 'bg-gray-600/50 border-gray-500',
-        progress: {
-          active: 'bg-purple-500 border-purple-500',
-          completed: 'bg-purple-500 border-purple-500',
-          pending: 'border-gray-500 text-gray-400'
-        }
+        input: 'bg-gray-700 border-gray-600'
       }
     };
     return baseStyles[theme] || baseStyles.light;
@@ -162,37 +84,24 @@ const Checkout = () => {
 
   const steps = [
     { number: 1, title: 'Shipping', description: 'Address Information', icon: '🚚' },
-    { number: 2, title: 'Payment', description: 'Payment Details', icon: '💳' },
-    { number: 3, title: 'Review', description: 'Order Summary', icon: '📋' },
+    { number: 2, title: 'Review', description: 'Order Summary', icon: '📋' },
+    { number: 3, title: 'Payment', description: 'Secure Payment', icon: '💳' },
     { number: 4, title: 'Confirmation', description: 'Order Complete', icon: '✅' }
   ];
 
-  const validateStep = (step) => {
+  // Validate shipping step
+  const validateShippingStep = () => {
     const errors = {};
+    const { shippingAddress } = orderData;
     
-    if (step === 1) {
-      if (!orderData.shippingAddress.name.trim()) errors.name = 'Full name is required';
-      if (!orderData.shippingAddress.street.trim()) errors.street = 'Street address is required';
-      if (!orderData.shippingAddress.city.trim()) errors.city = 'City is required';
-      if (!orderData.shippingAddress.state.trim()) errors.state = 'State is required';
-      if (!orderData.shippingAddress.zipCode.trim()) errors.zipCode = 'ZIP code is required';
-      if (!orderData.shippingAddress.country.trim()) errors.country = 'Country is required';
-    }
-    
-    if (step === 2) {
-      if (!orderData.paymentDetails.cardNumber.replace(/\s/g, '').match(/^\d{16}$/)) {
-        errors.cardNumber = 'Valid card number is required';
-      }
-      if (!orderData.paymentDetails.expiryDate.match(/^(0[1-9]|1[0-2])\/\d{2}$/)) {
-        errors.expiryDate = 'Valid expiry date (MM/YY) is required';
-      }
-      if (!orderData.paymentDetails.cvv.match(/^\d{3,4}$/)) {
-        errors.cvv = 'Valid CVV is required';
-      }
-      if (!orderData.paymentDetails.nameOnCard.trim()) {
-        errors.nameOnCard = 'Name on card is required';
-      }
-    }
+    if (!shippingAddress.firstName?.trim()) errors.firstName = 'First name is required';
+    if (!shippingAddress.lastName?.trim()) errors.lastName = 'Last name is required';
+    if (!shippingAddress.email?.trim()) errors.email = 'Email is required';
+    if (!shippingAddress.phone?.trim()) errors.phone = 'Phone is required';
+    if (!shippingAddress.address1?.trim()) errors.address1 = 'Address is required';
+    if (!shippingAddress.city?.trim()) errors.city = 'City is required';
+    if (!shippingAddress.region?.trim()) errors.region = 'State/Region is required';
+    if (!shippingAddress.zipCode?.trim()) errors.zipCode = 'ZIP code is required';
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -216,74 +125,263 @@ const Checkout = () => {
     }
   };
 
-  const formatCardNumber = (value) => {
-    return value.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim();
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateStep(currentStep)) {
-      return;
-    }
-
-    if (currentStep < 3) {
-      setCurrentStep(currentStep + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    // Create order
-    try {
-      const orderPayload = {
-        shippingAddress: {
-          firstName: orderData.shippingAddress.name.split(' ')[0] || '',
-          lastName: orderData.shippingAddress.name.split(' ').slice(1).join(' ') || '',
-          email: user?.email || '',
-          phone: "+1234567890",
-          address1: orderData.shippingAddress.street,
-          address2: "",
-          city: orderData.shippingAddress.city,
-          region: orderData.shippingAddress.state,
-          country: orderData.shippingAddress.country,
-          zipCode: orderData.shippingAddress.zipCode
-        },
-        items: cartItems.map(item => ({
-          productId: item.id,
-          quantity: item.quantity,
-          variantId: item.variantId || "default"
-        })),
-        orderNotes: "Order from website",
-        paymentMethod: orderData.paymentMethod,
-        totalAmount: grandTotal,
-        subtotal: subtotal,
-        shippingCost: shipping,
-        taxAmount: tax
-      };
-
-      const result = await createOrder(orderPayload);
-      
-      if (result.success) {
-        clearCart();
-        setCurrentStep(4);
-        setTimeout(() => {
-          navigate(`/orders/${result.order.id}`);
-        }, 3000);
-      } else {
-        throw new Error(result.error || 'Failed to create order');
-      }
-    } catch (error) {
-      console.error('Order creation failed:', error);
-      alert(`Order failed: ${error.message}`);
-    }
-  };
-
+  // Calculate order totals
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shipping = 10;
+  const shipping = subtotal > 50 ? 0 : 10;
   const tax = subtotal * 0.08;
   const grandTotal = subtotal + shipping + tax;
 
-  if (!isAuthenticated) {
+  // ✅ FIXED: Get correct variant ID from cart items
+  const getVariantId = (item) => {
+    if (item.variantId && item.variantId !== 'default') {
+      return item.variantId.toString();
+    }
+    if (item.variant?.id) {
+      return item.variant.id.toString();
+    }
+    if (item.selectedVariantId) {
+      return item.selectedVariantId.toString();
+    }
+    
+    console.warn('No variant ID found for item:', item);
+    return null;
+  };
+
+  // Step 1: Create Order in Database
+  const createOrderHandler = async () => {
+    try {
+      setIsProcessing(true);
+      setOrderError('');
+
+      if (!cartItems || cartItems.length === 0) {
+        throw new Error('Your cart is empty');
+      }
+
+      const orderItems = [];
+      for (const item of cartItems) {
+        const variantId = getVariantId(item);
+        
+        if (!variantId) {
+          throw new Error(`Please select a valid variant for ${item.name}`);
+        }
+
+        orderItems.push({
+          productId: parseInt(item.id),
+          quantity: parseInt(item.quantity),
+          variantId: variantId
+        });
+      }
+
+      const orderPayload = {
+        shippingAddress: {
+          firstName: orderData.shippingAddress.firstName?.trim() || '',
+          lastName: orderData.shippingAddress.lastName?.trim() || '',
+          email: orderData.shippingAddress.email?.trim() || '',
+          phone: orderData.shippingAddress.phone?.trim() || '',
+          address1: orderData.shippingAddress.address1?.trim() || '',
+          address2: orderData.shippingAddress.address2?.trim() || '',
+          city: orderData.shippingAddress.city?.trim() || '',
+          region: orderData.shippingAddress.region?.trim() || '',
+          country: orderData.shippingAddress.country?.trim() || 'IN',
+          zipCode: orderData.shippingAddress.zipCode?.trim() || ''
+        },
+        items: orderItems,
+        orderNotes: typeof orderData.orderNotes === 'string' ? orderData.orderNotes.trim() : ""
+      };
+
+      console.log('🔄 Creating order payload:', JSON.stringify(orderPayload, null, 2));
+
+      const result = await orderService.createOrder(orderPayload);
+      
+      if (result.success && result.data) {
+        console.log('✅ Order created:', result.data);
+        setCreatedOrder(result.data);
+        setCurrentStep(3);
+        return result.data;
+      } else {
+        throw new Error(result.message || 'Failed to create order');
+      }
+    } catch (error) {
+      console.error('❌ Order creation failed:', error);
+      setOrderError(error.message);
+      throw error;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Step 2: Initialize Razorpay Payment
+  const initializeRazorpayPayment = async () => {
+    try {
+      if (!createdOrder) {
+        throw new Error('No order found. Please create an order first.');
+      }
+
+      setIsProcessing(true);
+      setOrderError('');
+      
+      const isScriptLoaded = await loadRazorpayScript();
+      if (!isScriptLoaded) {
+        throw new Error('Failed to load payment gateway');
+      }
+
+      console.log('🔄 Creating Razorpay order for:', createdOrder.id);
+      const paymentOrder = await paymentService.createPaymentOrder(createdOrder.id);
+      
+      if (!paymentOrder.success) {
+        throw new Error(paymentOrder.message || 'Failed to create payment order');
+      }
+
+      console.log('✅ Razorpay order created:', paymentOrder.data);
+
+      const options = {
+        key: import.meta.env.VITE_APP_RAZORPAY_KEY_ID,
+        amount: paymentOrder.data.amount,
+        currency: paymentOrder.data.currency || 'INR',
+        name: "Agumiya Collections",
+        description: `Order #${createdOrder.id}`,
+        order_id: paymentOrder.data.id,
+        handler: async (response) => {
+          console.log('🔄 Payment handler called:', response);
+          await handlePaymentVerification(response);
+        },
+        prefill: {
+          name: `${orderData.shippingAddress.firstName} ${orderData.shippingAddress.lastName}`,
+          email: orderData.shippingAddress.email,
+          contact: orderData.shippingAddress.phone
+        },
+        theme: {
+          color: "#3399cc"
+        },
+        modal: {
+          ondismiss: () => {
+            console.log('Payment modal dismissed');
+            setIsProcessing(false);
+          }
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+
+    } catch (error) {
+      console.error('❌ Payment initialization failed:', error);
+      setOrderError(error.message);
+      setIsProcessing(false);
+    }
+  };
+
+  // Step 3: Handle Payment Verification
+  const handlePaymentVerification = async (response) => {
+    try {
+      setIsProcessing(true);
+      setPaymentStatus('verifying');
+
+      console.log('🔄 Verifying payment:', response);
+      
+      const verifyResult = await paymentService.verifyPayment({
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_order_id: response.razorpay_order_id,
+        razorpay_signature: response.razorpay_signature,
+        orderId: createdOrder.id
+      });
+
+      if (verifyResult.success) {
+        console.log('✅ Payment verified successfully');
+        setPaymentStatus('success');
+        
+        clearCart();
+        setCurrentStep(4);
+        
+        setTimeout(() => {
+          navigate(`/orders/${createdOrder.id}`, { 
+            state: { 
+              paymentSuccess: true,
+              orderId: createdOrder.id 
+            } 
+          });
+        }, 3000);
+      } else {
+        throw new Error(verifyResult.message || 'Payment verification failed');
+      }
+    } catch (error) {
+      console.error('❌ Payment verification failed:', error);
+      setPaymentStatus('failed');
+      setOrderError(error.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Load Razorpay script
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => {
+        console.log('✅ Razorpay SDK loaded');
+        resolve(true);
+      };
+      script.onerror = () => {
+        console.error('❌ Failed to load Razorpay SDK');
+        resolve(false);
+      };
+      document.body.appendChild(script);
+    });
+  };
+
+  // Navigation handlers
+  const handleNextStep = async () => {
+    if (currentStep === 1 && !validateShippingStep()) {
+      return;
+    }
+
+    if (currentStep === 2) {
+      try {
+        await createOrderHandler();
+      } catch (error) {
+        return;
+      }
+    }
+
+    if (currentStep === 3) {
+      await initializeRazorpayPayment();
+      return;
+    }
+
+    if (currentStep < 4) {
+      setCurrentStep(currentStep + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handlePreviousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Debug cart items on mount
+  useEffect(() => {
+    console.log('🛒 Current cart items:', cartItems);
+    cartItems.forEach((item, index) => {
+      console.log(`Item ${index}:`, {
+        id: item.id,
+        name: item.name,
+        variantId: item.variantId,
+        variant: item.variant,
+        selectedVariantId: item.selectedVariantId
+      });
+    });
+  }, [cartItems]);
+
+  if (!isAuthenticated || !cartItems || cartItems.length === 0) {
     return (
       <div className={`min-h-screen ${themeStyles.background} flex items-center justify-center`}>
         <motion.div
@@ -292,115 +390,173 @@ const Checkout = () => {
           className="text-center"
         >
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Redirecting to login...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
         </motion.div>
       </div>
     );
   }
 
   return (
-    <>
-      <SEO
-        title="Checkout | Agumiya Collections"
-        description="Complete your purchase securely with Agumiya Collections. Fast shipping and secure payment processing."
-        keywords="checkout, purchase, secure payment, shipping, agumiya collections"
-        canonical="/checkout"
-        ogType="website"
-        structuredData={checkoutStructuredData(cartItems, grandTotal)}
-      />
-
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-        className={`min-h-screen ${themeStyles.background} py-8`}
-      >
-        <div className="px-4 sm:px-6 lg:px-8">
-          {/* Enhanced Progress Steps */}
-               <ProfessionalProgressSteps
-              currentStep={currentStep} 
-              steps={steps} 
-            />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Checkout Form */}
-            <div className="lg:col-span-2">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-                className={`${themeStyles.card} rounded-2xl shadow-xl ${themeStyles.border} backdrop-blur-sm`}
-              >
-                <form onSubmit={handleSubmit}>
-                  <AnimatePresence mode="wait">
-                    {/* Step 1: Shipping */}
-                    {currentStep === 1 && (
-                      <ShippingStep 
-                        orderData={orderData}
-                        formErrors={formErrors}
-                        handleInputChange={handleInputChange}
-                        themeStyles={themeStyles}
-                      />
-                    )}
-
-                    {/* Step 2: Payment */}
-                    {currentStep === 2 && (
-                      <PaymentStep 
-                        orderData={orderData}
-                        formErrors={formErrors}
-                        handleInputChange={handleInputChange}
-                        formatCardNumber={formatCardNumber}
-                        themeStyles={themeStyles}
-                      />
-                    )}
-
-                    {/* Step 3: Review */}
-                    {currentStep === 3 && (
-                      <ReviewStep 
-                        orderData={orderData}
-                        cartItems={cartItems}
-                      />
-                    )}
-
-                    {/* Step 4: Confirmation */}
-                    {currentStep === 4 && (
-                      <ConfirmationStep />
-                    )}
-                  </AnimatePresence>
-
-                  {/* Navigation Buttons */}
-                  {currentStep < 4 && (
-                    <NavigationButtons 
-                      currentStep={currentStep}
-                      setCurrentStep={setCurrentStep}
-                      isLoading={isLoading}
-                      steps={steps}
-                      handleSubmit={handleSubmit}
-                    />
-                  )}
-                </form>
-              </motion.div>
-            </div>
-
-            {/* Order Summary Sidebar */}
-            <div className="lg:col-span-1">
-              <OrderSummary 
-                cartItems={cartItems}
-                subtotal={subtotal}
-                shipping={shipping}
-                tax={tax}
-                grandTotal={grandTotal}
-                currentStep={currentStep}
-                steps={steps}
-                themeStyles={themeStyles}
-              />
-            </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`min-h-screen ${themeStyles.background} py-8`}
+    >
+      <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* Progress Steps */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center space-x-4">
+            {steps.map((step, index) => (
+              <React.Fragment key={step.number}>
+                <div className="flex items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
+                    currentStep >= step.number
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-500'
+                  }`}>
+                    {currentStep > step.number ? '✓' : step.number}
+                  </div>
+                  <div className="ml-3 hidden sm:block">
+                    <div className={`text-sm font-medium ${
+                      currentStep >= step.number
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-gray-500'
+                    }`}>
+                      {step.title}
+                    </div>
+                    <div className="text-xs text-gray-400">{step.description}</div>
+                  </div>
+                </div>
+                {index < steps.length - 1 && (
+                  <div className={`h-0.5 w-8 ${
+                    currentStep > step.number ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                  }`} />
+                )}
+              </React.Fragment>
+            ))}
           </div>
         </div>
-      </motion.div>
-    </>
+
+        {/* Error Display */}
+        {orderError && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
+          >
+            <div className="flex items-center space-x-2">
+              <span className="text-red-600">❌</span>
+              <span className="text-red-800 dark:text-red-200 font-medium">
+                {orderError}
+              </span>
+            </div>
+          </motion.div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+          {/* Checkout Form */}
+          <div className="lg:col-span-2">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className={`${themeStyles.card} rounded-2xl shadow-xl ${themeStyles.border}`}
+            >
+              <AnimatePresence mode="wait">
+                {/* Step 1: Shipping */}
+                {currentStep === 1 && (
+                  <ShippingStep 
+                    orderData={orderData}
+                    formErrors={formErrors}
+                    handleInputChange={handleInputChange}
+                    themeStyles={themeStyles}
+                  />
+                )}
+
+                {/* Step 2: Review */}
+                {currentStep === 2 && (
+                  <ReviewStep 
+                    orderData={orderData}
+                    cartItems={cartItems}
+                    subtotal={subtotal}
+                    shipping={shipping}
+                    tax={tax}
+                    grandTotal={grandTotal}
+                    formatPrice={formatPrice} // ✅ Pass formatPrice
+                  />
+                )}
+
+                {/* Step 3: Payment */}
+                {currentStep === 3 && (
+                  <PaymentStep 
+                    createdOrder={createdOrder}
+                    isProcessing={isProcessing}
+                    paymentStatus={paymentStatus}
+                    themeStyles={themeStyles}
+                    onPaymentInit={initializeRazorpayPayment}
+                  />
+                )}
+
+                {/* Step 4: Confirmation */}
+                {currentStep === 4 && (
+                  <ConfirmationStep 
+                    order={createdOrder}
+                    paymentStatus={paymentStatus}
+                  />
+                )}
+              </AnimatePresence>
+
+              {/* Navigation Buttons */}
+              {currentStep < 4 && (
+                <div className="flex justify-between items-center p-6 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    type="button"
+                    onClick={handlePreviousStep}
+                    disabled={currentStep === 1 || isProcessing}
+                    className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Back
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleNextStep}
+                    disabled={isProcessing}
+                    className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <span>
+                        {currentStep === 1 ? 'Continue to Review' : 
+                         currentStep === 2 ? 'Place Order' : 
+                         'Pay Now'}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+
+          {/* Order Summary Sidebar */}
+          <div className="lg:col-span-1">
+            <OrderSummary 
+              cartItems={cartItems}
+              subtotal={subtotal}
+              shipping={shipping}
+              tax={tax}
+              grandTotal={grandTotal}
+              currentStep={currentStep}
+              themeStyles={themeStyles}
+              formatPrice={formatPrice} // ✅ Pass formatPrice
+            />
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
 };
 

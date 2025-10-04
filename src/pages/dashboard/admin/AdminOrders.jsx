@@ -30,19 +30,63 @@ const AdminOrders = () => {
   const [stats, setStats] = useState(null);
   const [localFilters, setLocalFilters] = useState(filters);
 
-  // Remove the calculateOverallOrderStats function and overallOrderStats state
-
-  // Load orders and stats on component mount
+  // ✅ FIXED: Safe data loading with proper error handling
   useEffect(() => {
     const loadData = async () => {
-      await fetchOrders();
-      const statsResult = await fetchOrderStats();
-      if (statsResult.success) {
-        setStats(statsResult.stats);
+      try {
+        console.log('🔄 Starting data load...');
+        
+        // Load orders first
+        await fetchOrders();
+        console.log('✅ Orders loaded successfully');
+        
+        // ✅ SAFE: Check if fetchOrderStats exists and handle undefined
+        if (fetchOrderStats && typeof fetchOrderStats === 'function') {
+          console.log('🔄 Fetching order stats...');
+          const statsResult = await fetchOrderStats();
+          console.log('📊 Stats result:', statsResult);
+          
+          // ✅ SAFE: Check if statsResult exists and has success property
+          if (statsResult && typeof statsResult === 'object' && statsResult.success) {
+            console.log('✅ Stats loaded successfully:', statsResult.stats);
+            setStats(statsResult.stats);
+          } else {
+            console.warn('❌ Failed to load stats - invalid response:', statsResult);
+            // Set default stats to prevent errors
+            setStats({
+              total: orders?.length || 0,
+              pending: 0,
+              completed: 0,
+              cancelled: 0,
+              revenue: 0
+            });
+          }
+        } else {
+          console.warn('⚠️ fetchOrderStats is not available as a function');
+          // Set default stats
+          setStats({
+            total: orders?.length || 0,
+            pending: 0,
+            completed: 0,
+            cancelled: 0,
+            revenue: 0
+          });
+        }
+      } catch (error) {
+        console.error('💥 Error loading data:', error);
+        // Set default stats on error
+        setStats({
+          total: orders?.length || 0,
+          pending: 0,
+          completed: 0,
+          cancelled: 0,
+          revenue: 0
+        });
       }
     };
+    
     loadData();
-  }, [fetchOrders, fetchOrderStats]);
+  }, [fetchOrders, fetchOrderStats, orders?.length]);
 
   // Handle filter changes with debounce
   useEffect(() => {
@@ -77,14 +121,19 @@ const AdminOrders = () => {
       setActionLoading('status-update');
       const result = await updateOrderStatus(statusUpdateOrder.id, { status: newStatus });
       
-      if (result.success) {
+      // ✅ SAFE: Check if result exists
+      if (result && result.success) {
         setShowStatusModal(false);
         setStatusUpdateOrder(null);
-        // Refresh orders and stats
+        
+        // Refresh orders and stats with safe handling
         await fetchOrders(pagination.currentPage);
-        const statsResult = await fetchOrderStats();
-        if (statsResult.success) {
-          setStats(statsResult.stats);
+        
+        if (fetchOrderStats) {
+          const statsResult = await fetchOrderStats();
+          if (statsResult && statsResult.success) {
+            setStats(statsResult.stats);
+          }
         }
       }
     } catch (error) {
@@ -100,8 +149,8 @@ const AdminOrders = () => {
       setActionLoading(`retry-${orderId}`);
       const result = await retryPrintifyOrder(orderId);
       
-      if (result.success) {
-        // Refresh the order list
+      // ✅ SAFE: Check if result exists
+      if (result && result.success) {
         await fetchOrders(pagination.currentPage);
       }
     } catch (error) {
@@ -111,13 +160,24 @@ const AdminOrders = () => {
     }
   };
 
-
   const handleFilterChange = (newFilters) => {
     setLocalFilters(prev => ({ ...prev, ...newFilters }));
   };
 
-  const handleRefresh = () => {
-    fetchOrders(pagination.currentPage);
+  const handleRefresh = async () => {
+    try {
+      await fetchOrders(pagination.currentPage);
+      
+      // ✅ SAFE: Refresh stats with proper checking
+      if (fetchOrderStats) {
+        const statsResult = await fetchOrderStats();
+        if (statsResult && statsResult.success) {
+          setStats(statsResult.stats);
+        }
+      }
+    } catch (error) {
+      console.error('Refresh error:', error);
+    }
   };
 
   if (error) {
@@ -209,8 +269,8 @@ const AdminOrders = () => {
         </motion.div>
       )}
 
-      {/* Order Statistics Dashboard - REPLACED SECTION */}
-      <OrderStats orders={orders} />
+      {/* Order Statistics Dashboard */}
+      <OrderStats orders={orders} stats={stats} />
 
       {/* Filters Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
@@ -252,8 +312,6 @@ const AdminOrders = () => {
           <span>Loading Orders...</span>
         </motion.div>
       )}
-      
-
     </motion.div>
   );
 };

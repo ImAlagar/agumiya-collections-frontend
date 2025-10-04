@@ -36,6 +36,7 @@ import TermsAndConditions from "../pages/general/TermsAndConditions";
 import ShippingPolicy from "../pages/general/ShippingPolicy";
 import CancellationRefundPolicy from "../pages/general/CancellationRefundPolicy";
 import SearchResults from "../pages/general/SearchResults";
+import OrderSuccess from "../pages/user/OrderSuccess";
 
 const router = createBrowserRouter([
     {
@@ -120,6 +121,7 @@ const router = createBrowserRouter([
                 element: <CancellationRefundPolicy />,
             },
              { path: 'search', element: <SearchResults /> },
+             { path: 'order-success', element: <OrderSuccess /> }
         ],
     },
     {

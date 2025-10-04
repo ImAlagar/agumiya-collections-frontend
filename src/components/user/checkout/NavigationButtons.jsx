@@ -1,7 +1,27 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const NavigationButtons = ({ currentStep, setCurrentStep, isLoading, steps, handleSubmit }) => {
+const NavigationButtons = ({ 
+  currentStep, 
+  setCurrentStep, 
+  isLoading, 
+  steps, 
+  handleSubmit,
+  createdOrder 
+}) => {
+  const getButtonText = () => {
+    switch (currentStep) {
+      case 1:
+        return 'Review Order';
+      case 2:
+        return createdOrder ? 'Proceed to Payment' : 'Create Order & Continue';
+      case 3:
+        return 'Pay Now';
+      default:
+        return 'Continue';
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -39,13 +59,10 @@ const NavigationButtons = ({ currentStep, setCurrentStep, isLoading, steps, hand
             <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white mr-2 sm:mr-3"></div>
             <span className="text-xs sm:text-sm">Processing...</span>
           </span>
-        ) : currentStep === 3 ? (
-          <span className="flex items-center">
-            Place Order <span className="ml-1 sm:ml-2">🚀</span>
-          </span>
         ) : (
           <span className="flex items-center">
-            Continue <span className="hidden xs:inline ml-1">to {steps[currentStep]?.title}</span> <span className="ml-1 sm:ml-2">→</span>
+            {getButtonText()} 
+            {currentStep !== 3 && <span className="ml-1 sm:ml-2">→</span>}
           </span>
         )}
       </motion.button>

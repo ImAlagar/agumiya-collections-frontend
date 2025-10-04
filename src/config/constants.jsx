@@ -48,6 +48,10 @@ export const API_ENDPOINTS = {
   ORDER_VOLUME: '/dashboard/order-volume',
   REFUNDS_RETURNS: '/dashboard/refunds-returns',
   
+  // Payment endpoints
+  PAYMENTS_CREATE_ORDER: '/payments/create-order',
+  PAYMENTS_VERIFY: '/payments/verify',
+  PAYMENTS_STATUS: '/payments/status',
   // Common
   LOGOUT: '/logout'
 };
