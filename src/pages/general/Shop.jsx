@@ -5,6 +5,7 @@ import { staggerVariants, itemVariants, useProducts } from '../../contexts/Produ
 import { SEO } from '../../contexts/SEOContext';
 import ProductGridSkeleton from '../../components/user/skeletons/ProductGridSkeleton';
 import ProductCard from '../../components/user/products/ProductCard';
+import CurrencySelector from '../../components/common/CurrencySelector';
 
 // Professional Filter Components
 const FilterSection = ({ title, children, isOpen = true }) => {
@@ -271,6 +272,30 @@ const Shop = () => {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Header with Currency Selector */}
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4"
+          >
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                Shop All Products
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Discover our complete collection with real-time currency conversion
+              </p>
+            </div>
+            
+            {/* Currency Selector */}
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                Display prices in:
+              </span>
+              <CurrencySelector />
+            </div>
+          </motion.div>
 
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Filters Sidebar */}

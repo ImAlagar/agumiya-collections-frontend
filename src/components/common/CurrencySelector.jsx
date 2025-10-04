@@ -24,7 +24,7 @@ const CurrencySelector = () => {
     { code: userCurrency, name: userCurrency, symbol: getCurrencySymbol(), flag: '🌍' };
 
   return (
-    <div className="relative">
+    <div className="relative z-10">
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
