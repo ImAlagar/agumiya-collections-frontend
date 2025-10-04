@@ -140,6 +140,7 @@ export const ProductsProvider = ({ children }) => {
   // ========================
   // 🔸 Fetch Products
   // ========================
+
 const fetchProducts = useCallback(async (page = 1, filters = {}) => {
   try {
     dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
@@ -147,19 +148,26 @@ const fetchProducts = useCallback(async (page = 1, filters = {}) => {
     const currentFilters = { ...filtersRef.current, ...filters };
     const params = {
       page: page || 1,
-      limit: currentFilters.limit || 5,
+      limit: currentFilters.limit || 12,
       ...(currentFilters.sortBy && { sortBy: currentFilters.sortBy }),
       ...(currentFilters.sortOrder && { sortOrder: currentFilters.sortOrder }),
       ...(currentFilters.search?.trim() && { search: currentFilters.search.trim() }),
-      ...(currentFilters.category &&
-        currentFilters.category !== "All" && { category: currentFilters.category }),
-      ...(currentFilters.inStock &&
-        currentFilters.inStock !== "all" && { inStock: currentFilters.inStock === 'true' }), // Fix boolean conversion
+      ...(currentFilters.category && currentFilters.category !== "All" && { 
+        category: currentFilters.category 
+      }),
+      ...(currentFilters.inStock && currentFilters.inStock !== "all" && { 
+        inStock: currentFilters.inStock === 'true' 
+      }),
+      ...(currentFilters.minPrice !== null && currentFilters.minPrice !== undefined && { 
+        minPrice: currentFilters.minPrice 
+      }),
+      ...(currentFilters.maxPrice !== null && currentFilters.maxPrice !== undefined && { 
+        maxPrice: currentFilters.maxPrice 
+      }),
     };
 
-    console.log('🔍 Fetching products with params:', params); // Debug log
+    console.log('🔍 Fetching products with params:', params);
 
-    // Always use the main products endpoint with query parameters
     const response = await apiClient.get("/products", { params });
 
     const apiData = response.data?.data || response.data;
@@ -179,15 +187,13 @@ const fetchProducts = useCallback(async (page = 1, filters = {}) => {
       currentPage: paginationData.currentPage || page,
       totalPages: paginationData.totalPages || 1,
       totalCount: paginationData.totalCount || products.length,
-      limit: paginationData.limit || currentFilters.limit || 5,
-      hasNext:
-        paginationData.hasNext !== undefined
-          ? paginationData.hasNext
-          : (paginationData.currentPage || page) < (paginationData.totalPages || 1),
-      hasPrev:
-        paginationData.hasPrev !== undefined
-          ? paginationData.hasPrev
-          : (paginationData.currentPage || page) > 1,
+      limit: paginationData.limit || currentFilters.limit || 12,
+      hasNext: paginationData.hasNext !== undefined
+        ? paginationData.hasNext
+        : (paginationData.currentPage || page) < (paginationData.totalPages || 1),
+      hasPrev: paginationData.hasPrev !== undefined
+        ? paginationData.hasPrev
+        : (paginationData.currentPage || page) > 1,
     };
 
     dispatch({
@@ -196,7 +202,7 @@ const fetchProducts = useCallback(async (page = 1, filters = {}) => {
     });
   } catch (error) {
     console.error("💥 Fetch products error:", error);
-    console.error("💥 Error details:", error.response?.data); // Add detailed error logging
+    console.error("💥 Error details:", error.response?.data);
     
     dispatch({
       type: PRODUCT_ACTIONS.SET_ERROR,
@@ -204,7 +210,6 @@ const fetchProducts = useCallback(async (page = 1, filters = {}) => {
     });
   }
 }, []);
-
   // ========================
   // 🔸 Update Page Size
   // ========================
