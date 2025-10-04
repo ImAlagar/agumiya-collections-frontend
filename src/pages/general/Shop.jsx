@@ -130,52 +130,6 @@ const ChipFilter = ({ label, options, value, onChange, multiSelect = false }) =>
   );
 };
 
-const RatingFilter = ({ value, onChange }) => {
-  const ratings = [4, 3, 2, 1];
-  
-  return (
-    <div className="space-y-3">
-      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Minimum Rating</label>
-      <div className="space-y-2">
-        {ratings.map((rating) => (
-          <motion.button
-            key={rating}
-            onClick={() => onChange(value === rating ? 0 : rating)}
-            className={`w-full flex items-center space-x-3 p-3 rounded-xl text-left transition-all duration-300 ${
-              value === rating
-                ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
-                : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'
-            }`}
-            whileHover={{ x: 4 }}
-          >
-            <div className="flex space-x-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <span
-                  key={star}
-                  className={`text-lg ${
-                    star <= rating
-                      ? 'text-yellow-400'
-                      : 'text-gray-300 dark:text-gray-600'
-                  }`}
-                >
-                  ★
-                </span>
-              ))}
-            </div>
-            <span className={`text-sm font-medium ${
-              value === rating 
-                ? 'text-yellow-700 dark:text-yellow-300' 
-                : 'text-gray-600 dark:text-gray-400'
-            }`}>
-              {rating}.0 & up
-            </span>
-          </motion.button>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 const Shop = () => {
   const { 
     products, 
@@ -192,9 +146,6 @@ const Shop = () => {
     ...filters,
     priceRange: [0, 1000],
     categories: [],
-    brands: [],
-    minRating: 0,
-    features: [],
     availability: 'all'
   });
 
@@ -209,19 +160,6 @@ const Shop = () => {
       { value: 'home', label: 'Home & Garden', count: 67 },
       { value: 'sports', label: 'Sports', count: 34 },
       { value: 'books', label: 'Books', count: 56 }
-    ],
-    brands: [
-      { value: 'apple', label: 'Apple', count: 23 },
-      { value: 'samsung', label: 'Samsung', count: 18 },
-      { value: 'nike', label: 'Nike', count: 31 },
-      { value: 'sony', label: 'Sony', count: 15 },
-      { value: 'adidas', label: 'Adidas', count: 27 }
-    ],
-    features: [
-      { value: 'wireless', label: 'Wireless', count: 42 },
-      { value: 'waterproof', label: 'Waterproof', count: 28 },
-      { value: 'smart', label: 'Smart', count: 35 },
-      { value: 'eco-friendly', label: 'Eco Friendly', count: 19 }
     ]
   }), []);
 
@@ -248,10 +186,7 @@ const Shop = () => {
       search: '',
       category: 'All',
       categories: [],
-      brands: [],
       priceRange: [0, 1000],
-      minRating: 0,
-      features: [],
       inStock: 'all',
       sortBy: 'name',
       sortOrder: 'asc',
@@ -264,9 +199,6 @@ const Shop = () => {
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (localFilters.categories.length > 0) count++;
-    if (localFilters.brands.length > 0) count++;
-    if (localFilters.minRating > 0) count++;
-    if (localFilters.features.length > 0) count++;
     if (localFilters.priceRange[0] > 0 || localFilters.priceRange[1] < 1000) count++;
     if (localFilters.inStock !== 'all') count++;
     return count;
@@ -392,36 +324,6 @@ const Shop = () => {
                     options={filterOptions.categories}
                     value={localFilters.categories}
                     onChange={(value) => handleFilterChange({ categories: value })}
-                    multiSelect={true}
-                  />
-                </FilterSection>
-
-                {/* Brands */}
-                <FilterSection title="Brands">
-                  <ChipFilter
-                    label=""
-                    options={filterOptions.brands}
-                    value={localFilters.brands}
-                    onChange={(value) => handleFilterChange({ brands: value })}
-                    multiSelect={true}
-                  />
-                </FilterSection>
-
-                {/* Ratings */}
-                <FilterSection title="Customer Ratings">
-                  <RatingFilter
-                    value={localFilters.minRating}
-                    onChange={(value) => handleFilterChange({ minRating: value })}
-                  />
-                </FilterSection>
-
-                {/* Features */}
-                <FilterSection title="Features">
-                  <ChipFilter
-                    label=""
-                    options={filterOptions.features}
-                    value={localFilters.features}
-                    onChange={(value) => handleFilterChange({ features: value })}
                     multiSelect={true}
                   />
                 </FilterSection>
