@@ -23,24 +23,15 @@ const ProductCard = ({ product }) => {
   const { formatted: formattedProductPrice } = formatPrice(product.price, userCurrency);
 
   const cardVariants = {
-    hidden: { 
-      opacity: 0, 
-      y: 20,
-    },
+    hidden: { opacity: 0, y: 20 },
     visible: { 
       opacity: 1, 
       y: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut"
-      }
+      transition: { duration: 0.5, ease: "easeOut" }
     },
     hover: {
       y: -8,
-      transition: {
-        duration: 0.3,
-        ease: "easeOut"
-      }
+      transition: { duration: 0.3, ease: "easeOut" }
     }
   };
 
@@ -50,11 +41,11 @@ const ProductCard = ({ product }) => {
       initial="hidden"
       animate="visible"
       whileHover="hover"
-      className="group"
+      className="group h-full"
     >
       <Link 
         to={`/products/${product.id}`} 
-        className="block bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 dark:border-gray-700"
+        className="flex flex-col h-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 dark:border-gray-700"
       >
         {/* Image Container */}
         <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 overflow-hidden">
@@ -121,14 +112,14 @@ const ProductCard = ({ product }) => {
         </div>
 
         {/* Product Info */}
-        <div className="p-5">
+        <div className="p-5 flex flex-col flex-grow">
           {/* Product Name */}
           <h3 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2 text-lg leading-tight group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-300">
             {product.name}
           </h3>
 
-          {/* Updated Price Section with Currency Conversion */}
-          <div className="mb-3">
+          {/* Price Section */}
+          <div className="mb-3 min-h-[60px]">
             <div className="flex items-baseline justify-between mb-2">
               <div className="flex items-baseline space-x-2">
                 <span className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -156,9 +147,7 @@ const ProductCard = ({ product }) => {
             {userCurrency !== 'USD' && originalMinPrice && (
               <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400">
                 <span>≈ {originalMinPrice} USD</span>
-                <span className="text-green-600 font-medium">
-                  • Local pricing
-                </span>
+                <span className="text-green-600 font-medium">• Local pricing</span>
               </div>
             )}
 
@@ -184,8 +173,8 @@ const ProductCard = ({ product }) => {
             </div>
           )}
 
-          {/* Features/Highlights */}
-          <div className="flex flex-wrap gap-1.5">
+          {/* Features/Highlights (bottom stick) */}
+          <div className="flex flex-wrap gap-1.5 mt-auto">
             {product.inStock && (
               <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium">
                 ✓ Fast Shipping

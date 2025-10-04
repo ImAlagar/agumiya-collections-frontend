@@ -82,7 +82,7 @@ export const socialLinks = [
   { 
     name: "Instagram", 
     icon: <Instagram className="w-5 h-5" />,
-    url: "https://instagram.com/agumiyacollections"
+    url: "https://instagram.com/agumiyacollections_com"
   },
 ];
 
@@ -91,7 +91,7 @@ export const contactInfo = [
   {
     icon: <Mail size={16} />,
     text: "support@agumiyacollections.com",
-    href: "mailto:support@agumiyacollections.com"
+    href: "mailto:contact@agumiyacollections.com"
   },
 ];
 

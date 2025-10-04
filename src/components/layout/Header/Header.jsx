@@ -139,7 +139,7 @@ const Header = () => {
     "🚚 Free shipping worldwide on orders over $50",
     "🎁 Special 20% off for new customers",
     "⭐ Premium quality products with 100% satisfaction guarantee",
-    "✉️ info@agumiyacollections.com"
+    "✉️ contact@agumiyacollections.com"
   ];
 
   const themeIcons = {
@@ -413,7 +413,7 @@ const Header = () => {
             <div className="absolute right-4 top-1/2 transform -translate-y-1/2 hidden md:flex items-center space-x-4 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">
               <div className="flex items-center space-x-1 text-xs">
                 <Mail size={12} />
-                <span>info@agumiya.com</span>
+                <span>contact@agumiyacollections.com</span>
               </div>
             </div>
           </div>

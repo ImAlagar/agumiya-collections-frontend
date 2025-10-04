@@ -15,7 +15,9 @@ import {
   FiArrowLeft,
   FiChevronDown,
   FiChevronUp,
-  FiGlobe
+  FiGlobe,
+  FiChevronLeft,
+  FiChevronRight
 } from 'react-icons/fi';
 import FlyingItem from '../../components/user/products/FlyingItem';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -39,6 +41,7 @@ const ProductDetails = () => {
   // Animation states
   const [flyingItems, setFlyingItems] = useState([]);
   const addToCartRef = useRef(null);
+  const imageScrollRef = useRef(null);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -59,6 +62,52 @@ const ProductDetails = () => {
     };
     loadProduct();
   }, [id, getProductById]);
+
+  // Navigation functions for desktop arrows
+  const nextImage = () => {
+    if (product?.images) {
+      setSelectedImage((prev) => 
+        prev === product.images.length - 1 ? 0 : prev + 1
+      );
+    }
+  };
+
+  const prevImage = () => {
+    if (product?.images) {
+      setSelectedImage((prev) => 
+        prev === 0 ? product.images.length - 1 : prev - 1
+      );
+    }
+  };
+
+  // Handle swipe for mobile
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const handleTouchStart = (e) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && product?.images) {
+      nextImage();
+    } else if (isRightSwipe && product?.images) {
+      prevImage();
+    }
+
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
 
   // Safe calculateSavings function with null checks
   const calculateSavings = () => {
@@ -257,54 +306,134 @@ const ProductDetails = () => {
           </nav>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12 sm:mb-16">
-            {/* Product Images */}
+            {/* Product Images - Updated with mobile scroll and desktop arrows */}
             <div className="space-y-4">
-              <div className="aspect-square bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg overflow-hidden relative">
-                <motion.img
-                  key={selectedImage}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  src={product.images?.[selectedImage] || '/api/placeholder/600/600'}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-                
-                {/* Currency Badge */}
-                <div className="absolute top-4 right-4">
-                  <div className="bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2">
-                    <FiGlobe size={16} />
-                    <span className="font-semibold text-sm">
-                      {userCurrency} {getCurrencySymbol()}
-                    </span>
+              {/* Main Image Container */}
+              <div className="relative">
+                <div 
+                  className="aspect-square bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg overflow-hidden relative"
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  <motion.img
+                    key={selectedImage}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    src={product.images?.[selectedImage] || '/api/placeholder/600/600'}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                  
+                  {/* Currency Badge */}
+                  <div className="absolute top-4 right-4">
+                    <div className="bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2">
+                      <FiGlobe size={16} />
+                      <span className="font-semibold text-sm">
+                        {userCurrency} {getCurrencySymbol()}
+                      </span>
+                    </div>
                   </div>
+
+                  {/* Desktop Navigation Arrows */}
+                  {product.images && product.images.length > 1 && (
+                    <>
+                      {/* Left Arrow - Desktop Only */}
+                      <button
+                        onClick={prevImage}
+                        className="hidden lg:flex absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 text-gray-800 dark:text-white w-10 h-10 rounded-full items-center justify-center shadow-lg transition-all hover:scale-110"
+                      >
+                        <FiChevronLeft size={20} />
+                      </button>
+
+                      {/* Right Arrow - Desktop Only */}
+                      <button
+                        onClick={nextImage}
+                        className="hidden lg:flex absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 text-gray-800 dark:text-white w-10 h-10 rounded-full items-center justify-center shadow-lg transition-all hover:scale-110"
+                      >
+                        <FiChevronRight size={20} />
+                      </button>
+                    </>
+                  )}
+
+                  {/* Image Counter */}
+                  {product.images && product.images.length > 1 && (
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                      {selectedImage + 1} / {product.images.length}
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Mobile Horizontal Scroll for Thumbnails */}
               {product.images && product.images.length > 1 && (
-                <div className="flex space-x-3 sm:space-x-4 overflow-x-auto pb-2">
-                  {product.images.map((image, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedImage(index)}
-                      className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedImage === index
-                          ? 'border-blue-600 dark:border-blue-400 shadow-md'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                      }`}
+                <div className="lg:hidden">
+                  <div 
+                    ref={imageScrollRef}
+                    className="flex space-x-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                  >
+                    {product.images.map((image, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setSelectedImage(index)}
+                        className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all snap-center ${
+                          selectedImage === index
+                            ? 'border-blue-600 dark:border-blue-400 shadow-md'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <img
+                          src={image}
+                          alt={`${product.name} ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Desktop Thumbnail Horizontal Scroll */}
+              {product.images && product.images.length > 1 && (
+                <div className="hidden lg:block">
+                  <div className="relative">
+                    <div 
+                      className="flex space-x-3 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800"
+                      style={{ 
+                        scrollbarWidth: 'thin',
+                        msOverflowStyle: 'none'
+                      }}
                     >
-                      <img
-                        src={image}
-                        alt={`${product.name} ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
+                      {product.images.map((image, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedImage(index)}
+                          className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                            selectedImage === index
+                              ? 'border-blue-600 dark:border-blue-400 shadow-md'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                          }`}
+                        >
+                          <img
+                            src={image}
+                            alt={`${product.name} ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {/* Scroll indicators */}
+                    <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-white dark:from-gray-800 to-transparent pointer-events-none" />
+                    <div className="absolute left-0 top-0 bottom-4 w-8 bg-gradient-to-r from-white dark:from-gray-800 to-transparent pointer-events-none" />
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Product Info */}
+            {/* Rest of your existing product info code remains the same */}
             <div className="space-y-5 sm:space-y-6">
               {/* Name + Stock */}
               <div>
@@ -549,7 +678,6 @@ const ProductDetails = () => {
               </div>
             </div>
           </div>
-
           {/* Tabs */}
           <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-2xl shadow-md sm:shadow-lg">
             <div className="border-b border-gray-200 dark:border-gray-700">

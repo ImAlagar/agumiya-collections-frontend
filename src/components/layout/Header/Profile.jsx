@@ -52,7 +52,6 @@ const Profile = () => {
       setIsOpen(false);
       
       // Optional: Show success message
-      console.log('Successfully logged out and cart cleared');
     } catch (error) {
       console.error('Logout error:', error);
       // Optional: Show error message to user

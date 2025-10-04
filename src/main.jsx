@@ -18,13 +18,30 @@ import { CartProvider } from './contexts/CartContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { SearchProvider } from './contexts/SearchContext';
 import { CouponProvider } from './contexts/CouponContext';
+import logger from './utils/logger.jsx'; // ✅ import your frontend logger
+import ErrorBoundary from './components/common/ErrorBoundary.jsx';
+
+// 🧠 Setup Global Error Handlers (production-safe)
+window.addEventListener('error', (event) => {
+  logger.error(`Global runtime error: ${event.message}`, event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  logger.error(`Unhandled Promise rejection: ${event.reason}`, event.reason);
+});
+
+// 🪶 Optional: log environment info at startup
+logger.info(`App starting in ${import.meta.env.MODE} mode`);
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
+    <ErrorBoundary>
+
+
     <SEOProvider>
       <ThemeProvider>
-        <CartProvider> {/* 👈 MOVE CartProvider OUTSIDE AuthProvider */}
-          <AuthProvider> {/* 👈 Now AuthProvider can use useCart */}
+        <CartProvider>
+          <AuthProvider>
             <CouponProvider>
               <SearchProvider>
                 <LoadingProvider>
@@ -45,8 +62,9 @@ createRoot(document.getElementById('root')).render(
               </SearchProvider>
             </CouponProvider>
           </AuthProvider>
-        </CartProvider> {/* 👈 CartProvider now wraps AuthProvider */}
+        </CartProvider>
       </ThemeProvider>
     </SEOProvider>
+        </ErrorBoundary>
   </StrictMode>,
-)
+);

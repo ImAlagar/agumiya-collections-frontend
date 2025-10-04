@@ -606,18 +606,18 @@ const Shop = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="flex justify-center items-center space-x-3 mt-12"
+                  className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-12"
                 >
                   <button
                     onClick={() => handlePageChange(pagination.currentPage - 1)}
                     disabled={!pagination.hasPrev}
-                    className="flex items-center space-x-2 px-6 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-lg transition-all duration-300 transform hover:-translate-x-1"
+                    className="flex items-center space-x-2 px-6 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-lg transition-all duration-300 transform hover:-translate-x-1 w-full sm:w-auto"
                   >
                     <span>←</span>
                     <span>Previous</span>
                   </button>
                   
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg px-6 py-3">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg px-6 py-3 w-full sm:w-auto text-center">
                     <span className="font-semibold text-gray-700 dark:text-gray-300">
                       Page <span className="text-primary-600 dark:text-primary-400">{pagination.currentPage}</span> of {pagination.totalPages}
                     </span>
@@ -626,13 +626,14 @@ const Shop = () => {
                   <button
                     onClick={() => handlePageChange(pagination.currentPage + 1)}
                     disabled={!pagination.hasNext}
-                    className="flex items-center space-x-2 px-6 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-lg transition-all duration-300 transform hover:translate-x-1"
+                    className="flex items-center space-x-2 px-6 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-lg transition-all duration-300 transform hover:translate-x-1 w-full sm:w-auto"
                   >
                     <span>Next</span>
                     <span>→</span>
                   </button>
                 </motion.div>
               )}
+
             </div>
           </div>
         </div>

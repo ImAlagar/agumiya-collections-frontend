@@ -7,7 +7,7 @@ const CustomOrderButtonMobile = () => {
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
 
   const handleInstagramDM = () => {
-    const instagramUsername = 'agumiya_collections';
+    const instagramUsername = 'agumiyacollections_com';
     const instagramUrl = `https://instagram.com/${instagramUsername}`;
     
     window.open(instagramUrl, '_blank', 'noopener,noreferrer');

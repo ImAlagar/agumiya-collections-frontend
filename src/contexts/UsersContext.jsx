@@ -1,6 +1,6 @@
-// src/contexts/UsersContext.js
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import { userService } from '../services/api/userService';
+import logger from '../utils/logger';
 
 const USER_ACTIONS = {
   SET_LOADING: 'SET_LOADING',
@@ -47,21 +47,13 @@ const usersReducer = (state, action) => {
       return {
         ...state,
         users,
-        pagination: {
-          ...state.pagination,
-          ...pagination
-        },
+        pagination: { ...state.pagination, ...pagination },
         isLoading: false,
         error: null
       };
 
     case USER_ACTIONS.SET_USER:
-      return {
-        ...state,
-        currentUser: action.payload,
-        isLoading: false,
-        error: null
-      };
+      return { ...state, currentUser: action.payload, isLoading: false, error: null };
 
     case USER_ACTIONS.SET_ERROR:
       return { ...state, error: action.payload, isLoading: false };
@@ -80,17 +72,12 @@ const usersReducer = (state, action) => {
       const updatedUser = action.payload;
       return {
         ...state,
-        users: state.users.map(user =>
-          user.id === updatedUser.id ? updatedUser : user
-        ),
+        users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u),
         currentUser: state.currentUser?.id === updatedUser.id ? updatedUser : state.currentUser
       };
 
     case USER_ACTIONS.SET_STATS:
-      return {
-        ...state,
-        stats: action.payload
-      };
+      return { ...state, stats: action.payload };
 
     default:
       return state;
@@ -102,14 +89,14 @@ const UsersContext = createContext();
 export const UsersProvider = ({ children }) => {
   const [state, dispatch] = useReducer(usersReducer, initialState);
 
+  // ✅ Fetch all users
   const fetchUsers = useCallback(async (page = 1, filters = {}) => {
     try {
       dispatch({ type: USER_ACTIONS.SET_LOADING, payload: true });
-      
+
       const currentFilters = { ...state.filters, ...filters };
-      
       const params = {
-        page: page,
+        page,
         limit: currentFilters.limit,
         search: currentFilters.search,
         status: currentFilters.status === 'all' ? '' : currentFilters.status,
@@ -117,118 +104,118 @@ export const UsersProvider = ({ children }) => {
         sortOrder: currentFilters.sortOrder
       };
 
-      // Clean up empty params
-      Object.keys(params).forEach(key => {
-        if (params[key] === '' || params[key] === null || params[key] === undefined) {
-          delete params[key];
-        }
+      Object.keys(params).forEach((key) => {
+        if (!params[key]) delete params[key];
       });
 
+      logger.info(`📦 Fetching users (page: ${page}, limit: ${params.limit}, filters: ${JSON.stringify(currentFilters)})`);
+
       const response = await userService.getAllUsers(params);
-      
+
       if (response.success) {
         const apiData = response.data;
-        
-        // Calculate pagination properties
-        const currentPage = apiData.currentPage || page;
-        const totalPages = apiData.totalPages || 1;
-        const totalCount = apiData.totalCount || 0;
-        const limit = currentFilters.limit || 5;
-
         dispatch({
           type: USER_ACTIONS.SET_USERS,
           payload: {
             users: apiData.users || [],
             pagination: {
-              currentPage,
-              totalPages,
-              totalCount,
-              limit,
-              hasPrev: currentPage > 1,
-              hasNext: currentPage < totalPages
+              currentPage: apiData.currentPage || page,
+              totalPages: apiData.totalPages || 1,
+              totalCount: apiData.totalCount || 0,
+              limit: currentFilters.limit || 5,
+              hasPrev: (apiData.currentPage || page) > 1,
+              hasNext: (apiData.currentPage || page) < (apiData.totalPages || 1)
             }
           }
         });
+        logger.info(`✅ Loaded ${apiData.users?.length || 0} users successfully`);
       } else {
         throw new Error(response.message || 'Failed to fetch users');
       }
     } catch (error) {
-      console.error('Fetch users error:', error);
-      dispatch({ 
-        type: USER_ACTIONS.SET_ERROR, 
-        payload: error.message || 'Failed to load users. Please try again.' 
+      logger.error(`❌ Fetch users failed: ${error.message}`);
+      dispatch({
+        type: USER_ACTIONS.SET_ERROR,
+        payload: error.message || 'Failed to load users. Please try again.'
       });
     }
   }, [state.filters]);
 
+  // ✅ Update page size
   const updatePageSize = useCallback(async (newLimit) => {
-    // Update filters with new limit
-    dispatch({ 
-      type: USER_ACTIONS.SET_FILTERS, 
-      payload: { limit: newLimit } 
-    });
-    
-    // Fetch users with new page size, reset to page 1
-    setTimeout(() => {
-      fetchUsers(1, { limit: newLimit });
-    }, 0);
+    logger.info(`📏 Page size changed to ${newLimit}`);
+    dispatch({ type: USER_ACTIONS.SET_FILTERS, payload: { limit: newLimit } });
+    setTimeout(() => fetchUsers(1, { limit: newLimit }), 0);
   }, [fetchUsers]);
 
+  // ✅ Fetch single user
   const fetchUserById = useCallback(async (id) => {
     try {
       dispatch({ type: USER_ACTIONS.SET_LOADING, payload: true });
+      logger.info(`🔍 Fetching user by ID: ${id}`);
+
       const response = await userService.getUserById(id);
-      
       if (response.success) {
         dispatch({ type: USER_ACTIONS.SET_USER, payload: response.data });
+        logger.info(`👤 Loaded user: ${response.data.email || id}`);
       } else {
         throw new Error(response.message || 'Failed to fetch user');
       }
     } catch (error) {
+      logger.error(`❌ Fetch user by ID failed (${id}): ${error.message}`);
       dispatch({ type: USER_ACTIONS.SET_ERROR, payload: error.message });
     }
   }, []);
 
+  // ✅ Fetch stats
   const fetchUserStats = useCallback(async () => {
     try {
+      logger.info('📊 Fetching user statistics...');
       const response = await userService.getUserStats();
+
       if (response.success) {
         dispatch({ type: USER_ACTIONS.SET_STATS, payload: response.data });
+        logger.info('✅ User stats loaded successfully');
         return { success: true, stats: response.data };
       } else {
-        throw new Error(response.message || 'Failed to fetch user stats');
+        throw new Error(response.message || 'Failed to fetch stats');
       }
     } catch (error) {
-      console.error('Fetch user stats error:', error);
+      logger.error(`❌ Fetch user stats failed: ${error.message}`);
       return { success: false, error: error.message };
     }
   }, []);
 
+  // ✅ Update user status
   const updateUserStatus = useCallback(async (userId, statusData) => {
     try {
+      logger.info(`⚙️ Updating user ${userId} status to ${statusData.status}`);
       const response = await userService.updateUserStatus(userId, statusData);
+
       if (response.success) {
         dispatch({ type: USER_ACTIONS.UPDATE_USER, payload: response.data });
+        logger.info(`✅ User ${userId} updated successfully`);
         return { success: true, user: response.data };
       } else {
         throw new Error(response.message || 'Update failed');
       }
     } catch (error) {
+      logger.error(`❌ Update user ${userId} failed: ${error.message}`);
       dispatch({ type: USER_ACTIONS.SET_ERROR, payload: error.message });
       return { success: false, error: error.message };
     }
   }, []);
 
+  // ✅ Update filters
+  const updateFilters = useCallback(async (newFilters) => {
+    logger.info(`🔍 Filters updated: ${JSON.stringify(newFilters)}`);
+    dispatch({ type: USER_ACTIONS.SET_FILTERS, payload: newFilters });
+    setTimeout(() => fetchUsers(1), 0);
+  }, [fetchUsers]);
+
   const setFilters = useCallback((newFilters) => {
     dispatch({ type: USER_ACTIONS.SET_FILTERS, payload: newFilters });
   }, []);
-
-  const updateFilters = useCallback(async (newFilters) => {
-    dispatch({ type: USER_ACTIONS.SET_FILTERS, payload: newFilters });
-    setTimeout(() => {
-      fetchUsers(1);
-    }, 0);
-  }, [fetchUsers]);
 
   const clearError = useCallback(() => {
     dispatch({ type: USER_ACTIONS.CLEAR_ERROR });
@@ -256,6 +243,7 @@ export const UsersProvider = ({ children }) => {
 export const useUsers = () => {
   const context = useContext(UsersContext);
   if (!context) {
+    logger.error('useUsers called outside UsersProvider');
     throw new Error('useUsers must be used within a UsersProvider');
   }
   return context;

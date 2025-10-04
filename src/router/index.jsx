@@ -35,6 +35,7 @@ import PrivacyPolicy from "../pages/general/PrivacyPolicy";
 import TermsAndConditions from "../pages/general/TermsAndConditions";
 import ShippingPolicy from "../pages/general/ShippingPolicy";
 import CancellationRefundPolicy from "../pages/general/CancellationRefundPolicy";
+import SearchResults from "../pages/general/SearchResults";
 
 const router = createBrowserRouter([
     {
@@ -118,6 +119,7 @@ const router = createBrowserRouter([
                 path: 'cancellation-refund',
                 element: <CancellationRefundPolicy />,
             },
+             { path: 'search', element: <SearchResults /> },
         ],
     },
     {

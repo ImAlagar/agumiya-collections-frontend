@@ -4,7 +4,6 @@ export const productService = {
   // Sync products with longer timeout
   async syncProducts(shopId) {
     try {
-      console.log(`🔄 Starting sync for shop: ${shopId}`);
       const response = await apiClient.get(`/products/sync/${shopId}`, {
         timeout: 120000 // 2 minutes timeout for sync
       });

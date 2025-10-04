@@ -1,9 +1,8 @@
-// src/contexts/CurrencyContext.jsx
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import logger from '../utils/logger'; // ✅ Professional logger
 
 const CurrencyContext = createContext();
 
-// Action types
 const CURRENCY_ACTIONS = {
   SET_LOADING: 'SET_LOADING',
   SET_EXCHANGE_RATES: 'SET_EXCHANGE_RATES',
@@ -12,7 +11,6 @@ const CURRENCY_ACTIONS = {
   SET_LOCATION: 'SET_LOCATION'
 };
 
-// Initial state
 const initialState = {
   isLoading: false,
   exchangeRates: {},
@@ -22,24 +20,19 @@ const initialState = {
   lastUpdated: null
 };
 
-// Country to Currency mapping
 const COUNTRY_CURRENCY_MAP = {
-  'US': 'USD', 'IN': 'INR', 'GB': 'GBP', 'EU': 'EUR', 'CA': 'CAD',
-  'AU': 'AUD', 'JP': 'JPY', 'CN': 'CNY', 'BR': 'BRL', 'MX': 'MXN',
-  'DE': 'EUR', 'FR': 'EUR', 'IT': 'EUR', 'ES': 'EUR', 'NL': 'EUR',
-  'RU': 'RUB', 'KR': 'KRW', 'SG': 'SGD', 'AE': 'AED', 'SA': 'SAR',
-  'ZA': 'ZAR', 'NG': 'NGN', 'KE': 'KES', 'EG': 'EGP', 'TR': 'TRY',
-  'ID': 'IDR', 'TH': 'THB', 'VN': 'VND', 'MY': 'MYR', 'PH': 'PHP'
+  US: 'USD', IN: 'INR', GB: 'GBP', EU: 'EUR', CA: 'CAD',
+  AU: 'AUD', JP: 'JPY', CN: 'CNY', BR: 'BRL', MX: 'MXN',
+  DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR', NL: 'EUR',
+  RU: 'RUB', KR: 'KRW', SG: 'SGD', AE: 'AED', SA: 'SAR',
+  ZA: 'ZAR', NG: 'NGN', KE: 'KES', EG: 'EGP', TR: 'TRY',
+  ID: 'IDR', TH: 'THB', VN: 'VND', MY: 'MYR', PH: 'PHP'
 };
 
-// Fallback rates (updated periodically)
 const FALLBACK_RATES = {
   USD: 1, EUR: 0.92, GBP: 0.79, INR: 83.25, CAD: 1.36,
   AUD: 1.52, JPY: 149.50, CNY: 7.24, BRL: 4.92, MXN: 17.25,
-  CHF: 0.88, SEK: 10.68, NOK: 10.75, DKK: 6.92, PLN: 4.02,
-  RUB: 92.50, TRY: 28.75, ZAR: 18.90, SGD: 1.34, HKD: 7.82,
-  KRW: 1315.50, THB: 35.80, IDR: 15650, MYR: 4.68, PHP: 56.25,
-  AED: 3.67, SAR: 3.75, INR: 83.25
+  RUB: 92.50, TRY: 28.75, ZAR: 18.90, SGD: 1.34
 };
 
 // Reducer
@@ -57,7 +50,7 @@ function currencyReducer(state, action) {
       };
     case CURRENCY_ACTIONS.SET_USER_CURRENCY:
       return { ...state, userCurrency: action.payload };
-    case CURRENCY_ACTIONS.SET_USER_LOCATION:
+    case CURRENCY_ACTIONS.SET_LOCATION:
       return {
         ...state,
         userCountry: action.payload.country,
@@ -81,7 +74,7 @@ const getCachedRates = () => {
     const { rates, timestamp } = JSON.parse(cached);
     if (Date.now() - timestamp < CACHE_DURATION) return rates;
   } catch (error) {
-    console.warn('Failed to read cached rates:', error);
+    logger.warn('Failed to read cached rates', { error });
   }
   return null;
 };
@@ -92,8 +85,9 @@ const setCachedRates = (rates) => {
       rates,
       timestamp: Date.now()
     }));
+    logger.info('✅ Cached new currency rates');
   } catch (error) {
-    console.warn('Failed to cache rates:', error);
+    logger.warn('Failed to cache rates', { error });
   }
 };
 
@@ -103,42 +97,45 @@ export function CurrencyProvider({ children }) {
   // Detect user location
   const detectUserLocation = useCallback(async () => {
     try {
+      logger.info('🌍 Detecting user location via IP');
       const ipResponse = await fetch('https://ipapi.co/json/');
       const ipData = await ipResponse.json();
       
-      const countryCode = ipData.country_code;
+      const countryCode = ipData.country_code || 'US';
       const currency = COUNTRY_CURRENCY_MAP[countryCode] || 'USD';
       
       dispatch({
-        type: CURRENCY_ACTIONS.SET_USER_LOCATION,
+        type: CURRENCY_ACTIONS.SET_LOCATION,
         payload: { country: countryCode, currency }
       });
       
+      logger.info(`✅ Detected location: ${countryCode}, Currency: ${currency}`);
       return { country: countryCode, currency };
     } catch (error) {
-      console.warn('IP detection failed, using fallback:', error);
+      logger.warn('⚠️ IP detection failed, using fallback method', { error });
       
-      // Fallback: Browser language detection
       const browserLanguage = navigator.language || 'en-US';
-      const countryFromLanguage = browserLanguage.split('-')[1] || 'US';
-      const currency = COUNTRY_CURRENCY_MAP[countryFromLanguage] || 'USD';
+      const country = browserLanguage.split('-')[1] || 'US';
+      const currency = COUNTRY_CURRENCY_MAP[country] || 'USD';
       
       dispatch({
-        type: CURRENCY_ACTIONS.SET_USER_LOCATION,
-        payload: { country: countryFromLanguage, currency }
+        type: CURRENCY_ACTIONS.SET_LOCATION,
+        payload: { country, currency }
       });
       
-      return { country: countryFromLanguage, currency };
+      logger.info(`🌐 Fallback detection: ${country}, Currency: ${currency}`);
+      return { country, currency };
     }
   }, []);
 
   // Fetch exchange rates
   const fetchExchangeRates = useCallback(async (baseCurrency = 'USD') => {
     dispatch({ type: CURRENCY_ACTIONS.SET_LOADING, payload: true });
-    
-    // Check cache first
+
+    // Check cache
     const cachedRates = getCachedRates();
     if (cachedRates) {
+      logger.info('💾 Loaded exchange rates from cache');
       dispatch({
         type: CURRENCY_ACTIONS.SET_EXCHANGE_RATES,
         payload: { rates: cachedRates, timestamp: Date.now() }
@@ -147,29 +144,25 @@ export function CurrencyProvider({ children }) {
     }
 
     try {
-      // Try Frankfurter API first (free, no API key)
-      const response = await fetch(
-        `https://api.frankfurter.app/latest?from=${baseCurrency}`
-      );
+      logger.info(`💱 Fetching exchange rates (base: ${baseCurrency})`);
+      const response = await fetch(`https://api.frankfurter.app/latest?from=${baseCurrency}`);
       
-      if (!response.ok) throw new Error('Frankfurter API failed');
+      if (!response.ok) throw new Error('Frankfurter API request failed');
       
       const data = await response.json();
       const rates = { ...data.rates, [baseCurrency]: 1 };
       
-      // Cache the rates
       setCachedRates(rates);
-      
       dispatch({
         type: CURRENCY_ACTIONS.SET_EXCHANGE_RATES,
         payload: { rates, timestamp: Date.now() }
       });
       
+      logger.info('✅ Exchange rates updated successfully');
       return rates;
     } catch (error) {
-      console.error('Exchange rate fetch failed, using fallback:', error);
+      logger.error('💥 Exchange rate fetch failed', { error });
       
-      // Use fallback rates
       setCachedRates(FALLBACK_RATES);
       dispatch({
         type: CURRENCY_ACTIONS.SET_EXCHANGE_RATES,
@@ -185,101 +178,92 @@ export function CurrencyProvider({ children }) {
     }
   }, []);
 
-  // Convert price function
-  const convertPrice = useCallback((price, fromCurrency = 'USD', toCurrency = state.userCurrency) => {
-    if (!price || price === 0) return 0;
-    
+  // Convert price
+  const convertPrice = useCallback((price, from = 'USD', to = state.userCurrency) => {
+    if (!price) return 0;
     const rates = state.exchangeRates;
-    
-    // If same currency, return original price
-    if (fromCurrency === toCurrency) return price;
-    
-    // If rates not available, use fallback or return original
-    if (!rates[toCurrency] || !rates[fromCurrency]) {
-      console.warn(`Exchange rate not available for ${toCurrency}`);
-      const fallbackRate = FALLBACK_RATES[toCurrency];
-      return fallbackRate ? price * fallbackRate : price;
+
+    if (from === to) return price;
+    if (!rates[to] || !rates[from]) {
+      logger.warn(`Missing exchange rate for ${to} or ${from}`);
+      const fallback = FALLBACK_RATES[to];
+      return fallback ? price * fallback : price;
     }
-    
-    // Convert through USD as base
-    const priceInUSD = fromCurrency === 'USD' ? price : price / rates[fromCurrency];
-    const convertedPrice = priceInUSD * rates[toCurrency];
-    
-    return Number(convertedPrice.toFixed(2));
+
+    const usdValue = from === 'USD' ? price : price / rates[from];
+    const converted = usdValue * rates[to];
+    return Number(converted.toFixed(2));
   }, [state.exchangeRates, state.userCurrency]);
 
-  // Format price with currency symbol
-  const formatPrice = useCallback((price, currency = state.userCurrency, showOriginal = false) => {
-    const convertedPrice = convertPrice(price, 'USD', currency);
-    
-    try {
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(convertedPrice);
-
-      // Show original USD price if different currency and requested
-      if (showOriginal && currency !== 'USD') {
-        const originalPrice = new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-          minimumFractionDigits: 2,
-        }).format(price);
-        
-        return { formatted, original: originalPrice };
-      }
-      
-      return { formatted, original: null };
-    } catch (error) {
-      // Fallback formatting
-      const formatted = `${convertedPrice.toFixed(2)} ${currency}`;
-      const original = currency !== 'USD' ? `$${price.toFixed(2)}` : null;
-      return { formatted, original };
-    }
-  }, [state.userCurrency, convertPrice]);
-
-  // Get currency symbol
+  // ✅ Get currency symbol
   const getCurrencySymbol = useCallback((currency = state.userCurrency) => {
     const symbols = {
       USD: '$', EUR: '€', GBP: '£', INR: '₹', JPY: '¥',
       CAD: 'CA$', AUD: 'A$', CNY: 'CN¥', BRL: 'R$', MXN: 'MX$',
       KRW: '₩', RUB: '₽', TRY: '₺', ZAR: 'R', SEK: 'kr',
-      NOK: 'kr', DKK: 'kr', PLN: 'zł', THB: '฿', PHP: '₱'
+      NOK: 'kr', DKK: 'kr', PLN: 'zł', THB: '฿', PHP: '₱',
+      SGD: 'S$', AED: 'AED', SAR: 'SAR'
     };
     return symbols[currency] || currency;
   }, [state.userCurrency]);
 
-  // Initialize currency system
+  // ✅ Format price professionally
+  const formatPrice = useCallback((price, currency = state.userCurrency, showOriginal = false) => {
+    const convertedPrice = convertPrice(price, 'USD', currency);
+
+    try {
+      const formatted = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(convertedPrice);
+
+      if (showOriginal && currency !== 'USD') {
+        const original = new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 2,
+        }).format(price);
+        return { formatted, original };
+      }
+
+      return { formatted, original: null };
+    } catch (error) {
+      logger.warn('Fallback format used', { error });
+      const formatted = `${convertedPrice.toFixed(2)} ${currency}`;
+      const original = currency !== 'USD' ? `$${price.toFixed(2)}` : null;
+      return { formatted, original };
+    }
+  }, [convertPrice, state.userCurrency]);
+
+  // Initialize
   useEffect(() => {
-    const initializeCurrency = async () => {
+    const init = async () => {
+      logger.info('🚀 Initializing currency system...');
       await detectUserLocation();
       await fetchExchangeRates('USD');
     };
-    
-    initializeCurrency();
-    
-    // Refresh rates every hour
+    init();
+
     const interval = setInterval(() => {
       fetchExchangeRates('USD');
+      logger.info('♻️ Auto-refreshing currency rates');
     }, 60 * 60 * 1000);
-    
+
     return () => clearInterval(interval);
   }, [detectUserLocation, fetchExchangeRates]);
 
+  // ✅ Final value object
   const value = {
-    // State
     ...state,
-    
-    // Actions
     convertPrice,
     formatPrice,
     getCurrencySymbol,
-    setUserCurrency: (currency) => 
-      dispatch({ type: CURRENCY_ACTIONS.SET_USER_CURRENCY, payload: currency }),
     refreshRates: () => fetchExchangeRates('USD'),
     detectUserLocation,
+    setUserCurrency: (currency) =>
+      dispatch({ type: CURRENCY_ACTIONS.SET_USER_CURRENCY, payload: currency })
   };
 
   return (
@@ -292,6 +276,7 @@ export function CurrencyProvider({ children }) {
 export const useCurrency = () => {
   const context = useContext(CurrencyContext);
   if (!context) {
+    logger.error('❌ useCurrency called outside CurrencyProvider');
     throw new Error('useCurrency must be used within a CurrencyProvider');
   }
   return context;

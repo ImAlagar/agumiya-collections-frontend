@@ -9,7 +9,7 @@ const CustomOrderButton = () => {
 
   // Instagram DM handler
   const handleInstagramDM = () => {
-    const instagramUsername = 'agumiya_collections'; // Change this to your Instagram username
+    const instagramUsername = 'agumiyacollections_com'; // Change this to your Instagram username
     const instagramUrl = `https://instagram.com/${instagramUsername}`;
     
     window.open(instagramUrl, '_blank', 'noopener,noreferrer');
