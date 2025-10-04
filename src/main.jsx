@@ -1,4 +1,3 @@
-// src/main.jsx
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
@@ -21,6 +20,7 @@ import { CouponProvider } from './contexts/CouponContext';
 import logger from './utils/logger.jsx'; // ✅ import your frontend logger
 import ErrorBoundary from './components/common/ErrorBoundary.jsx';
 
+
 // 🧠 Setup Global Error Handlers (production-safe)
 window.addEventListener('error', (event) => {
   logger.error(`Global runtime error: ${event.message}`, event.error);
@@ -36,35 +36,33 @@ logger.info(`App starting in ${import.meta.env.MODE} mode`);
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-
-
-    <SEOProvider>
-      <ThemeProvider>
-        <CartProvider>
-          <AuthProvider>
-            <CouponProvider>
-              <SearchProvider>
-                <LoadingProvider>
-                  <ProductsProvider>
-                    <CurrencyProvider>
-                      <OrdersProvider>
-                        <UsersProvider>
-                          <ContactsProvider>
-                            <ProgressLoader />
-                            <Loader />
-                            <RouterProvider router={router}/>
-                          </ContactsProvider>
-                        </UsersProvider>  
-                      </OrdersProvider>
-                    </CurrencyProvider>
-                  </ProductsProvider>
-                </LoadingProvider>
-              </SearchProvider>
-            </CouponProvider>
-          </AuthProvider>
-        </CartProvider>
-      </ThemeProvider>
-    </SEOProvider>
-        </ErrorBoundary>
+      <SEOProvider>
+        <ThemeProvider>
+          <CartProvider>
+            <AuthProvider>
+              <CouponProvider>
+                <SearchProvider>
+                  <LoadingProvider>
+                    <ProductsProvider>
+                      <CurrencyProvider>
+                        <OrdersProvider>
+                          <UsersProvider>
+                            <ContactsProvider>
+                              <ProgressLoader />
+                              <Loader />
+                              <RouterProvider router={router}/>
+                            </ContactsProvider>
+                          </UsersProvider>  
+                        </OrdersProvider>
+                      </CurrencyProvider>
+                    </ProductsProvider>
+                  </LoadingProvider>
+                </SearchProvider>
+              </CouponProvider>
+            </AuthProvider>
+          </CartProvider>
+        </ThemeProvider>
+      </SEOProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );
