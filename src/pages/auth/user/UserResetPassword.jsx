@@ -133,50 +133,63 @@ const UserResetPassword = () => {
     }, [token, navigate]);
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+    e.preventDefault();
+    
+    if (!token) {
+        setError('Invalid reset link. Please request a new password reset.');
+        return;
+    }
+
+    if (!password || !confirmPassword) {
+        setError('Please fill in all fields');
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+    }
+
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+        setError('Password does not meet requirements');
+        return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+        // ✅ FIX: Ensure the data structure matches what backend expects
+        const resetData = {
+        token: token.trim(), // Ensure no extra spaces
+        newPassword: password
+        };
+
+        console.log('Attempting password reset with token:', token.substring(0, 10) + '...');
+
+        const response = await authService.resetUserPassword(resetData);
+
+        if (response.success) {
+        setIsSubmitted(true);
+        } else {
+        // Handle specific error messages from backend
+        const errorMessage = response.message || 'Password reset failed';
         
-        if (!token) {
-            setError('Invalid reset link. Please request a new password reset.');
-            return;
+        if (errorMessage.includes('Invalid') || errorMessage.includes('expired')) {
+            setError('This reset link is invalid or has expired. Please request a new one.');
+        } else if (errorMessage.includes('Password must be')) {
+            setError(errorMessage);
+        } else {
+            setError(errorMessage);
         }
-
-        if (!password || !confirmPassword) {
-            setError('Please fill in all fields');
-            return;
         }
-
-        if (password !== confirmPassword) {
-            setError('Passwords do not match');
-            return;
-        }
-
-        const passwordValidation = validatePassword(password);
-        if (!passwordValidation.isValid) {
-            setError('Password does not meet requirements');
-            return;
-        }
-
-        setIsLoading(true);
-        setError('');
-
-        try {
-            const resetData = {
-                token,
-                newPassword: password
-            };
-
-            const response = await authService.resetUserPassword(resetData);
-
-            if (response.success) {
-                setIsSubmitted(true);
-            } else {
-                throw new Error(response.message || 'Password reset failed');
-            }
-        } catch (err) {
-            setError(err.message || 'Failed to reset password. Please try again.');
-        } finally {
-            setIsLoading(false);
-        }
+    } catch (err) {
+        console.error('Reset password catch error:', err);
+        setError(err.message || 'Failed to reset password. Please try again.');
+    } finally {
+        setIsLoading(false);
+    }
     };
 
     const handleInputChange = useCallback((setter) => (e) => {

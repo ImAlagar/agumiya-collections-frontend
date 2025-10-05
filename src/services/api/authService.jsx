@@ -170,17 +170,32 @@ export const authService = {
     }
   },
 
-  async resetUserPassword(resetData) {
-    try {
-      const response = await apiClient.post(API_ENDPOINTS.USER_RESET_PASSWORD, resetData);
-      return response.data;
-    } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || 'Password reset failed' 
-      };
-    }
-  },
+async resetUserPassword(resetData) {
+  try {
+    console.log('Sending reset request with data:', {
+      token: resetData.token ? 'Present' : 'Missing',
+      tokenLength: resetData.token?.length,
+      hasPassword: !!resetData.newPassword
+    });
+
+    const response = await apiClient.post(API_ENDPOINTS.USER_RESET_PASSWORD, resetData);
+    
+    console.log('Reset password response:', response.data);
+    return response.data;
+    
+  } catch (error) {
+    console.error('Reset password error details:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+    
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Password reset failed' 
+    };
+  }
+},
 
   async getUserProfile() {
     try {
