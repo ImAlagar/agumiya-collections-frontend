@@ -1,5 +1,5 @@
+// src/contexts/CurrencyContext.jsx
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import logger from '../utils/logger'; // ✅ Professional logger
 
 const CurrencyContext = createContext();
 
@@ -74,7 +74,7 @@ const getCachedRates = () => {
     const { rates, timestamp } = JSON.parse(cached);
     if (Date.now() - timestamp < CACHE_DURATION) return rates;
   } catch (error) {
-    logger.warn('Failed to read cached rates', { error });
+    console.warn('Failed to read cached rates', { error });
   }
   return null;
 };
@@ -85,9 +85,9 @@ const setCachedRates = (rates) => {
       rates,
       timestamp: Date.now()
     }));
-    logger.info('✅ Cached new currency rates');
+    console.info('✅ Cached new currency rates');
   } catch (error) {
-    logger.warn('Failed to cache rates', { error });
+    console.warn('Failed to cache rates', { error });
   }
 };
 
@@ -97,7 +97,7 @@ export function CurrencyProvider({ children }) {
   // Detect user location
   const detectUserLocation = useCallback(async () => {
     try {
-      logger.info('🌍 Detecting user location via IP');
+      console.info('🌍 Detecting user location via IP');
       const ipResponse = await fetch('https://ipapi.co/json/');
       const ipData = await ipResponse.json();
       
@@ -109,10 +109,10 @@ export function CurrencyProvider({ children }) {
         payload: { country: countryCode, currency }
       });
       
-      logger.info(`✅ Detected location: ${countryCode}, Currency: ${currency}`);
+      console.info(`✅ Detected location: ${countryCode}, Currency: ${currency}`);
       return { country: countryCode, currency };
     } catch (error) {
-      logger.warn('⚠️ IP detection failed, using fallback method', { error });
+      console.warn('⚠️ IP detection failed, using fallback method', { error });
       
       const browserLanguage = navigator.language || 'en-US';
       const country = browserLanguage.split('-')[1] || 'US';
@@ -123,7 +123,7 @@ export function CurrencyProvider({ children }) {
         payload: { country, currency }
       });
       
-      logger.info(`🌐 Fallback detection: ${country}, Currency: ${currency}`);
+      console.info(`🌐 Fallback detection: ${country}, Currency: ${currency}`);
       return { country, currency };
     }
   }, []);
@@ -135,7 +135,7 @@ export function CurrencyProvider({ children }) {
     // Check cache
     const cachedRates = getCachedRates();
     if (cachedRates) {
-      logger.info('💾 Loaded exchange rates from cache');
+      console.info('💾 Loaded exchange rates from cache');
       dispatch({
         type: CURRENCY_ACTIONS.SET_EXCHANGE_RATES,
         payload: { rates: cachedRates, timestamp: Date.now() }
@@ -144,7 +144,7 @@ export function CurrencyProvider({ children }) {
     }
 
     try {
-      logger.info(`💱 Fetching exchange rates (base: ${baseCurrency})`);
+      console.info(`💱 Fetching exchange rates (base: ${baseCurrency})`);
       const response = await fetch(`https://api.frankfurter.app/latest?from=${baseCurrency}`);
       
       if (!response.ok) throw new Error('Frankfurter API request failed');
@@ -158,10 +158,10 @@ export function CurrencyProvider({ children }) {
         payload: { rates, timestamp: Date.now() }
       });
       
-      logger.info('✅ Exchange rates updated successfully');
+      console.info('✅ Exchange rates updated successfully');
       return rates;
     } catch (error) {
-      logger.error('💥 Exchange rate fetch failed', { error });
+      console.error('💥 Exchange rate fetch failed', { error });
       
       setCachedRates(FALLBACK_RATES);
       dispatch({
@@ -180,12 +180,12 @@ export function CurrencyProvider({ children }) {
 
   // Convert price
   const convertPrice = useCallback((price, from = 'USD', to = state.userCurrency) => {
-    if (!price) return 0;
+    if (!price && price !== 0) return 0;
     const rates = state.exchangeRates;
 
     if (from === to) return price;
     if (!rates[to] || !rates[from]) {
-      logger.warn(`Missing exchange rate for ${to} or ${from}`);
+      console.warn(`Missing exchange rate for ${to} or ${from}`);
       const fallback = FALLBACK_RATES[to];
       return fallback ? price * fallback : price;
     }
@@ -230,7 +230,7 @@ export function CurrencyProvider({ children }) {
 
       return { formatted, original: null };
     } catch (error) {
-      logger.warn('Fallback format used', { error });
+      console.warn('Fallback format used', { error });
       const formatted = `${convertedPrice.toFixed(2)} ${currency}`;
       const original = currency !== 'USD' ? `$${price.toFixed(2)}` : null;
       return { formatted, original };
@@ -240,7 +240,7 @@ export function CurrencyProvider({ children }) {
   // Initialize
   useEffect(() => {
     const init = async () => {
-      logger.info('🚀 Initializing currency system...');
+      console.info('🚀 Initializing currency system...');
       await detectUserLocation();
       await fetchExchangeRates('USD');
     };
@@ -248,7 +248,7 @@ export function CurrencyProvider({ children }) {
 
     const interval = setInterval(() => {
       fetchExchangeRates('USD');
-      logger.info('♻️ Auto-refreshing currency rates');
+      console.info('♻️ Auto-refreshing currency rates');
     }, 60 * 60 * 1000);
 
     return () => clearInterval(interval);
@@ -276,7 +276,7 @@ export function CurrencyProvider({ children }) {
 export const useCurrency = () => {
   const context = useContext(CurrencyContext);
   if (!context) {
-    logger.error('❌ useCurrency called outside CurrencyProvider');
+    console.error('❌ useCurrency called outside CurrencyProvider');
     throw new Error('useCurrency must be used within a CurrencyProvider');
   }
   return context;

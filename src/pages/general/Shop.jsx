@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerVariants, itemVariants, useProducts } from '../../contexts/ProductsContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { SEO } from '../../contexts/SEOContext';
 import ProductGridSkeleton from '../../components/user/skeletons/ProductGridSkeleton';
 import ProductCard from '../../components/user/products/ProductCard';
@@ -63,74 +64,6 @@ const FilterSection = ({ title, children, isOpen = true }) => {
   );
 };
 
-const RangeSlider = ({ label, value, onChange, min, max, step = 1, format = (val) => val }) => {
-  return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
-        <span className="text-sm font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-1 rounded-lg">
-          {format(value)}
-        </span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider-thumb"
-      />
-      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-        <span>{format(min)}</span>
-        <span>{format(max)}</span>
-      </div>
-    </div>
-  );
-};
-
-const ChipFilter = ({ label, options, value, onChange, multiSelect = false }) => {
-  const handleClick = (optionValue) => {
-    if (multiSelect) {
-      const newValue = value.includes(optionValue)
-        ? value.filter(v => v !== optionValue)
-        : [...value, optionValue];
-      onChange(newValue);
-    } else {
-      onChange(value === optionValue ? '' : optionValue);
-    }
-  };
-
-  return (
-    <div className="space-y-3">
-      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => {
-          const isActive = multiSelect 
-            ? value.includes(option.value)
-            : value === option.value;
-          
-          return (
-            <motion.button
-              key={option.value}
-              onClick={() => handleClick(option.value)}
-              className={`px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
-                isActive
-                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 dark:shadow-primary-900/50'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {option.label}
-            </motion.button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
 const Shop = () => {
   const { 
     products, 
@@ -143,18 +76,91 @@ const Shop = () => {
     clearError 
   } = useProducts();
 
+  // Add currency context
+  const { convertPrice, userCurrency, getCurrencySymbol } = useCurrency();
+
   // Initialize local filters with proper structure
   const [localFilters, setLocalFilters] = useState({
     search: '',
     category: 'All',
     categories: [],
-    priceRange: [0, 1000],
+    minPrice: null,
+    maxPrice: null,
     inStock: 'all',
     sortBy: 'name',
     sortOrder: 'asc',
-    limit: 12, // Set to 12 products per page
+    limit: 12,
     page: 1
   });
+
+  // Custom RangeSlider with currency support
+  const RangeSlider = ({ label, value, onChange, min, max, step = 1, format = (val) => val }) => {
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-between items-center">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+          <span className="text-sm font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-1 rounded-lg">
+            {format(value)}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider-thumb"
+        />
+        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+          <span>{format(min)}</span>
+          <span>{format(max)}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const ChipFilter = ({ label, options, value, onChange, multiSelect = false }) => {
+    const handleClick = (optionValue) => {
+      if (multiSelect) {
+        const newValue = value.includes(optionValue)
+          ? value.filter(v => v !== optionValue)
+          : [...value, optionValue];
+        onChange(newValue);
+      } else {
+        onChange(value === optionValue ? '' : optionValue);
+      }
+    };
+
+    return (
+      <div className="space-y-3">
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+        <div className="flex flex-wrap gap-2">
+          {options.map((option) => {
+            const isActive = multiSelect 
+              ? value.includes(option.value)
+              : value === option.value;
+            
+            return (
+              <motion.button
+                key={option.value}
+                onClick={() => handleClick(option.value)}
+                className={`px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                  isActive
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 dark:shadow-primary-900/50'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {option.label}
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   // Safe products array
   const safeProducts = Array.isArray(products) ? products : [];
@@ -200,16 +206,34 @@ const Shop = () => {
     fetchProducts(1, 12, updatedFilters);
   }, [localFilters, updateFilters, fetchProducts]);
 
+  // Handle price range change with currency conversion
   const handlePriceRangeChange = useCallback((newRange) => {
-    handleFilterChange({ priceRange: newRange });
-  }, [handleFilterChange]);
+    const [min, max] = newRange;
+    
+    // Convert to USD for consistent filtering
+    const minPriceUSD = min > 0 ? convertPrice(min, userCurrency, 'USD') : null;
+    const maxPriceUSD = max < 1000 ? convertPrice(max, userCurrency, 'USD') : null;
+    
+    handleFilterChange({ 
+      minPrice: minPriceUSD,
+      maxPrice: maxPriceUSD
+    });
+  }, [handleFilterChange, convertPrice, userCurrency]);
+
+  // Convert price range for display
+  const convertedPriceRange = useMemo(() => {
+    const min = localFilters.minPrice ? convertPrice(localFilters.minPrice, 'USD', userCurrency) : 0;
+    const max = localFilters.maxPrice ? convertPrice(localFilters.maxPrice, 'USD', userCurrency) : 1000;
+    return [min, max];
+  }, [localFilters.minPrice, localFilters.maxPrice, convertPrice, userCurrency]);
 
   const clearAllFilters = useCallback(() => {
     const resetFilters = {
       search: '',
       category: 'All',
       categories: [],
-      priceRange: [0, 1000],
+      minPrice: null,
+      maxPrice: null,
       inStock: 'all',
       sortBy: 'name',
       sortOrder: 'asc',
@@ -226,7 +250,7 @@ const Shop = () => {
     
     let count = 0;
     if (localFilters.categories && localFilters.categories.length > 0) count++;
-    if (localFilters.priceRange && (localFilters.priceRange[0] > 0 || localFilters.priceRange[1] < 1000)) count++;
+    if (localFilters.minPrice !== null || localFilters.maxPrice !== null) count++;
     if (localFilters.inStock && localFilters.inStock !== 'all') count++;
     return count;
   }, [localFilters]);
@@ -344,12 +368,12 @@ const Shop = () => {
                 <FilterSection title="Price Range">
                   <RangeSlider
                     label="Price Range"
-                    value={localFilters.priceRange?.[1] || 1000}
-                    onChange={(value) => handlePriceRangeChange([localFilters.priceRange?.[0] || 0, value])}
+                    value={convertedPriceRange[1]}
+                    onChange={(value) => handlePriceRangeChange([convertedPriceRange[0], value])}
                     min={0}
                     max={1000}
                     step={10}
-                    format={(val) => `$${val}`}
+                    format={(val) => `${getCurrencySymbol()}${val.toFixed(2)}`}
                   />
                 </FilterSection>
 

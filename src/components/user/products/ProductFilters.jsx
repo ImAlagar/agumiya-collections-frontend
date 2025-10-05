@@ -1,7 +1,8 @@
 // src/components/admin/products/ProductFilters.jsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PRODUCT_CATEGORIES } from '../../../config/constants';
+import { useCurrency } from '../../../contexts/CurrencyContext';
 import { 
   FilterIcon, 
   SearchIcon, 
@@ -11,10 +12,8 @@ import {
   XIcon,
   SmartphoneIcon,
   MonitorIcon,
-  PackageIcon,
   TagIcon,
   TrendingUpIcon,
-  DollarSignIcon
 } from 'lucide-react';
 
 const ProductFilters = ({ filters, onFilterChange, isLoading, priceRange }) => {
@@ -27,6 +26,9 @@ const ProductFilters = ({ filters, onFilterChange, isLoading, priceRange }) => {
   });
   
   const filtersRef = useRef(null);
+  
+  // Add currency context
+  const { convertPrice, formatPrice, userCurrency, getCurrencySymbol } = useCurrency();
 
   // Detect mobile screen
   useEffect(() => {
@@ -59,6 +61,19 @@ const ProductFilters = ({ filters, onFilterChange, isLoading, priceRange }) => {
     });
   }, [filters.minPrice, filters.maxPrice]);
 
+  // Convert price for display
+  const convertPriceForDisplay = (price) => {
+    if (!price || price === '') return '';
+    return convertPrice(price, 'USD', userCurrency);
+  };
+
+  // Convert price back to USD for filtering
+  const convertPriceToUSD = (price) => {
+    if (!price || price === '') return null;
+    if (userCurrency === 'USD') return parseFloat(price);
+    return convertPrice(parseFloat(price), userCurrency, 'USD');
+  };
+
   const stockOptions = [
     { value: 'all', label: 'All Stock', color: 'gray', icon: '📊' },
     { value: 'true', label: 'In Stock', color: 'green', icon: '✅' },
@@ -78,9 +93,13 @@ const ProductFilters = ({ filters, onFilterChange, isLoading, priceRange }) => {
   };
 
   const handlePriceRangeApply = () => {
+    // Convert prices back to USD for consistent filtering
+    const minPriceUSD = localPriceRange.min ? convertPriceToUSD(localPriceRange.min) : null;
+    const maxPriceUSD = localPriceRange.max ? convertPriceToUSD(localPriceRange.max) : null;
+    
     handleFilterUpdate({
-      minPrice: localPriceRange.min || null,
-      maxPrice: localPriceRange.max || null
+      minPrice: minPriceUSD,
+      maxPrice: maxPriceUSD
     });
   };
 
@@ -124,6 +143,13 @@ const ProductFilters = ({ filters, onFilterChange, isLoading, priceRange }) => {
     return colors[color] || colors.gray;
   };
 
+  // Format price for display with currency
+  const formatPriceWithCurrency = (price) => {
+    if (!price && price !== 0) return `${getCurrencySymbol()}0`;
+    const formatted = formatPrice(price, userCurrency);
+    return formatted.formatted;
+  };
+
   // Filter Chip Component
   const FilterChip = ({ type, value, label, onRemove }) => {
     const getChipConfig = () => {
@@ -162,63 +188,74 @@ const ProductFilters = ({ filters, onFilterChange, isLoading, priceRange }) => {
     );
   };
 
-  // Price Range Filter Component
-  const PriceRangeFilter = () => (
-    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
-      <div className="flex items-center justify-between">
-        <h4 className="font-semibold text-gray-700 dark:text-gray-300">Price Range</h4>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          ${priceRange?.min || 0} - ${priceRange?.max || 0}
+  // Price Range Filter Component - UPDATED
+  const PriceRangeFilter = () => {
+    // Convert price range for display in current currency
+    const displayMinPrice = priceRange?.min ? convertPriceForDisplay(priceRange.min) : 0;
+    const displayMaxPrice = priceRange?.max ? convertPriceForDisplay(priceRange.max) : 1000;
+    
+    return (
+      <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold text-gray-700 dark:text-gray-300">Price Range</h4>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {formatPriceWithCurrency(displayMinPrice)} - {formatPriceWithCurrency(displayMaxPrice)}
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+              Min Price ({userCurrency})
+            </label>
+            <input
+              type="number"
+              placeholder="Min"
+              value={localPriceRange.min}
+              onChange={(e) => setLocalPriceRange(prev => ({ ...prev, min: e.target.value }))}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              min="0"
+              step="0.01"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+              Max Price ({userCurrency})
+            </label>
+            <input
+              type="number"
+              placeholder="Max"
+              value={localPriceRange.max}
+              onChange={(e) => setLocalPriceRange(prev => ({ ...prev, max: e.target.value }))}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              min="0"
+              step="0.01"
+            />
+          </div>
+        </div>
+        
+        <div className="flex gap-2">
+          <button
+            onClick={handlePriceRangeApply}
+            className="flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+          >
+            Apply
+          </button>
+          <button
+            onClick={handlePriceRangeClear}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+        
+        {/* Currency Info */}
+        <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+          Prices displayed in {userCurrency}. Filtering uses converted values.
         </div>
       </div>
-      
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-            Min Price ($)
-          </label>
-          <input
-            type="number"
-            placeholder="Min"
-            value={localPriceRange.min}
-            onChange={(e) => setLocalPriceRange(prev => ({ ...prev, min: e.target.value }))}
-            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-            min="0"
-            step="0.01"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-            Max Price ($)
-          </label>
-          <input
-            type="number"
-            placeholder="Max"
-            value={localPriceRange.max}
-            onChange={(e) => setLocalPriceRange(prev => ({ ...prev, max: e.target.value }))}
-            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-            min="0"
-            step="0.01"
-          />
-        </div>
-      </div>
-      
-      <div className="flex gap-2">
-        <button
-          onClick={handlePriceRangeApply}
-          className="flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
-        >
-          Apply
-        </button>
-        <button
-          onClick={handlePriceRangeClear}
-          className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        >
-          Clear
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // Mobile Filter Tabs Component
   const MobileFilterTabs = () => (
@@ -504,7 +541,7 @@ const ProductFilters = ({ filters, onFilterChange, isLoading, priceRange }) => {
                 <FilterChip
                   type="price"
                   value="price"
-                  label={`Price: $${filters.minPrice || 0} - $${filters.maxPrice || '∞'}`}
+                  label={`Price: ${formatPriceWithCurrency(filters.minPrice || 0)} - ${filters.maxPrice ? formatPriceWithCurrency(filters.maxPrice) : '∞'}`}
                   onRemove={() => {
                     handleFilterUpdate({ 
                       minPrice: null, 

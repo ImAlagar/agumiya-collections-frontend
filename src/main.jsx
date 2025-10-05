@@ -43,8 +43,9 @@ createRoot(document.getElementById('root')).render(
               <CouponProvider>
                 <SearchProvider>
                   <LoadingProvider>
+                    <CurrencyProvider>
                     <ProductsProvider>
-                      <CurrencyProvider>
+                      
                         <OrdersProvider>
                           <UsersProvider>
                             <ContactsProvider>
@@ -54,8 +55,9 @@ createRoot(document.getElementById('root')).render(
                             </ContactsProvider>
                           </UsersProvider>  
                         </OrdersProvider>
-                      </CurrencyProvider>
+                    
                     </ProductsProvider>
+                      </CurrencyProvider>
                   </LoadingProvider>
                 </SearchProvider>
               </CouponProvider>
