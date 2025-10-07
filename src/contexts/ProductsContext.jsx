@@ -8,7 +8,6 @@ import React, {
   useEffect,
 } from "react";
 import { productService } from "../services/api/productService";
-import apiClient from "../config/api";
 
 // ========================
 // 🔹 Action Types
@@ -36,12 +35,12 @@ const initialState = {
   isSyncLoading: false,
   error: null,
   filters: {
-    search: "",
-    category: "All",
-    inStock: "all",
-    sortBy: "name",
-    sortOrder: "asc",
+    categories: [],
+    minPrice: null,
+    maxPrice: null,
+    inStock: 'all',
     limit: 12,
+    page: 1
   },
   pagination: {
     currentPage: 1,
@@ -84,7 +83,6 @@ const productsReducer = (state, action) => {
       return {
         ...state,
         filters: { ...state.filters, ...action.payload },
-        pagination: { ...state.pagination, currentPage: 1 },
       };
 
     case PRODUCT_ACTIONS.SET_PAGINATION:
@@ -138,84 +136,89 @@ export const ProductsProvider = ({ children }) => {
   }, [state.filters]);
 
   // ========================
-  // 🔸 Fetch Products
+  // 🔸 Fetch Products - FIXED VERSION
   // ========================
+  const fetchProducts = useCallback(async (page = 1, filters = {}) => {
+    try {
+      dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
 
-const fetchProducts = useCallback(async (page = 1, filters = {}) => {
-  try {
-    dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
+      const currentFilters = { ...filtersRef.current, ...filters, page };
+      
+      // Prepare API parameters
+      const apiFilters = {
+        page: currentFilters.page || 1,
+        limit: currentFilters.limit || 12,
+      };
 
-    const currentFilters = { ...filtersRef.current, ...filters };
-    const params = {
-      page: page || 1,
-      limit: currentFilters.limit || 12,
-      ...(currentFilters.sortBy && { sortBy: currentFilters.sortBy }),
-      ...(currentFilters.sortOrder && { sortOrder: currentFilters.sortOrder }),
-      ...(currentFilters.search?.trim() && { search: currentFilters.search.trim() }),
-      ...(currentFilters.category && currentFilters.category !== "All" && { 
-        category: currentFilters.category 
-      }),
-      ...(currentFilters.inStock && currentFilters.inStock !== "all" && { 
-        inStock: currentFilters.inStock === 'true' 
-      }),
-      ...(currentFilters.minPrice !== null && currentFilters.minPrice !== undefined && { 
-        minPrice: currentFilters.minPrice 
-      }),
-      ...(currentFilters.maxPrice !== null && currentFilters.maxPrice !== undefined && { 
-        maxPrice: currentFilters.maxPrice 
-      }),
-    };
+      if (currentFilters.categories && currentFilters.categories.length > 0) {
+        apiFilters.categories = currentFilters.categories[0]; // ✅ send single selected category
+      }
 
-    console.log('🔍 Fetching products with params:', params);
+      // Add price filters
+      if (currentFilters.minPrice !== null && currentFilters.minPrice !== undefined) {
+        apiFilters.minPrice = currentFilters.minPrice;
+      }
 
-    const response = await apiClient.get("/products", { params });
+      if (currentFilters.maxPrice !== null && currentFilters.maxPrice !== undefined) {
+        apiFilters.maxPrice = currentFilters.maxPrice;
+      }
 
-    const apiData = response.data?.data || response.data;
-    if (!apiData) throw new Error("Invalid response format from server");
+      // Add stock filter
+      if (currentFilters.inStock && currentFilters.inStock !== 'all') {
+        apiFilters.inStock = currentFilters.inStock === 'true'; // ✅ correct comparison
+      }
 
-    const products = Array.isArray(apiData.products)
-      ? apiData.products
-      : Array.isArray(apiData.data)
-      ? apiData.data
-      : Array.isArray(apiData)
-      ? apiData
-      : [];
+      console.log('🔍 Fetching products with API filters:', apiFilters);
 
-    const paginationData = apiData.pagination || apiData;
+      // Use the filter endpoint
+      const response = await productService.getFilteredProducts(apiFilters);
+      
+      if (response.success) {
+        const products = response.data?.data || [];
+        const paginationData = response.data?.pagination || {};
 
-    const mappedPagination = {
-      currentPage: paginationData.currentPage || page,
-      totalPages: paginationData.totalPages || 1,
-      totalCount: paginationData.totalCount || products.length,
-      limit: paginationData.limit || currentFilters.limit || 12,
-      hasNext: paginationData.hasNext !== undefined
-        ? paginationData.hasNext
-        : (paginationData.currentPage || page) < (paginationData.totalPages || 1),
-      hasPrev: paginationData.hasPrev !== undefined
-        ? paginationData.hasPrev
-        : (paginationData.currentPage || page) > 1,
-    };
+        const mappedPagination = {
+          currentPage: paginationData.currentPage || page,
+          totalPages: paginationData.totalPages || 1,
+          totalCount: paginationData.totalCount || products.length,
+          limit: paginationData.limit || currentFilters.limit || 12,
+          hasNext: paginationData.hasNext !== undefined
+            ? paginationData.hasNext
+            : (paginationData.currentPage || page) < (paginationData.totalPages || 1),
+          hasPrev: paginationData.hasPrev !== undefined
+            ? paginationData.hasPrev
+            : (paginationData.currentPage || page) > 1,
+        };
 
-    dispatch({
-      type: PRODUCT_ACTIONS.SET_PRODUCTS,
-      payload: { products, pagination: mappedPagination },
-    });
-  } catch (error) {
-    console.error("💥 Fetch products error:", error);
-    console.error("💥 Error details:", error.response?.data);
-    
-    dispatch({
-      type: PRODUCT_ACTIONS.SET_ERROR,
-      payload: error.response?.data?.message || error.message || "Failed to load products. Please try again.",
-    });
-  }
-}, []);
+        dispatch({
+          type: PRODUCT_ACTIONS.SET_PRODUCTS,
+          payload: { products, pagination: mappedPagination },
+        });
+
+        // Update filters in state
+        dispatch({
+          type: PRODUCT_ACTIONS.SET_FILTERS,
+          payload: currentFilters
+        });
+      } else {
+        throw new Error(response.message || "Failed to fetch products");
+      }
+    } catch (error) {
+      console.error("💥 Fetch products error:", error);
+      console.error("💥 Error details:", error.response?.data);
+      
+      dispatch({
+        type: PRODUCT_ACTIONS.SET_ERROR,
+        payload: error.response?.data?.message || error.message || "Failed to load products. Please try again.",
+      });
+    }
+  }, []);
+
   // ========================
   // 🔸 Update Page Size
   // ========================
   const updatePageSize = useCallback(
     async (newLimit) => {
-      dispatch({ type: PRODUCT_ACTIONS.SET_FILTERS, payload: { limit: newLimit } });
       await fetchProducts(1, { limit: newLimit });
     },
     [fetchProducts]
@@ -228,22 +231,8 @@ const fetchProducts = useCallback(async (page = 1, filters = {}) => {
     try {
       dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
       const response = await productService.getProductById(id);
-      let productData = null;
-
-      if (response && typeof response === "object") {
-        if (response.success && response.data) productData = response.data;
-        else if (response.data?.data) productData = response.data.data;
-        else if (response.id) productData = response;
-        else if (response.data) productData = response.data;
-        else {
-          for (const key in response) {
-            if (response[key]?.id) {
-              productData = response[key];
-              break;
-            }
-          }
-        }
-      }
+      
+      let productData = response.data || response;
 
       if (productData?.id) {
         dispatch({ type: PRODUCT_ACTIONS.SET_PRODUCT, payload: productData });
@@ -270,7 +259,7 @@ const fetchProducts = useCallback(async (page = 1, filters = {}) => {
   }, []);
 
   // ========================
-  // 🔸 Filter Functions
+  // 🔸 Filter Functions - FIXED
   // ========================
   const setFilters = useCallback(
     (newFilters) => {
@@ -281,7 +270,6 @@ const fetchProducts = useCallback(async (page = 1, filters = {}) => {
 
   const updateFilters = useCallback(
     async (newFilters) => {
-      dispatch({ type: PRODUCT_ACTIONS.SET_FILTERS, payload: newFilters });
       await fetchProducts(1, newFilters);
     },
     [fetchProducts]
@@ -380,25 +368,25 @@ const fetchProducts = useCallback(async (page = 1, filters = {}) => {
   // ========================
   // 🔸 Get Similar Products
   // ========================
-const getSimilarProducts = useCallback(async (productId, limit = 4) => {
-  try {
-    const response = await productService.getSimilarProducts(productId, limit);
-    
-    // Handle different response formats
-    if (response.success) {
-      return response.data || [];
-    } else if (Array.isArray(response)) {
-      return response;
-    } else if (response.data) {
-      return Array.isArray(response.data) ? response.data : [];
+  const getSimilarProducts = useCallback(async (productId, limit = 4) => {
+    try {
+      const response = await productService.getSimilarProducts(productId, limit);
+      
+      if (response.success) {
+        return response.data || [];
+      } else if (Array.isArray(response)) {
+        return response;
+      } else if (response.data) {
+        return Array.isArray(response.data) ? response.data : [];
+      }
+      
+      return [];
+    } catch (error) {
+      console.error("💥 Get similar products error:", error);
+      return [];
     }
-    
-    return [];
-  } catch (error) {
-    console.error("💥 Get similar products error:", error);
-    return [];
-  }
-}, []);
+  }, []);
+
   // ========================
   // 🔸 Clear Error
   // ========================

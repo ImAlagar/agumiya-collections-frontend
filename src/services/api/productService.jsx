@@ -46,16 +46,20 @@ export const productService = {
 
   async getFilteredProducts(filters = {}) {
     try {
+      console.log('🔄 Sending filters to API:', filters);
+      
       const response = await apiClient.get('/products/filter', {
-        params: filters,
+        params: this.normalizeFilters(filters),
         timeout: 30000
       });
       return response.data;
     } catch (error) {
-      console.error('Get filtered products error:', error);
+      console.error('💥 Get filtered products error:', error);
       throw error;
     }
   },
+
+
 
   async updateProduct(id, productData) {
     try {
@@ -81,18 +85,90 @@ export const productService = {
     }
   },
 
-// In your productService.js file
-async getSimilarProducts(productId, limit = 4) {
-  try {
-    const response = await apiClient.get(`/products/${productId}/similar`, {
-      params: { limit },
-      timeout: 30000
+  async getSimilarProducts(productId, limit = 4) {
+    try {
+      const response = await apiClient.get(`/products/${productId}/similar`, {
+        params: { limit },
+        timeout: 30000
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get similar products error:', error);
+      return { success: true, data: [] };
+    }
+  },
+
+  async getProductFilters() {
+    try {
+      const response = await apiClient.get('/products/filters', {
+        timeout: 30000
+      });
+      return response.data;
+    } catch (error) {
+      console.error('💥 Get product filters error:', error);
+      // Return default filters if API fails
+      return {
+        success: true,
+        data: {
+          categories: [],
+          priceRange: { min: 0, max: 1000 },
+          stockCounts: { inStock: 0, outOfStock: 0, total: 0 }
+        }
+      };
+    }
+  },
+
+  normalizeFilters(filters) {
+    const normalized = { ...filters };
+    
+    console.log('📦 Raw filters before normalization:', filters);
+    
+    // Handle categories - ensure it's properly formatted for the API
+    if (normalized.categories) {
+      if (Array.isArray(normalized.categories)) {
+        // For multiple categories, send as array
+        normalized.categories = normalized.categories;
+      }
+      // For single category, keep as string
+    }
+    
+    // Handle price filters - ensure they're numbers
+    if (normalized.minPrice) {
+      normalized.minPrice = parseFloat(normalized.minPrice);
+    }
+    if (normalized.maxPrice) {
+      normalized.maxPrice = parseFloat(normalized.maxPrice);
+    }
+    
+    // Handle inStock filter
+    if (normalized.inStock === 'all') {
+      delete normalized.inStock; // Remove 'all' from API call
+    }
+    
+    // Remove empty values
+    Object.keys(normalized).forEach(key => {
+      if (normalized[key] === null || 
+          normalized[key] === undefined || 
+          normalized[key] === '' ||
+          (Array.isArray(normalized[key]) && normalized[key].length === 0)) {
+        delete normalized[key];
+      }
     });
-    return response.data;
-  } catch (error) {
-    console.error('Get similar products error:', error);
-    // Return empty array instead of throwing error
-    return { success: true, data: [] };
-  }
-}
+    
+    console.log('📦 Normalized filters for API:', normalized);
+    return normalized;
+  },
+  
+    async getProductsByCategory(category, page = 1, limit = 12) {
+    try {
+      const response = await apiClient.get(`/products/category/${encodeURIComponent(category)}`, {
+        params: { page, limit },
+        timeout: 30000
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get products by category error:', error);
+      throw error;
+    }
+  },
 };
