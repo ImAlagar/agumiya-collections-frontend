@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, ArrowRight, ChevronLeft, ChevronRight, Heart, Star } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { useCurrency } from '../../../contexts/CurrencyContext';
 import { Link } from 'react-router-dom';
 
 const CategorySection = ({ category, products, index }) => {
   const { theme } = useTheme();
+  const { formatPrice, getCurrencySymbol } = useCurrency();
   const [currentPage, setCurrentPage] = useState(0);
   const productsPerPage = 4;
 
@@ -100,6 +102,27 @@ const CategorySection = ({ category, products, index }) => {
     }
   };
 
+  // Get category image from products or use fallback
+  const getCategoryImage = () => {
+    // Try to find a product image from this category
+    const productWithImage = products.find(product => 
+      product.images && product.images.length > 0
+    );
+    
+    if (productWithImage && productWithImage.images[0]) {
+      return productWithImage.images[0];
+    }
+    
+    // Fallback to category image if no product images
+    return category.image;
+  };
+
+  // Handle product click - navigate to shop page with product ID
+  const handleProductClick = (product) => {
+    // The Link component will handle navigation
+    return `/shop?category=${encodeURIComponent(category.value)}&product=${product.id}`;
+  };
+
   return (
     <section className={`py-12 ${styles.background} relative overflow-hidden`}>
       {/* Background Pattern */}
@@ -113,7 +136,7 @@ const CategorySection = ({ category, products, index }) => {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          className="px-5"
+          className="px-12"
         >
           {/* Category Header */}
           <motion.div variants={itemVariants} className="text-center mb-20">
@@ -158,11 +181,15 @@ const CategorySection = ({ category, products, index }) => {
                   
                   {/* Main Image */}
                   <motion.img
-                    src={category.image}
+                    src={getCategoryImage()}
                     alt={category.label}
                     className="w-full h-[600px] object-cover transform group-hover:scale-105 transition-transform duration-1000 ease-out"
                     whileHover={{ scale: 1.05 }}
                     transition={{ duration: 1.2, ease: "easeOut" }}
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      e.target.src = '/images/fallback-category.jpg';
+                    }}
                   />
                   
                   {/* Content Overlay */}
@@ -217,84 +244,88 @@ const CategorySection = ({ category, products, index }) => {
                   {/* Products Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <AnimatePresence mode="wait">
-                      {currentProducts.map((product, productIndex) => (
-                        <motion.div
-                          key={`${product.id}-${currentPage}`}
-                          variants={cardVariants}
-                          initial="hidden"
-                          animate="visible"
-                          exit="hidden"
-                          whileHover="hover"
-                          className={`group relative ${styles.card} ${styles.border} rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm`}
-                        >
-                          {/* Product Image */}
-                          <div className="relative overflow-hidden">
-                            <motion.img
-                              src={product.images?.[0] || category.image}
-                              alt={product.name}
-                              className="w-full h-64 object-cover transform group-hover:scale-110 transition-transform duration-700"
-                              whileHover={{ scale: 1.1 }}
-                              transition={{ duration: 0.8 }}
-                            />
-                            
-                            {/* Overlay Gradient */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            
-                            {/* Action Buttons */}
-                            <div className="absolute top-4 right-4 flex gap-2">
-                              <button className="p-3 bg-white/20 backdrop-blur-lg rounded-2xl text-white transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 hover:bg-white/30">
-                                <Heart className="w-4 h-4" />
-                              </button>
-                              <button className="p-3 bg-orange-500 text-white rounded-2xl transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 delay-100 hover:bg-orange-600">
-                                <ShoppingBag className="w-4 h-4" />
-                              </button>
-                            </div>
-                            
-                            {/* Stock Badge */}
-                            {product.inStock && (
-                              <div className="absolute top-4 left-4">
-                                <span className="px-3 py-1.5 bg-green-500 text-white rounded-full text-xs font-semibold backdrop-blur-sm">
-                                  In Stock
-                                </span>
+                      {currentProducts.map((product, productIndex) => {
+                        const { formatted: currentPrice } = formatPrice(product.price);
+                        const { formatted: originalPrice } = formatPrice(product.price * 1.2);
+                        
+                        return (
+                          <motion.div
+                            key={`${product.id}-${currentPage}`}
+                            variants={cardVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="hidden"
+                            whileHover="hover"
+                            className={`group relative ${styles.card} ${styles.border} rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm cursor-pointer`}
+                          >
+                            <Link 
+                              to={handleProductClick(product)}
+                              className="block"
+                            >
+                              {/* Product Image */}
+                              <div className="relative overflow-hidden">
+                                <motion.img
+                                  src={product.images?.[0] || getCategoryImage()}
+                                  alt={product.name}
+                                  className="w-full h-64 object-cover transform group-hover:scale-110 transition-transform duration-700"
+                                  whileHover={{ scale: 1.1 }}
+                                  transition={{ duration: 0.8 }}
+                                  onError={(e) => {
+                                    // Fallback if product image fails to load
+                                    e.target.src = getCategoryImage();
+                                  }}
+                                />
+                                
+                                {/* Overlay Gradient */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                
+                                {/* Stock Badge */}
+                                {product.inStock && (
+                                  <div className="absolute top-4 left-4">
+                                    <span className="px-3 py-1.5 bg-green-500 text-white rounded-full text-xs font-semibold backdrop-blur-sm">
+                                      In Stock
+                                    </span>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                          
-                          {/* Product Info */}
-                          <div className="p-6">
-                            <div className="flex items-start justify-between mb-3">
-                              <h4 className={`${styles.text} font-semibold text-lg leading-tight line-clamp-2 flex-1 pr-4`}>
-                                {product.name}
-                              </h4>
-                              <div className="flex items-center gap-1">
-                                <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                                <span className={`${styles.subtitle} text-sm font-medium`}>4.8</span>
+                              
+                              {/* Product Info */}
+                              <div className="p-6">
+                                <div className="flex items-start justify-between mb-3">
+                                  <h4 className={`${styles.text} font-semibold text-lg leading-tight line-clamp-2 flex-1 pr-4`}>
+                                    {product.name}
+                                  </h4>
+                                  <div className="flex items-center gap-1">
+                                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                                    <span className={`${styles.subtitle} text-sm font-medium`}>4.8</span>
+                                  </div>
+                                </div>
+                                
+                                <p className={`${styles.subtitle} text-sm mb-4 line-clamp-2 font-light`}>
+                                  Premium quality {category.label.toLowerCase()} designed for excellence
+                                </p>
+                                
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <span className="text-orange-500 font-bold text-xl">
+                                      {currentPrice}
+                                    </span>
+                                    <span className={`${styles.subtitle} text-sm line-through ml-2`}>
+                                      {originalPrice}
+                                    </span>
+                                  </div>
+                                  <span className={`${styles.subtitle} text-xs font-medium px-3 py-1.5 rounded-full ${styles.border}`}>
+                                    {category.label}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                            
-                            <p className={`${styles.subtitle} text-sm mb-4 line-clamp-2 font-light`}>
-                              Premium quality {category.label.toLowerCase()} designed for excellence
-                            </p>
-                            
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <span className="text-orange-500 font-bold text-xl">
-                                  ${product.price}
-                                </span>
-                                <span className={`${styles.subtitle} text-sm line-through ml-2`}>
-                                  ${(product.price * 1.2).toFixed(2)}
-                                </span>
-                              </div>
-                              <span className={`${styles.subtitle} text-xs font-medium px-3 py-1.5 rounded-full ${styles.border}`}>
-                                {category.label}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          {/* Hover Effect Border */}
-                          <div className="absolute inset-0 rounded-3xl border-2 border-transparent group-hover:border-orange-500/30 transition-all duration-500"></div>
-                        </motion.div>
-                      ))}
+                              
+                              {/* Hover Effect Border */}
+                              <div className="absolute inset-0 rounded-3xl border-2 border-transparent group-hover:border-orange-500/30 transition-all duration-500"></div>
+                            </Link>
+                          </motion.div>
+                        );
+                      })}
                     </AnimatePresence>
                   </div>
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import CategorySection from "../../components/ui/categories/CategorySection";
 import ResponsiveHero from "../../components/ui/hero/ResponsiveHero";
 import { SEO } from "../../contexts/SEOContext";
+import { useTheme } from "../../contexts/ThemeContext";
 import '../../styles/swiper-custom.css';
 import { productService } from '../../services/api/productService';
 
@@ -9,6 +10,7 @@ const Home = () => {
   const [categories, setCategories] = useState([]);
   const [categoryProducts, setCategoryProducts] = useState({});
   const [loading, setLoading] = useState(true);
+  const { theme } = useTheme();
 
   useEffect(() => {
     fetchCategories();
@@ -34,18 +36,18 @@ const Home = () => {
   };
 
   const enhanceCategoriesWithImages = async (categories) => {
-    // Premium professional images for each category
+    // Use your product images or local fallback images
     const categoryImages = {
-      "Accessories": "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=800&h=1000&fit=crop&crop=center",
-      "Men's Clothing": "https://images.unsplash.com/photo-1617137968427-85924c800a22?w=800&h=1000&fit=crop&crop=center",
-      "Women's Clothing": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&h=1000&fit=crop&crop=center",
-      "Home & Living": "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&h=1000&fit=crop&crop=center",
-      "general": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=1000&fit=crop&crop=center"
+      "Accessories": "/images/categories/accessories-banner.jpg",
+      "Men's Clothing": "/images/categories/mens-clothing-banner.jpg", 
+      "Women's Clothing": "/images/categories/womens-clothing-banner.jpg",
+      "Home & Living": "/images/categories/home-living-banner.jpg",
+      "general": "/images/categories/general-banner.jpg"
     };
 
     return categories.map(category => ({
       ...category,
-      image: categoryImages[category.value] || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=1000&fit=crop&crop=center",
+      image: categoryImages[category.value] || "/images/categories/default-banner.jpg",
       gradient: getCategoryGradient(category.value),
       description: getCategoryDescription(category.value)
     }));
@@ -118,19 +120,53 @@ const Home = () => {
     setCategoryProducts(productsMap);
   };
 
+  // Theme-based styles
+  const getThemeStyles = () => {
+    const baseStyles = {
+      light: {
+        background: 'bg-gradient-to-br from-gray-50 to-gray-100',
+        text: 'text-gray-900',
+        loading: {
+          background: 'bg-gradient-to-br from-gray-50 to-gray-100',
+          text: 'text-gray-600'
+        }
+      },
+      dark: {
+        background: 'bg-gradient-to-br from-gray-900 to-gray-800',
+        text: 'text-white',
+        loading: {
+          background: 'bg-gradient-to-br from-gray-900 to-gray-800',
+          text: 'text-gray-300'
+        }
+      },
+      smokey: {
+        background: 'bg-gradient-to-br from-gray-800 to-gray-700',
+        text: 'text-white',
+        loading: {
+          background: 'bg-gradient-to-br from-gray-800 to-gray-700',
+          text: 'text-gray-300'
+        }
+      }
+    };
+
+    return baseStyles[theme] || baseStyles.light;
+  };
+
+  const styles = getThemeStyles();
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className={`min-h-screen flex items-center justify-center ${styles.loading.background}`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg font-light">Loading Luxury Collections...</p>
+          <p className={`${styles.loading.text} text-lg font-light`}>Loading Luxury Collections...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden">
+    <div className={`overflow-hidden ${styles.background} ${styles.text}`}>
       <SEO
         title="Agumiya - Redefining Luxury Fashion | Premium Designer Collections"
         description="Experience unparalleled luxury with Agumiya's exclusive designer collections. Sustainable, authentic, and crafted for the discerning individual."
