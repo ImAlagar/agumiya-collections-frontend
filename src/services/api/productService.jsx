@@ -73,17 +73,29 @@ export const productService = {
     }
   },
 
-  async deleteProduct(id) {
-    try {
-      const response = await apiClient.delete(`/products/${id}`, {
-        timeout: 30000
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Delete product error:', error);
-      throw error;
-    }
-  },
+async deleteProduct(id) {
+  try {
+    const response = await apiClient.delete(`/products/${id}`, {
+      timeout: 30000
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Delete product error:', error);
+    throw error;
+  }
+},
+
+async deletePrintifyProduct(shopId, printifyProductId) {
+  try {
+    const response = await apiClient.delete(`/products/printify/${shopId}/${printifyProductId}`, {
+      timeout: 30000
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Delete Printify product error:', error);
+    throw error;
+  }
+},
 
   async getSimilarProducts(productId, limit = 4) {
     try {

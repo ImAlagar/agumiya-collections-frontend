@@ -18,6 +18,7 @@ const AdminProduct = () => {
     fetchProducts, 
     syncProducts,
     updateFilters,
+    deletePrintifyProduct, // ✅ Add this
     updatePageSize,
     clearError 
   } = useProducts();
@@ -48,21 +49,6 @@ const AdminProduct = () => {
     updatePageSize(newSize);
   };
 
-  const handleEdit = (product) => {
-    setSelectedProduct(product);
-    setIsModalOpen(true);
-  };
-
-  const handleCreate = () => {
-    setSelectedProduct(null);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedProduct(null);
-  };
-
   const handleFilterChange = (newFilters) => {
     setLocalFilters(prev => ({ ...prev, ...newFilters }));
   };
@@ -76,6 +62,26 @@ const AdminProduct = () => {
       const result = await syncProducts();
       return result;
     } catch (error) {
+      throw error;
+    }
+  };
+
+  // ✅ Fixed delete handler
+  const handleDeletePrintify = async (shopId, printifyProductId) => {
+    try {
+      console.log('🔄 Admin: Deleting Printify product:', { shopId, printifyProductId });
+      const result = await deletePrintifyProduct(shopId, printifyProductId);
+      
+      if (result.success) {
+        console.log('✅ Admin: Product deleted successfully');
+        // Optional: Show success message or refresh products
+        fetchProducts(pagination.currentPage); // Refresh the list
+      } else {
+        throw new Error(result.error || 'Failed to delete Printify product');
+      }
+    } catch (error) {
+      console.error('❌ Admin: Printify delete error:', error);
+      alert(`Printify delete failed: ${error.message}`);
       throw error;
     }
   };
@@ -166,26 +172,25 @@ const AdminProduct = () => {
           products={products}
           isLoading={isLoading}
           pagination={pagination}
-          onEdit={handleEdit}
+          onDeletePrintify={handleDeletePrintify} // ✅ Correct prop name
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}
         />
       </div>
 
-        {/* Sync Status Banner */}
-        {isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
-          >
-            <RefreshCwIcon className="w-4 h-4 animate-spin" />
-            <span>Loading products...</span>
-          </motion.div>
-        )}
-        
+      {/* Sync Status Banner */}
+      {isLoading && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
+        >
+          <RefreshCwIcon className="w-4 h-4 animate-spin" />
+          <span>Loading products...</span>
+        </motion.div>
+      )}
     </motion.div>
   );
 };
 
-export default AdminProduct
+export default AdminProduct;

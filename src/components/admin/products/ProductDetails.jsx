@@ -195,13 +195,6 @@ const ProductDetails = ({ product, onClose }) => {
               </div>
             </div>
             
-            {/* Device indicator for debugging - remove in production */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="flex items-center gap-2 text-xs opacity-50 mt-1">
-                {isMobile ? <Smartphone size={12} /> : isTablet ? <Tablet size={12} /> : <Monitor size={12} />}
-                <span>{isMobile ? 'Mobile' : isTablet ? 'Tablet' : 'Desktop'}</span>
-              </div>
-            )}
           </div>
           
           {!isMobile && (

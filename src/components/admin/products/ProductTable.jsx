@@ -3,11 +3,29 @@ import { motion } from 'framer-motion';
 import Loader from '../../common/Loader';
 import ProductDetails from './ProductDetails';
 import { itemVariants, staggerVariants } from '../../../contexts/ProductsContext';
-import { Package, Image as ImageIcon, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+  Package, 
+  Image as ImageIcon, 
+  Calendar, 
+  ChevronLeft, 
+  ChevronRight, 
+  MoreVertical,
+  Globe
+} from 'lucide-react';
 
-const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSizeChange, onEdit }) => {
+const ProductTable = ({ 
+  products, 
+  isLoading, 
+  pagination, 
+  onPageChange, 
+  onPageSizeChange, 
+  onDeletePrintify 
+}) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [actionMenu, setActionMenu] = useState(null);
 
   const handleRowClick = (product) => {
     setSelectedProduct(product);
@@ -18,6 +36,52 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
     setShowDetails(false);
     setSelectedProduct(null);
   };
+
+  const handleDeleteClick = (product, e) => {
+    if (e) e.stopPropagation();
+    setDeleteConfirm(product);
+  };
+
+const handleConfirmDelete = async () => {
+  if (!deleteConfirm || !onDeletePrintify) return;
+  
+  console.log('🔄 Starting delete process:', {
+    product: deleteConfirm.name,
+    printifyProductId: deleteConfirm.printifyProductId
+  });
+  
+  try {
+    setIsDeleting(true);
+    // Delete from Printify and local database
+    const result = await onDeletePrintify('24454051', deleteConfirm.printifyProductId);
+    console.log('✅ Delete result:', result);
+    
+    setDeleteConfirm(null);
+    setActionMenu(null);
+  } catch (error) {
+    console.error('❌ Delete failed:', error);
+    // Show error message to user
+    alert(`Delete failed: ${error.message}`);
+  } finally {
+    setIsDeleting(false);
+  }
+};
+
+  const handleCancelDelete = () => {
+    setDeleteConfirm(null);
+  };
+
+  const toggleActionMenu = (productId, e) => {
+    e.stopPropagation();
+    setActionMenu(actionMenu === productId ? null : productId);
+  };
+
+  // Close action menu when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = () => setActionMenu(null);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   if (isLoading) {
     return (
@@ -86,6 +150,7 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                 <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Variants</th>
                 <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Media</th>
                 <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Created</th>
+                <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400 w-20">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -107,7 +172,9 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                             e.target.src = '/api/placeholder/40/40';
                           }}
                         />
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+                        {product.printifyProductId && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800" title="Synced with Printify" />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
@@ -115,6 +182,9 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
                           SKU: {product.sku || 'N/A'}
+                          {product.printifyProductId && (
+                            <span className="ml-2 text-green-600 dark:text-green-400">• Printify</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -128,11 +198,6 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                     <div className="font-semibold text-gray-900 dark:text-white">
                       ${typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
                     </div>
-                    {product.comparePrice && (
-                      <div className="text-sm text-gray-500 line-through">
-                        ${product.comparePrice}
-                      </div>
-                    )}
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
@@ -150,13 +215,6 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                       <Package className="w-4 h-4" />
                       {product.printifyVariants?.length || 0}
-                      <span className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${
-                        product.printifyVariants?.filter(v => v.isAvailable).length > 0
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                      }`}>
-                        {product.printifyVariants?.filter(v => v.isAvailable).length || 0} active
-                      </span>
                     </div>
                   </td>
                   <td className="p-4">
@@ -172,6 +230,28 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                         month: 'short',
                         day: 'numeric'
                       })}
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <div className="relative">
+                      <button
+                        onClick={(e) => toggleActionMenu(product.id, e)}
+                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      
+                      {actionMenu === product.id && (
+                        <div className="absolute right-0 top-10 z-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[160px]">
+                          <button
+                            onClick={(e) => handleDeleteClick(product, e)}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900 transition-colors"
+                          >
+                            <Globe className="w-4 h-4" />
+                            Delete Printify
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </td>
                 </motion.tr>
@@ -200,22 +280,31 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                         e.target.src = '/api/placeholder/40/40';
                       }}
                     />
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+                    {product.printifyProductId && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800" />
+                    )}
                   </div>
                   <div>
                     <div className="font-semibold text-gray-900 dark:text-white">
                       {product.name}
                     </div>
-                    <div className="text-sm text-gray-500">{product.category}</div>
+                    <div className="text-sm text-gray-500">
+                      {product.category}
+                      {product.printifyProductId && (
+                        <span className="ml-2 text-green-600 dark:text-green-400">• Printify</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  product.inStock 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                }`}>
-                  {product.inStock ? 'Active' : 'Inactive'}
-                </span>
+                <div className="flex gap-1">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    product.inStock 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                  }`}>
+                    {product.inStock ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4 text-sm mb-3">
@@ -249,15 +338,21 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   Created {new Date(product.createdAt).toLocaleDateString()}
                 </div>
-                <div className="text-blue-600 dark:text-blue-400 text-xs font-medium">
-                  Tap to view details
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => handleDeleteClick(product, e)}
+                    className="p-1 text-orange-500 hover:bg-orange-50 rounded transition-colors text-xs"
+                    title="Delete from Printify"
+                  >
+                    <Globe className="w-3 h-3" />
+                  </button>
                 </div>
               </div>
             </motion.div>
           ))}
         </div>
 
-        {/* Pagination - FIXED VERSION */}
+        {/* Pagination - Keep existing pagination code */}
         {pagination && pagination.totalPages > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -271,7 +366,6 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
               {pagination.totalCount} products
             </div>
             
-            {/* Pagination Controls */}
             {pagination.totalPages > 1 && (
               <div className="flex items-center gap-2">
                 <button
@@ -284,13 +378,11 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                 </button>
                 
                 <div className="flex gap-1">
-                  {/* Show page numbers */}
                   {(() => {
                     const pages = [];
                     const totalPages = pagination.totalPages;
                     const currentPage = pagination.currentPage;
                     
-                    // Always show first page
                     pages.push(
                       <button
                         key={1}
@@ -305,7 +397,6 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                       </button>
                     );
 
-                    // Show ellipsis if needed after first page
                     if (currentPage > 3) {
                       pages.push(
                         <span key="ellipsis1" className="px-2 text-gray-500">
@@ -314,7 +405,6 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                       );
                     }
 
-                    // Show pages around current page
                     for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
                       if (i !== 1 && i !== totalPages) {
                         pages.push(
@@ -333,7 +423,6 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                       }
                     }
 
-                    // Show ellipsis if needed before last page
                     if (currentPage < totalPages - 2) {
                       pages.push(
                         <span key="ellipsis2" className="px-2 text-gray-500">
@@ -342,7 +431,6 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
                       );
                     }
 
-                    // Always show last page if there is more than one page
                     if (totalPages > 1) {
                       pages.push(
                         <button
@@ -377,6 +465,65 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
         )}
       </motion.div>
 
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
+                <Globe className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Delete Printify Product
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  This will delete from both Printify and local database
+                </p>
+              </div>
+            </div>
+            
+            <p className="text-gray-700 dark:text-gray-300 mb-6">
+              Are you sure you want to delete <strong>"{deleteConfirm.name}"</strong>? 
+              <span className="block mt-1 text-sm text-orange-600 dark:text-orange-400">
+                This action will remove the product from your Printify store and local database.
+              </span>
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancelDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader size="sm" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Globe className="w-4 h-4" />
+                    Delete Printify
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Product Details Sidebar */}
       {showDetails && selectedProduct && (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -384,7 +531,8 @@ const ProductTable = ({ products, isLoading, pagination, onPageChange, onPageSiz
           <div className="relative w-full max-w-2xl h-full">
             <ProductDetails 
               product={selectedProduct} 
-              onClose={handleCloseDetails} 
+              onClose={handleCloseDetails}
+              onDeletePrintify={onDeletePrintify}
             />
           </div>
         </div>

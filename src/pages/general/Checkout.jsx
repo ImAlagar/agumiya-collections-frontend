@@ -12,13 +12,14 @@ import ShippingStep from '../../components/user/checkout/ShippingStep';
 import ReviewStep from '../../components/user/checkout/ReviewStep';
 import PaymentStep from '../../components/user/checkout/PaymentStep';
 import ConfirmationStep from '../../components/user/checkout/ConfirmationStep';
-import OrderSummary from '../../components/user/checkout/OrderSummary';
 import { useAuth } from '../../contexts/AuthProvider';
+import OrderSummary from '../../components/user/checkout/OrderSummary';
 
 const Checkout = () => {
   const { cartItems, clearCart } = useCart();
   const [currentStep, setCurrentStep] = useState(1);
   const [formErrors, setFormErrors] = useState({});
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
   const { isAuthenticated, user } = useAuth();
   const { theme } = useTheme();
   const { formatPrice } = useCurrency(); // ✅ Use currency context
@@ -543,16 +544,22 @@ const Checkout = () => {
 
           {/* Order Summary Sidebar */}
           <div className="lg:col-span-1">
-            <OrderSummary 
-              cartItems={cartItems}
-              subtotal={subtotal}
-              shipping={shipping}
-              tax={tax}
-              grandTotal={grandTotal}
-              currentStep={currentStep}
-              themeStyles={themeStyles}
-              formatPrice={formatPrice} // ✅ Pass formatPrice
-            />
+              <OrderSummary
+                cartItems={cartItems}
+                appliedCoupon={appliedCoupon}
+                shippingCost={selectedShipping?.cost || 0}
+                formatPrice={formatPrice}
+                getCurrencySymbol={getCurrencySymbol}
+                onApplyCoupon={handleApplyCoupon}
+                onRemoveCoupon={handleRemoveCoupon}
+                onProceedToCheckout={handleCompleteOrder}
+                couponLoading={couponLoading}
+                showCouponSection={true}
+                showActionButtons={true}
+                showItemsList={true}
+                isSticky={true}
+                isCheckout={true}
+              />
           </div>
         </div>
       </div>

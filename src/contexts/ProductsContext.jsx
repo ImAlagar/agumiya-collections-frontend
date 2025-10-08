@@ -101,14 +101,16 @@ const productsReducer = (state, action) => {
             : state.currentProduct,
       };
 
-    case PRODUCT_ACTIONS.DELETE_PRODUCT:
-      const productId = action.payload;
-      return {
-        ...state,
-        products: state.products.filter((p) => p.id !== productId),
-        currentProduct:
-          state.currentProduct?.id === productId ? null : state.currentProduct,
-      };
+        case PRODUCT_ACTIONS.DELETE_PRODUCT:
+          const productId = action.payload;
+          return {
+            ...state,
+            products: state.products.filter((p) => p.id !== productId && p.printifyProductId !== productId),
+            currentProduct:
+              state.currentProduct?.id === productId || state.currentProduct?.printifyProductId === productId 
+                ? null 
+                : state.currentProduct,
+          };
 
     case PRODUCT_ACTIONS.SET_SYNC_STATUS:
       return {
@@ -279,7 +281,7 @@ export const ProductsProvider = ({ children }) => {
   // 🔸 Sync Products
   // ========================
   const syncProducts = useCallback(
-    async (shopId = "23342579") => {
+    async (shopId = "24454051") => {
       try {
         dispatch({
           type: PRODUCT_ACTIONS.SET_SYNC_STATUS,
@@ -352,19 +354,42 @@ export const ProductsProvider = ({ children }) => {
     }
   }, []);
 
-  const deleteProduct = useCallback(async (id) => {
-    try {
-      const response = await productService.deleteProduct(id);
-      if (response.success) {
-        dispatch({ type: PRODUCT_ACTIONS.DELETE_PRODUCT, payload: id });
-        return { success: true };
-      } else throw new Error(response.message || "Delete failed");
-    } catch (error) {
-      dispatch({ type: PRODUCT_ACTIONS.SET_ERROR, payload: error.message });
-      return { success: false, error: error.message };
+// In your ProductsContext, ensure deleteProduct is properly implemented
+const deleteProduct = useCallback(async (id) => {
+  try {
+    const response = await productService.deleteProduct(id);
+    if (response.success) {
+      dispatch({ type: PRODUCT_ACTIONS.DELETE_PRODUCT, payload: id });
+      return { success: true };
+    } else {
+      throw new Error(response.message || "Delete failed");
     }
-  }, []);
+  } catch (error) {
+    dispatch({ type: PRODUCT_ACTIONS.SET_ERROR, payload: error.message });
+    return { success: false, error: error.message };
+  }
+}, []);
 
+
+// In your ProductsContext.jsx - Update the deletePrintifyProduct function
+const deletePrintifyProduct = useCallback(async (shopId, printifyProductId) => {
+  try {
+    const response = await productService.deletePrintifyProduct(shopId, printifyProductId);
+    if (response.success) {
+      // Find the product by printifyProductId and remove it from state
+      const productToDelete = state.products.find(p => p.printifyProductId === printifyProductId);
+      if (productToDelete) {
+        dispatch({ type: PRODUCT_ACTIONS.DELETE_PRODUCT, payload: productToDelete.id });
+      }
+      return { success: true, data: response.data };
+    } else {
+      throw new Error(response.message || "Printify delete failed");
+    }
+  } catch (error) {
+    dispatch({ type: PRODUCT_ACTIONS.SET_ERROR, payload: error.message });
+    return { success: false, error: error.message };
+  }
+}, [state.products]); // Add state.products as dependency
   // ========================
   // 🔸 Get Similar Products
   // ========================
@@ -408,6 +433,7 @@ export const ProductsProvider = ({ children }) => {
     setFilters,
     updateFilters,
     updatePageSize,
+    deletePrintifyProduct,
     clearError,
   };
 

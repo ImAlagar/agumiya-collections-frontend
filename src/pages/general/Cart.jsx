@@ -1,21 +1,112 @@
 // src/pages/general/Cart.js
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../contexts/CartContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
-import { FiShoppingBag, FiTrash2, FiPlus, FiMinus, FiArrowRight, FiShoppingCart } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthProvider';
+import { useCoupon } from '../../contexts/CouponContext';
+import { 
+  FiShoppingBag, 
+  FiTrash2, 
+  FiPlus, 
+  FiMinus, 
+  FiArrowRight, 
+  FiShoppingCart, 
+  FiTag, 
+  FiCheck, 
+  FiX,
+  FiClock
+} from 'react-icons/fi';
+import OrderSummary from '../../components/user/checkout/OrderSummary';
 
 const Cart = () => {
-  const { cartItems, updateQuantity, removeFromCart, clearCart, total } = useCart();
+  const { cartItems, updateQuantity, removeFromCart, clearCart, total, getCartTotal } = useCart();
   const { formatPrice, userCurrency, getCurrencySymbol } = useCurrency();
-  const { isAuthenticated } = useAuth(); // Add this
-  // Calculate totals using the total from cart context
-  const subtotal = total || cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shipping = 10; // Fixed shipping cost
-  const tax = subtotal * 0.08; // 8% tax
-const grandTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
+  const { isAuthenticated, user } = useAuth();
+  const { validateCoupon, isLoading: couponLoading } = useCoupon();
+  const navigate = useNavigate();
+  
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState('');
+  const [isApplying, setIsApplying] = useState(false);
+
+  // Calculate totals
+  const subtotal = getCartTotal?.() || total || cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const shipping = subtotal > 0 ? 10 : 0; // Free shipping if no items
+  const tax = subtotal * 0.08;
+  const discountAmount = appliedCoupon?.discountAmount || 0;
+  const grandTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      setCouponError('Add items to cart before applying coupon');
+      return;
+    }
+
+    setIsApplying(true);
+    setCouponError('');
+
+    try {
+      const validationData = {
+        code: couponCode.trim().toUpperCase(),
+        cartItems: cartItems.map(item => ({
+          id: item.id,
+          productId: item.productId || item.id,
+          price: item.price,
+          quantity: item.quantity,
+          category: item.category,
+          name: item.name,
+          variant: item.variant
+        })),
+        subtotal: subtotal,
+        userId: user?.id // Include user ID if authenticated
+      };
+
+      const result = await validateCoupon(validationData);
+      
+      if (result.success && result.data.isValid) {
+        setAppliedCoupon(result.data.coupon);
+        setCouponError('');
+      } else {
+        setCouponError(result.error || 'Invalid coupon code');
+        setAppliedCoupon(null);
+      }
+    } catch (error) {
+      setCouponError(error.message || 'Failed to apply coupon');
+      setAppliedCoupon(null);
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError('');
+  };
+
+  const handleProceedToCheckout = () => {
+    const checkoutData = {
+      cartItems,
+      appliedCoupon,
+      totals: {
+        subtotal,
+        discount: discountAmount,
+        shipping,
+        tax,
+        grandTotal
+      }
+    };
+    
+    navigate('/checkout', { state: checkoutData });
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -29,10 +120,14 @@ const grandTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
 
   const itemVariants = {
     hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0 }
+    visible: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: 20, transition: { duration: 0.3 } }
   };
 
-
+  // Update cart totals when coupon changes
+  useEffect(() => {
+    // This ensures the totals are recalculated when coupon is applied/removed
+  }, [appliedCoupon, cartItems]);
 
   if (cartItems.length === 0) {
     return (
@@ -85,10 +180,6 @@ const grandTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
     );
   }
 
-
-    useEffect(() => {
-    // This will make the cart re-render when auth state changes
-  }, [isAuthenticated]);
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -143,12 +234,12 @@ const grandTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
                   
                   return (
                     <motion.div
-                      key={`${item.id}-${index}`}
+                      key={`${item.id}-${item.variant?.id || ''}-${index}`}
                       variants={itemVariants}
                       layout
                       initial="hidden"
                       animate="visible"
-                      exit={{ opacity: 0, x: -20, transition: { duration: 0.3 } }}
+                      exit="exit"
                       className="flex flex-col sm:flex-row items-start sm:items-center p-4 sm:p-6 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
                     >
                       {/* Product Image & Basic Info */}
@@ -159,9 +250,12 @@ const grandTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
                           className="relative flex-shrink-0"
                         >
                           <img
-                            src={item.image}
+                            src={item.image || '/api/placeholder/96/96'}
                             alt={item.name}
                             className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 object-cover rounded-xl shadow-md"
+                            onError={(e) => {
+                              e.target.src = '/api/placeholder/96/96';
+                            }}
                           />
                           <div className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-xs sm:text-sm font-bold shadow-lg">
                             {item.quantity}
@@ -300,148 +394,125 @@ const grandTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
               </Link>
             </motion.div>
           </div>
-          {/* Coupon Section in Cart */}
-          <div className="mb-6">
-            <CouponSection
-              subtotal={subtotal}
-              cartItems={cartItems}
-              onCouponApplied={(coupon) => {
-                // Update cart totals with discount
-                setAppliedCoupon(coupon);
-                setDiscountAmount(coupon.discountAmount);
-              }}
-              onCouponRemoved={() => {
-                setAppliedCoupon(null);
-                setDiscountAmount(0);
-              }}
-              themeStyles={themeStyles}
-            />
-          </div>
 
-
-          {/* Order Summary */}
-          <div className="lg:col-span-1">
+          {/* Order Summary & Coupon Section */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Coupon Section */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 lg:p-8 sticky top-8"
+              transition={{ delay: 0.2 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6"
             >
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-                <span className="mr-3">📦</span>
-                Order Summary
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                <FiTag className="mr-2" />
+                Apply Coupon
               </h3>
-              
-              {/* Pricing Breakdown */}
-              <div className="space-y-4 mb-6">
-                {[
-                  { label: 'Subtotal', amount: subtotal },
-                  { label: 'Shipping', amount: shipping },
-                  { label: 'Tax', amount: tax }
-                ].map(({ label, amount }, index) => {
-                  const { formatted: amountFormatted } = formatPrice(amount, userCurrency);
-                  
-                  return (
-                    <motion.div
-                      key={label}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 + index * 0.1 }}
-                      className="flex justify-between items-center py-2"
+
+              {!appliedCoupon ? (
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value.toUpperCase());
+                        setCouponError('');
+                      }}
+                      placeholder="Enter coupon code"
+                      className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 dark:placeholder-gray-400"
+                      disabled={isApplying || couponLoading}
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={!couponCode.trim() || isApplying || couponLoading || cartItems.length === 0}
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-xl font-semibold transition-colors disabled:cursor-not-allowed flex items-center space-x-2 min-w-[100px] justify-center"
                     >
-                      <span className="text-gray-600 dark:text-gray-400 font-medium">{label}</span>
-                      <span className="text-gray-900 dark:text-white font-semibold">
-                        {amountFormatted}
-                      </span>
-                    </motion.div>
-                  );
-                })}
-                
-                {/* Total */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7 }}
-                  className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700"
-                >
-                  <span className="text-xl font-bold text-gray-900 dark:text-white">Total</span>
-                  <div className="text-right">
-                    <span className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                      {formatPrice(grandTotal, userCurrency).formatted}
-                    </span>
-                    {userCurrency !== 'USD' && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        ≈ {formatPrice(grandTotal, 'USD').formatted}
-                      </p>
-                    )}
+                      {isApplying || couponLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span className="hidden sm:inline">Applying...</span>
+                        </>
+                      ) : (
+                        <span>Apply</span>
+                      )}
+                    </button>
                   </div>
-                </motion.div>
-              </div>
+                  
+                  {couponError && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-red-600 dark:text-red-400 text-sm flex items-center"
+                    >
+                      <FiX className="mr-1" />
+                      {couponError}
+                    </motion.p>
+                  )}
 
-              {/* Currency Info */}
-              {userCurrency !== 'USD' && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.8 }}
-                  className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-6 border border-blue-200 dark:border-blue-800"
-                >
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-blue-700 dark:text-blue-300 font-medium">
-                      Prices in {userCurrency}
-                    </span>
-                    <span className="text-blue-600 dark:text-blue-400 font-semibold">
-                      {getCurrencySymbol()} {userCurrency}
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 text-center">
-                    Amounts automatically converted from USD
-                  </p>
-                </motion.div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="space-y-4">
-                <Link
-                  to="/checkout"
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 px-6 rounded-2xl font-bold text-lg text-center block transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center space-x-3"
-                >
-                  <span>Proceed to Checkout</span>
-                  <FiArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                </Link>
-
-                <Link
-                  to="/shop"
-                  className="w-full border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-blue-500 dark:hover:border-blue-400 py-3 px-6 rounded-2xl font-semibold text-center block transition-all duration-300 flex items-center justify-center space-x-2"
-                >
-                  <FiShoppingBag size={18} />
-                  <span>Continue Shopping</span>
-                </Link>
-              </div>
-
-              {/* Trust Badges */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1 }}
-                className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700"
-              >
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div className="text-center">
-                    <div className="text-2xl mb-1">🔒</div>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Secure</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl mb-1">🚚</div>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Fast Shipping</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl mb-1">↩️</div>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Easy Returns</p>
+                  {/* Coupon Tips */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
+                    <p className="text-blue-800 dark:text-blue-300 text-xs flex items-center">
+                      <FiClock className="mr-1" />
+                      Try: <strong className="mx-1">H7TSR1AP</strong> for 10% off
+                    </p>
                   </div>
                 </div>
-              </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <FiCheck className="text-green-600 dark:text-green-400" />
+                      <div>
+                        <span className="font-semibold text-green-800 dark:text-green-300 block">
+                          {appliedCoupon.code}
+                        </span>
+                        <span className="text-green-600 dark:text-green-400 text-sm block">
+                          -{formatPrice(appliedCoupon.discountAmount, userCurrency).formatted}
+                          {appliedCoupon.discountType === 'PERCENTAGE' && (
+                            <span className="text-xs ml-1">({appliedCoupon.discountValue}% off)</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleRemoveCoupon}
+                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      title="Remove coupon"
+                    >
+                      <FiX size={16} />
+                    </button>
+                  </div>
+                  {appliedCoupon.applicableSubtotal && (
+                    <p className="text-green-600 dark:text-green-400 text-xs mt-2">
+                      Applied to {formatPrice(appliedCoupon.applicableSubtotal, userCurrency).formatted} of items
+                    </p>
+                  )}
+                </motion.div>
+              )}
             </motion.div>
+
+            {/* Order Summary */}
+            <OrderSummary
+              cartItems={cartItems}
+              appliedCoupon={appliedCoupon}
+              shippingCost={10}
+              formatPrice={formatPrice}
+              getCurrencySymbol={getCurrencySymbol}
+              currency={userCurrency}
+              onApplyCoupon={handleApplyCoupon}
+              onRemoveCoupon={handleRemoveCoupon}
+              onProceedToCheckout={handleProceedToCheckout}
+              couponLoading={couponLoading}
+              showCouponSection={true}
+              showActionButtons={true}
+              showItemsList={true}
+              isSticky={true}
+            />
           </div>
         </div>
       </div>
