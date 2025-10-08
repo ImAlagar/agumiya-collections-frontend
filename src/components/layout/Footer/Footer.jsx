@@ -1,14 +1,40 @@
-import React from 'react';
+// src/components/layout/Footer.jsx
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { 
   Heart,
   ArrowUp
 } from 'lucide-react';
-import { contactInfo, customerService, quickLinks, shopCategories, socialLinks } from '../../../utils/data.jsx';
+import { contactInfo, customerService, quickLinks, socialLinks } from '../../../utils/data.jsx';
 import { motion } from 'framer-motion';
+import { productService } from '../../../services/api/productService';
+import { useNavigate } from 'react-router-dom';
 
 const Footer = () => {
   const { theme } = useTheme();
+  const navigate = useNavigate();
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoading(true);
+        const response = await productService.getProductFilters();
+        
+        if (response.success && response.data.categories) {
+          setCategories(response.data.categories);
+        }
+      } catch (error) {
+        console.error('Error fetching categories for footer:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   // Animation variants
   const containerVariants = {
@@ -38,6 +64,25 @@ const Footer = () => {
   // Scroll to top function
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Handle category click - navigate to shop with category filter
+  const handleCategoryClick = (categoryValue) => {
+    // Navigate to shop page with category filter
+    navigate(`/shop?categories=${encodeURIComponent(categoryValue)}`);
+    
+    // Optional: Scroll to top after navigation
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
+  };
+
+  // Handle shop categories click - navigate to shop page
+  const handleShopCategoriesClick = () => {
+    navigate('/shop');
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   // Check if theme is dark mode
@@ -139,7 +184,7 @@ const Footer = () => {
             </ul>
           </motion.div>
 
-          {/* Shop Categories */}
+          {/* Dynamic Shop Categories */}
           <motion.div 
             variants={itemVariants}
             className="lg:col-span-1"
@@ -148,22 +193,66 @@ const Footer = () => {
               Shop Categories
               <span className={`absolute -bottom-2 left-0 w-10 h-0.5 ${isDarkMode ? 'bg-blue-500' : 'bg-blue-600'}`}></span>
             </h4>
-            <ul className="space-y-3">
-              {shopCategories.map((category, index) => (
+            
+            {loading ? (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, index) => (
+                  <div key={index} className="animate-pulse">
+                    <div className={`h-4 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
+                  </div>
+                ))}
+              </div>
+            ) : categories.length > 0 ? (
+              <ul className="space-y-3">
+                {/* All Categories Link */}
                 <motion.li 
-                  key={category.name}
                   whileHover={{ x: 5 }}
                   transition={{ type: "spring", stiffness: 300 }}
                 >
-                  <a 
-                    href={category.href} 
-                    className={`text-sm transition-colors hover:text-blue-500 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                  <button
+                    onClick={handleShopCategoriesClick}
+                    className={`text-sm transition-colors hover:text-blue-500 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-left w-full`}
                   >
-                    {category.name}
-                  </a>
+                    All Categories
+                  </button>
                 </motion.li>
-              ))}
-            </ul>
+                
+                {/* Dynamic Categories */}
+                {categories.slice(0, 6).map((category, index) => (
+                  <motion.li 
+                    key={category.value}
+                    whileHover={{ x: 5 }}
+                    transition={{ type: "spring", stiffness: 300, delay: index * 0.05 }}
+                  >
+                    <button
+                      onClick={() => handleCategoryClick(category.value)}
+                      className={`text-sm transition-colors hover:text-blue-500 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-left w-full flex justify-between items-center`}
+                    >
+                      <span>{category.label}</span>
+                    </button>
+                  </motion.li>
+                ))}
+                
+                {/* Show "View All" if there are more categories */}
+                {categories.length > 6 && (
+                  <motion.li 
+                    whileHover={{ x: 5 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <button
+                      onClick={handleShopCategoriesClick}
+                      className={`text-sm font-medium transition-colors hover:text-blue-500 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} text-left w-full`}
+                    >
+                      View All Categories →
+                    </button>
+                  </motion.li>
+                )}
+              </ul>
+            ) : (
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                No categories available
+              </p>
+            )}
           </motion.div>
 
           {/* Customer Service & Contact */}

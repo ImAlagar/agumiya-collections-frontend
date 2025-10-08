@@ -4,7 +4,7 @@ export const CONTACT_INFO = [
   {
     icon: Mail,
     label: "Customer Support",
-    value: "support@agumiyacollections.com",
+    value: "contact@agumiyacollections.com",
   },
   {
     icon: Truck,
@@ -90,7 +90,7 @@ export const socialLinks = [
 export const contactInfo = [
   {
     icon: <Mail size={16} />,
-    text: "support@agumiyacollections.com",
+    text: "contact@agumiyacollections.com",
     href: "mailto:contact@agumiyacollections.com"
   },
 ];

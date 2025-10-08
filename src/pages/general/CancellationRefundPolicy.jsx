@@ -89,7 +89,7 @@ const CancellationRefundPolicy = () => {
                           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Cancellation Allowed</h3>
                         </div>
                         <ul className="space-y-3 text-gray-700 dark:text-gray-300">
-                          {['Within 3 days of order placement', 'Before order is shipped', 'For customization orders before production starts'].map((item, index) => (
+                          {['Within 3 days of order placement', 'Before order is shipped'].map((item, index) => (
                             <li key={index} className="flex items-center">
                               <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
                               {item}
@@ -104,7 +104,7 @@ const CancellationRefundPolicy = () => {
                           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Cancellation Not Allowed</h3>
                         </div>
                         <ul className="space-y-3 text-gray-700 dark:text-gray-300">
-                          {['After order is shipped', 'Customized/personalized items', 'Sale/clearance items', 'Digital products'].map((item, index) => (
+                          {['After order is shipped', 'Customized/personalized items'].map((item, index) => (
                             <li key={index} className="flex items-center">
                               <div className="w-2 h-2 bg-red-500 rounded-full mr-3"></div>
                               {item}

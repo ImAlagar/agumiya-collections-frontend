@@ -15,7 +15,7 @@ const Cart = () => {
   const subtotal = total || cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shipping = 10; // Fixed shipping cost
   const tax = subtotal * 0.08; // 8% tax
-  const grandTotal = subtotal + shipping + tax;
+const grandTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -300,6 +300,24 @@ const Cart = () => {
               </Link>
             </motion.div>
           </div>
+          {/* Coupon Section in Cart */}
+          <div className="mb-6">
+            <CouponSection
+              subtotal={subtotal}
+              cartItems={cartItems}
+              onCouponApplied={(coupon) => {
+                // Update cart totals with discount
+                setAppliedCoupon(coupon);
+                setDiscountAmount(coupon.discountAmount);
+              }}
+              onCouponRemoved={() => {
+                setAppliedCoupon(null);
+                setDiscountAmount(0);
+              }}
+              themeStyles={themeStyles}
+            />
+          </div>
+
 
           {/* Order Summary */}
           <div className="lg:col-span-1">

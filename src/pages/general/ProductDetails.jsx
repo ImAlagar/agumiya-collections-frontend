@@ -525,7 +525,7 @@ const ProductDetails = () => {
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {displayVariants
                       .filter((variant, index, self) => {
                         const cleanTitle = variant.title.split('/')[0].trim();

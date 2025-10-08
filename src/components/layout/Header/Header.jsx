@@ -137,7 +137,7 @@ const Header = () => {
   // Announcement bar content
   const announcementContent = [
     "🚚 Free shipping worldwide on orders over $50",
-    "🎁 Special 20% off for new customers",
+    "🎁 Special 10% off for new customers",
     "⭐ Premium quality products with 100% satisfaction guarantee",
     "✉️ contact@agumiyacollections.com"
   ];
