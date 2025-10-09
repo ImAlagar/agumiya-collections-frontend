@@ -166,4 +166,122 @@ export const orderService = {
       );
     }
   },
+
+  // User cancels their own order
+  async cancelOrder(orderId, reason = "Cancelled by customer") {
+    try {
+      const response = await apiClient.post(
+        `${API_ENDPOINTS.ORDERS}/${orderId}/cancel`,
+        { reason }
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || "Failed to cancel order"
+      );
+    }
+  },
+
+  // Admin cancels any order
+  async adminCancelOrder(orderId, reason = "Cancelled by admin") {
+    try {
+      const response = await apiClient.post(
+        `${API_ENDPOINTS.ORDERS}/${orderId}/admin-cancel`,
+        { reason }
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || "Failed to cancel order"
+      );
+    }
+  },
+
+  // Process refund for cancelled order
+  async processRefund(orderId, reason = "Order cancellation") {
+    try {
+      const response = await apiClient.post(
+        `${API_ENDPOINTS.ORDERS}/${orderId}/process-refund`,
+        { reason }
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || "Failed to process refund"
+      );
+    }
+  },
+
+  // Retry failed refund
+  async retryRefund(orderId) {
+    try {
+      const response = await apiClient.post(
+        `${API_ENDPOINTS.ORDERS}/${orderId}/retry-refund`
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || "Failed to retry refund"
+      );
+    }
+  },
+
+  // Reset refund status
+  async resetRefundStatus(orderId) {
+    try {
+      const response = await apiClient.post(
+        `${API_ENDPOINTS.ORDERS}/${orderId}/reset-refund`
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || "Failed to reset refund status"
+      );
+    }
+  },
+
+  // Get cancelled orders with filters
+  async getCancelledOrders(params = {}) {
+    try {
+      const response = await apiClient.get(`${API_ENDPOINTS.ORDERS}/cancelled`, { params });
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || "Failed to fetch cancelled orders"
+      );
+    }
+  },
+
+  // Get cancellation statistics
+  async getCancellationStats() {
+    try {
+      const response = await apiClient.get(`${API_ENDPOINTS.ORDERS}/cancellation-stats`);
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || "Failed to fetch cancellation statistics"
+      );
+    }
+  },
+
+
+    async getOrderTracking(orderId) {
+    try {
+      const response = await apiClient.get(`${API_ENDPOINTS.ORDERS}/${orderId}/tracking`);
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || "Failed to fetch order tracking"
+      );
+    }
+  },
+
+  async markCouponAsUsed(couponUsageData) {
+    try {
+      const response = await apiClient.post(`${API_ENDPOINTS.COUPONS}/mark-used`, couponUsageData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to mark coupon as used');
+    }
+  },
 };

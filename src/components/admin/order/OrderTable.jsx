@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import Loader from '../../common/Loader';
 import OrderDetails from './OrderDetails';
 import { itemVariants, staggerVariants } from '../../../contexts/ProductsContext';
-import { Package, Calendar, User, CreditCard, Truck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Package, Calendar, User, CreditCard, Truck, ChevronLeft, ChevronRight, RefreshCw, X, AlertCircle } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
   const statusConfig = {
@@ -50,13 +50,14 @@ const PaymentStatusBadge = ({ status }) => {
     PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
     PAID: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
     FAILED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-    REFUNDED: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+    REFUNDED: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
+    REFUND_PENDING: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
   };
 
   return (
     <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${statusConfig[status] || statusConfig.PENDING}`}>
       <CreditCard className="w-3 h-3 mr-1" />
-      {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
+      {status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
     </span>
   );
 };
@@ -85,11 +86,26 @@ const OrderTable = ({
   pagination, 
   onPageChange,
   onPageSizeChange,
-  onViewOrder
+  onViewOrder,
+  onCancelOrder,
+  actionLoading
 }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
+  // Safe function to ensure orders is always an array
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  
+  console.log('🔍 OrderTable Debug:', {
+    ordersType: typeof orders,
+    ordersIsArray: Array.isArray(orders),
+    ordersLength: safeOrders.length,
+    orders: orders
+  });
+
+  // Rest of your component code remains the same...
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -137,7 +153,97 @@ const OrderTable = ({
     setSelectedOrder(null);
   };
 
-  if (isLoading && !orders.length) {
+  // Add cancel order handler
+  const handleCancelClick = (order, e) => {
+    e.stopPropagation(); // Prevent row click
+    setSelectedOrder(order);
+    setShowCancelModal(true);
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!selectedOrder || !cancelReason.trim()) return;
+    
+    try {
+      await onCancelOrder(selectedOrder.id, cancelReason);
+      setShowCancelModal(false);
+      setCancelReason('');
+      setSelectedOrder(null);
+    } catch (error) {
+      console.error('Cancel order error:', error);
+    }
+  };
+
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    if (onPageChange && pagination && newPage >= 1 && newPage <= pagination.totalPages) {
+      onPageChange(newPage);
+    }
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (newSize) => {
+    if (onPageSizeChange) {
+      onPageSizeChange(newSize);
+    }
+  };
+
+  // Calculate showing range
+  const getShowingRange = () => {
+    if (!pagination || !safeOrders.length) return { start: 0, end: 0, total: 0 };
+    
+    const start = ((pagination.currentPage - 1) * pagination.limit) + 1;
+    const end = Math.min(pagination.currentPage * pagination.limit, pagination.totalCount);
+    
+    return {
+      start,
+      end,
+      total: pagination.totalCount
+    };
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    if (!pagination) return [];
+    
+    const { currentPage, totalPages } = pagination;
+    const pages = [];
+    
+    // Always show first page
+    pages.push(1);
+    
+    // Calculate start and end for middle pages
+    let start = Math.max(2, currentPage - 1);
+    let end = Math.min(totalPages - 1, currentPage + 1);
+    
+    // Add ellipsis after first page if needed
+    if (start > 2) {
+      pages.push('...');
+    }
+    
+    // Add middle pages
+    for (let i = start; i <= end; i++) {
+      if (i !== 1 && i !== totalPages) {
+        pages.push(i);
+      }
+    }
+    
+    // Add ellipsis before last page if needed
+    if (end < totalPages - 1) {
+      pages.push('...');
+    }
+    
+    // Always show last page if there is more than one page
+    if (totalPages > 1) {
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
+
+  const showingRange = getShowingRange();
+  const pageNumbers = getPageNumbers();
+
+  if (isLoading && !safeOrders.length) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader size="lg" />
@@ -145,7 +251,7 @@ const OrderTable = ({
     );
   }
 
-  if (orders.length === 0) {
+  if (safeOrders.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-400 dark:text-gray-500 mb-4">
@@ -155,7 +261,7 @@ const OrderTable = ({
           No orders found
         </h3>
         <p className="text-gray-600 dark:text-gray-400">
-          Try adjusting your filters or check back later for new orders.
+          {Array.isArray(orders) ? 'Try adjusting your filters or check back later for new orders.' : 'Unable to load orders. Please try refreshing the page.'}
         </p>
       </div>
     );
@@ -163,6 +269,79 @@ const OrderTable = ({
 
   return (
     <>
+      {/* Cancel Order Modal */}
+      {showCancelModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                <AlertCircle className="text-red-600 dark:text-red-400" size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Cancel Order #{selectedOrder?.orderNumber || selectedOrder?.id}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  This action cannot be undone
+                </p>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Reason for cancellation *
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Enter cancellation reason..."
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white"
+                rows="4"
+              />
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelReason('');
+                  setSelectedOrder(null);
+                }}
+                disabled={actionLoading === `cancel-${selectedOrder?.id}`}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCancelConfirm}
+                disabled={actionLoading === `cancel-${selectedOrder?.id}` || !cancelReason.trim()}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {actionLoading === `cancel-${selectedOrder?.id}` ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <X className="w-4 h-4" />
+                    Confirm Cancel
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
       <motion.div
         variants={staggerVariants}
         initial="hidden"
@@ -172,13 +351,19 @@ const OrderTable = ({
         {/* Page Size Selector */}
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            Total: {pagination?.totalCount || 0} orders
+            {pagination ? (
+              <>
+                Showing {showingRange.start}-{showingRange.end} of {showingRange.total} orders
+              </>
+            ) : (
+              `Total: ${safeOrders.length} orders`
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">Show:</span>
             <select 
               value={pagination?.limit || 5}
-              onChange={(e) => onPageSizeChange && onPageSizeChange(Number(e.target.value))}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
               className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value={5}>5</option>
@@ -190,149 +375,152 @@ const OrderTable = ({
           </div>
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden md:block">
-          <table className="w-full min-w-max">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400 min-w-[250px]">Order</th>
-                <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Customer</th>
-                <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Date</th>
-                <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Amount</th>
-                <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Status</th>
-                <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Payment</th>
-                <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Printify</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((order, index) => (
-                <motion.tr
-                  key={order.id || index}
-                  variants={itemVariants}
-                  className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer group"
-                  onClick={() => handleRowClick(order)}
-                >
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        {order.items?.[0]?.product?.images?.[0] ? (
-                          <img 
-                            src={order.items[0].product.images[0]} 
-                            alt="Product" 
-                            className="w-12 h-12 rounded-lg object-cover shadow-sm"
-                            onError={(e) => {
-                              e.target.src = '/api/placeholder/40/40';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center shadow-sm">
-                            <Package className="w-5 h-5 text-gray-400" />
-                          </div>
-                        )}
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+      {/* Desktop Table */}
+      <div className="hidden md:block">
+        <table className="w-full min-w-max">
+          <thead>
+            <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Order</th>
+              <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Customer</th>
+              <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Date</th>
+              <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Amount</th>
+              <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {safeOrders.map((order, index) => (
+              <motion.tr
+                key={order.id || index}
+                variants={itemVariants}
+                className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer group"
+                onClick={() => handleRowClick(order)}
+              >
+                <td className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      {order.items?.[0]?.product?.images?.[0] ? (
+                        <img 
+                          src={order.items[0].product.images[0]} 
+                          alt="Product" 
+                          className="w-12 h-12 rounded-lg object-cover shadow-sm"
+                          onError={(e) => {
+                            e.target.src = '/api/placeholder/40/40';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center shadow-sm">
+                          <Package className="w-5 h-5 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                        {getOrderDisplayId(order)}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
-                          {getOrderDisplayId(order)}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                          {order.items?.length || 0} item(s)
-                        </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                        {order.items?.length || 0} item(s)
                       </div>
                     </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-gray-400" />
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {getCustomerName(order)}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {order.shippingAddress?.email || 'N/A'}
-                        </div>
+                  </div>
+                </td>
+                <td className="p-4">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-400" />
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {getCustomerName(order)}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {order.shippingAddress?.email || 'N/A'}
                       </div>
                     </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                      <Calendar className="w-4 h-4" />
-                      {order.createdAt ? formatDate(order.createdAt) : 'N/A'}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="font-semibold text-gray-900 dark:text-white">
-                      {formatCurrency(order.totalAmount || 0)}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <StatusBadge status={order.fulfillmentStatus || 'PENDING'} />
-                  </td>
-                  <td className="p-4">
-                    <PaymentStatusBadge status={order.paymentStatus || 'PENDING'} />
-                  </td>
-                  <td className="p-4">
-                    <PrintifyStatusBadge order={order} />
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </td>
+                <td className="p-4">
+                  <div className="text-gray-900 dark:text-white">
+                    {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
+                  </div>
+                </td>
+                <td className="p-4">
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    ${order.totalAmount ? (order.totalAmount / 100).toFixed(2) : '0.00'}
+                  </div>
+                </td>
+                <td className="p-4">
+                  {order.fulfillmentStatus !== 'CANCELLED' && (
+                    <button
+                      onClick={(e) => handleCancelClick(order, e)}
+                      disabled={actionLoading === `cancel-${order.id}`}
+                      className="px-3 py-1 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {actionLoading === `cancel-${order.id}` ? 'Cancelling...' : 'Cancel'}
+                    </button>
+                  )}
+                </td>
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+        {/* Mobile Cards section */}
+        <div className="md:hidden space-y-4 px-3 pb-6 w-full overflow-y-auto max-h-[calc(100vh-220px)]">
 
-        {/* Mobile Cards */}
-        <div className="md:hidden space-y-3 p-4">
-          {orders.map((order, index) => (
+          {safeOrders.map((order, index) => (
             <motion.div
               key={order.id || index}
               variants={itemVariants}
-              className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:shadow-md transition-shadow"
+              className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all duration-150"
               onClick={() => handleRowClick(order)}
             >
-              <div className="flex justify-between items-start mb-3">
+              {/* Header: Image + ID + Status */}
+              <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     {order.items?.[0]?.product?.images?.[0] ? (
-                      <img 
-                        src={order.items[0].product.images[0]} 
-                        alt="Product" 
-                        className="w-12 h-12 rounded-lg object-cover shadow-sm"
+                      <img
+                        src={order.items[0].product.images[0]}
+                        alt="Product"
+                        className="w-14 h-14 rounded-lg object-cover shadow-sm"
                         onError={(e) => {
                           e.target.src = '/api/placeholder/40/40';
                         }}
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center shadow-sm">
+                      <div className="w-14 h-14 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center shadow-sm">
                         <Package className="w-5 h-5 text-gray-400" />
                       </div>
                     )}
                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-800"></div>
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
                       {getOrderDisplayId(order)}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs text-gray-500">
                       {order.items?.length || 0} item(s)
                     </div>
                   </div>
                 </div>
                 <StatusBadge status={order.fulfillmentStatus || 'PENDING'} />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-3 text-xs mb-4">
                 <div>
                   <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
                     <User className="w-3 h-3" />
                     Customer
                   </div>
-                  <div className="font-medium truncate">
+                  <div className="font-medium truncate text-gray-900 dark:text-gray-200">
                     {getCustomerName(order)}
                   </div>
                 </div>
                 <div>
                   <div className="text-gray-600 dark:text-gray-400">Amount</div>
-                  <div className="font-semibold">{formatCurrency(order.totalAmount || 0)}</div>
+                  <div className="font-semibold text-gray-900 dark:text-gray-100">
+                    {formatCurrency(order.totalAmount || 0)}
+                  </div>
                 </div>
                 <div>
                   <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
@@ -353,81 +541,101 @@ const OrderTable = ({
                   </div>
                 </div>
               </div>
-              
-              <div className="flex justify-between items-center pt-3 border-t border-gray-100 dark:border-gray-700">
+
+              {/* Cancel Order Button */}
+              {order.fulfillmentStatus !== 'CANCELLED' && (
+                <button
+                  onClick={(e) => handleCancelClick(order, e)}
+                  disabled={actionLoading === `cancel-${order.id}`}
+                  className="w-full px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {actionLoading === `cancel-${order.id}`
+                    ? 'Cancelling Order...'
+                    : 'Cancel Order'}
+                </button>
+              )}
+
+              {/* Footer */}
+              <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700 mt-3">
                 <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   {order.createdAt ? formatDate(order.createdAt) : 'N/A'}
                 </div>
                 <div className="text-blue-600 dark:text-blue-400 text-xs font-medium">
-                  Tap to view details
+                  Tap to view details →
                 </div>
               </div>
             </motion.div>
           ))}
         </div>
 
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700 gap-4"
-          >
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of {pagination.totalCount} orders
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onPageChange(pagination.currentPage - 1)}
-                disabled={!pagination.hasPrev}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </button>
-              
-              <div className="flex gap-1">
-                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (pagination.totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (pagination.currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (pagination.currentPage >= pagination.totalPages - 2) {
-                    pageNum = pagination.totalPages - 4 + i;
-                  } else {
-                    pageNum = pagination.currentPage - 2 + i;
-                  }
 
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => onPageChange(pageNum)}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
-                        pagination.currentPage === pageNum
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                          : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="w-full overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700 gap-4 overflow-x-auto"
+            >
+              {/* Showing Range Info */}
+              <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                Showing {showingRange.start}-{showingRange.end} of {showingRange.total} orders
               </div>
 
-              <button
-                onClick={() => onPageChange(pagination.currentPage + 1)}
-                disabled={!pagination.hasNext}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </motion.div>
+              {/* Pagination Buttons */}
+              <div className="flex items-center gap-2 overflow-x-auto max-w-full scrollbar-hide px-1">
+                
+                {/* Previous Button */}
+                <button
+                  onClick={() => handlePageChange(pagination.currentPage - 1)}
+                  disabled={pagination.currentPage === 1}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium shrink-0"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </button>
+
+                {/* Page Numbers */}
+                <div className="flex gap-1 overflow-x-auto max-w-full scrollbar-hide">
+                  {pageNumbers.map((page, index) =>
+                    page === '...' ? (
+                      <span
+                        key={`ellipsis-${index}`}
+                        className="px-2 text-gray-500 flex items-center"
+                      >
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[36px] shrink-0 ${
+                          pagination.currentPage === page
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                            : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() => handlePageChange(pagination.currentPage + 1)}
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium shrink-0"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
+
       </motion.div>
 
       {/* Order Details Sidebar */}
@@ -438,6 +646,7 @@ const OrderTable = ({
             <OrderDetails 
               order={selectedOrder} 
               onClose={handleCloseDetails}
+              onCancelOrder={onCancelOrder}
             />
           </div>
         </div>

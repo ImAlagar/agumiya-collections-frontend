@@ -1,92 +1,141 @@
 // src/services/api/couponService.js
-import apiClient from '../../config/api.js';
-import { API_ENDPOINTS } from '../../config/constants.jsx';
+import apiClient from "../../config/api";
+import { API_ENDPOINTS } from "../../config/constants";
 
 export const couponService = {
-  // ------------------ COUPON MANAGEMENT METHODS ------------------
-  async createCoupon(couponData) {
+  // =========================
+  // 🧑‍💼 ADMIN COUPON APIS
+  // =========================
+
+  // ✅ Create new coupon
+  async createCoupon(data) {
     try {
-      const response = await apiClient.post(API_ENDPOINTS.COUPONS, couponData);
+      const response = await apiClient.post(API_ENDPOINTS.COUPONS, data);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to create coupon');
+      console.error("❌ Failed to create coupon:", error);
+      throw error;
     }
   },
 
-  async getCoupons(params = {}) {
+  // ✅ Get all coupons
+  async getAllCoupons() {
     try {
-      const response = await apiClient.get(API_ENDPOINTS.COUPONS, { params });
+      const response = await apiClient.get(API_ENDPOINTS.COUPONS);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch coupons');
+      console.error("❌ Failed to fetch all coupons:", error);
+      throw error;
     }
   },
 
+  // ✅ Get coupon by ID
   async getCouponById(id) {
     try {
       const response = await apiClient.get(`${API_ENDPOINTS.COUPONS}/${id}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch coupon');
+      console.error("❌ Failed to fetch coupon by ID:", error);
+      throw error;
     }
   },
 
-  async updateCoupon(id, updateData) {
+  // ✅ Update coupon
+  async updateCoupon(id, data) {
     try {
-      const response = await apiClient.put(`${API_ENDPOINTS.COUPONS}/${id}`, updateData);
+      const response = await apiClient.put(`${API_ENDPOINTS.COUPONS}/${id}`, data);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to update coupon');
+      console.error("❌ Failed to update coupon:", error);
+      throw error;
     }
   },
 
+  // ✅ Delete coupon
   async deleteCoupon(id) {
     try {
       const response = await apiClient.delete(`${API_ENDPOINTS.COUPONS}/${id}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to delete coupon');
+      console.error("❌ Failed to delete coupon:", error);
+      throw error;
     }
   },
 
-  async getCouponStats() {
+  // =========================
+  // 🛒 USER COUPON APIS
+  // =========================
+
+  // ✅ Validate coupon (during checkout)
+  async validateCoupon(data) {
     try {
-      const response = await apiClient.get(`${API_ENDPOINTS.COUPONS}/stats`);
+      const response = await apiClient.post(`${API_ENDPOINTS.COUPONS}/validate`, data);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch coupon statistics');
+      console.error("❌ Coupon validation failed:", error);
+      throw error;
     }
   },
 
-  // ------------------ COUPON VALIDATION METHODS ------------------
-  async validateCoupon(validationData) {
+  // ✅ Get available coupons (for suggestions)
+  async getAvailableCoupons(data = {}) {
     try {
-      const response = await apiClient.post(`${API_ENDPOINTS.COUPONS}/validate`, validationData);
+      const response = await apiClient.post(`${API_ENDPOINTS.COUPONS}/available`, data);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to validate coupon');
+      console.error("❌ Failed to fetch available coupons:", error);
+      throw error;
     }
   },
 
-  // ------------------ BULK OPERATIONS ------------------
-  async bulkDeleteCoupons(ids) {
+  // ✅ Mark coupon as used (after successful payment)
+  async markCouponAsUsed(data) {
     try {
-      const response = await apiClient.post(`${API_ENDPOINTS.COUPONS}/bulk-delete`, { ids });
+      const response = await apiClient.post(`${API_ENDPOINTS.COUPONS}/mark-used`, data);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to delete coupons');
+      console.error("❌ Failed to mark coupon as used:", error);
+      throw error;
     }
   },
 
-  async bulkUpdateCoupons(ids, updateData) {
+  // =========================
+  // 🌐 PUBLIC COUPON APIS (No authentication required)
+  // =========================
+
+  async getPublicCoupons(filters = {}) {
     try {
-      const response = await apiClient.post(`${API_ENDPOINTS.COUPONS}/bulk-update`, { 
-        ids, 
-        updateData 
-      });
+      const queryParams = new URLSearchParams();
+      if (filters.minOrderAmount) queryParams.append('minOrderAmount', filters.minOrderAmount);
+      
+      const url = `${API_ENDPOINTS.COUPONS}/public/available?${queryParams.toString()}`;
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to update coupons');
+      console.error("❌ Failed to fetch public coupons:", error);
+      throw error;
     }
-  }
+  },
+
+  // ✅ Get coupon categories for filtering
+  async getCouponCategories() {
+    try {
+      const response = await apiClient.get(`${API_ENDPOINTS.COUPONS}/public/categories`);
+      return response.data;
+    } catch (error) {
+      console.error("❌ Failed to fetch coupon categories:", error);
+      throw error;
+    }
+  },
+
+  // ✅ Get popular coupons (most used)
+  async getPopularCoupons(limit = 5) {
+    try {
+      const response = await apiClient.get(`${API_ENDPOINTS.COUPONS}/public/popular?limit=${limit}`);
+      return response.data;
+    } catch (error) {
+      console.error("❌ Failed to fetch popular coupons:", error);
+      throw error;
+    }
+  },
 };

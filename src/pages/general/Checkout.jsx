@@ -1,28 +1,32 @@
+// src/pages/general/Checkout.js
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useCurrency } from '../../contexts/CurrencyContext'; // ✅ Import currency context
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { orderService } from '../../services/api/orderService';
 import { paymentService } from '../../services/api/paymentService';
+import { useAuth } from '../../contexts/AuthProvider';
+import { useCoupon } from '../../contexts/CouponContext';
+import { couponService } from '../../services/api/couponService';
 
 // Import components
 import ShippingStep from '../../components/user/checkout/ShippingStep';
 import ReviewStep from '../../components/user/checkout/ReviewStep';
 import PaymentStep from '../../components/user/checkout/PaymentStep';
 import ConfirmationStep from '../../components/user/checkout/ConfirmationStep';
-import { useAuth } from '../../contexts/AuthProvider';
-import OrderSummary from '../../components/user/checkout/OrderSummary';
+import EnhancedOrderSummary from '../../components/user/checkout/EnhancedOrderSummary';
+import CouponSection from '../../components/user/checkout/CouponSection';
 
 const Checkout = () => {
-  const { cartItems, clearCart } = useCart();
+  const { cartItems, clearCart, getCartTotal } = useCart();
   const [currentStep, setCurrentStep] = useState(1);
   const [formErrors, setFormErrors] = useState({});
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
   const { isAuthenticated, user } = useAuth();
   const { theme } = useTheme();
-  const { formatPrice } = useCurrency(); // ✅ Use currency context
+  const { formatPrice, userCurrency } = useCurrency();
+  const { appliedCoupon, discountAmount, applyCoupon, removeCoupon } = useCoupon();
   const navigate = useNavigate();
 
   // Order and payment states
@@ -30,6 +34,11 @@ const Checkout = () => {
   const [createdOrder, setCreatedOrder] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState('pending');
   const [orderError, setOrderError] = useState('');
+
+  // Coupon states - FIXED: Initialize as empty array
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [couponSuggestions, setCouponSuggestions] = useState([]);
+  const [couponLoading, setCouponLoading] = useState(false);
 
   const [orderData, setOrderData] = useState({
     shippingAddress: {
@@ -47,18 +56,115 @@ const Checkout = () => {
     orderNotes: ''
   });
 
-  // Redirect if not authenticated or cart empty
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: '/checkout' } });
-      return;
+  // Calculate order totals
+  const subtotal = getCartTotal?.() || cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const shipping = subtotal > 50 ? 0 : 10;
+  const tax = subtotal * 0.08;
+  
+  // Calculate discount amount properly
+  const calculateDiscountAmount = (coupon, currentSubtotal = subtotal) => {
+    if (!coupon) return 0;
+    
+    let discount = 0;
+    
+    if (coupon.discountType === 'PERCENTAGE') {
+      discount = (currentSubtotal * coupon.discountValue) / 100;
+    } else if (coupon.discountType === 'FIXED') {
+      discount = coupon.discountValue;
     }
     
-    if (!cartItems || cartItems.length === 0) {
-      navigate('/cart');
-      return;
+    // Apply maximum discount limit if set
+    if (coupon.maxDiscountAmount && discount > coupon.maxDiscountAmount) {
+      discount = coupon.maxDiscountAmount;
     }
-  }, [isAuthenticated, cartItems, navigate]);
+    
+    // Ensure discount doesn't exceed subtotal
+    return Math.min(discount, currentSubtotal);
+  };
+
+  // Final total after discount
+  const finalTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
+
+  // Load available coupons for suggestions - FIXED VERSION
+  const loadAvailableCoupons = async () => {
+    try {
+      setCouponLoading(true);
+      
+      // Call the API to get available coupons
+      const response = await couponService.getAvailableCoupons({
+        cartItems,
+        subtotal,
+        userId: user?.id
+      });
+      
+      console.log('📋 Available coupons response:', response);
+      
+      if (response?.success) {
+        // Ensure we always set an array, even if data is undefined
+        const coupons = Array.isArray(response.data) ? response.data : [];
+        setAvailableCoupons(coupons);
+        
+        // Generate suggestions
+        const suggestions = generateCouponSuggestions(coupons);
+        setCouponSuggestions(suggestions);
+        
+        console.log('✅ Loaded coupons:', {
+          available: coupons.length,
+          suggestions: suggestions.length
+        });
+      } else {
+        // If no success, set empty arrays
+        setAvailableCoupons([]);
+        setCouponSuggestions([]);
+      }
+    } catch (error) {
+      console.error('❌ Could not load coupon suggestions:', error);
+      // Set empty arrays on error
+      setAvailableCoupons([]);
+      setCouponSuggestions([]);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  // Generate smart coupon suggestions - FIXED VERSION
+  const generateCouponSuggestions = (coupons) => {
+    if (!Array.isArray(coupons) || coupons.length === 0) return [];
+    
+    const suggestions = coupons
+      .filter(coupon => {
+        if (!coupon) return false;
+        
+        // Filter coupons that are applicable to current cart
+        if (coupon.minOrderAmount && subtotal < coupon.minOrderAmount) {
+          console.log(`Coupon ${coupon.code} skipped: subtotal ${subtotal} < min ${coupon.minOrderAmount}`);
+          return false;
+        }
+        
+        if (coupon.maxOrderValue && subtotal > coupon.maxOrderValue) return false;
+        
+        // Check category restrictions
+        if (coupon.applicableCategories?.length) {
+          const cartCategories = cartItems.map(item => item.category).filter(Boolean);
+          const hasMatchingCategory = cartCategories.some(category => 
+            coupon.applicableCategories.includes(category)
+          );
+          if (!hasMatchingCategory) return false;
+        }
+        
+        return true;
+      })
+      .sort((a, b) => {
+        // Sort by potential savings
+        const discountA = calculateDiscountAmount(a);
+        const discountB = calculateDiscountAmount(b);
+        return discountB - discountA;
+      })
+      .slice(0, 3); // Top 3 suggestions
+    
+    console.log('🎯 Generated coupon suggestions:', suggestions.map(s => s.code));
+    return suggestions;
+  };
 
   // Theme-based styles
   const getThemeStyles = () => {
@@ -90,6 +196,27 @@ const Checkout = () => {
     { number: 4, title: 'Confirmation', description: 'Order Complete', icon: '✅' }
   ];
 
+  // Coupon handlers
+  const handleCouponApplied = (couponData) => {
+    const calculatedDiscount = calculateDiscountAmount(couponData);
+    applyCoupon({
+      ...couponData,
+      discountAmount: calculatedDiscount
+    });
+  };
+
+  const handleCouponRemoved = () => {
+    removeCoupon();
+  };
+
+  // Auto-apply best coupon suggestion
+  const applyBestCouponSuggestion = () => {
+    if (couponSuggestions.length > 0 && !appliedCoupon) {
+      const bestCoupon = couponSuggestions[0];
+      handleCouponApplied(bestCoupon);
+    }
+  };
+
   // Validate shipping step
   const validateShippingStep = () => {
     const errors = {};
@@ -103,6 +230,18 @@ const Checkout = () => {
     if (!shippingAddress.city?.trim()) errors.city = 'City is required';
     if (!shippingAddress.region?.trim()) errors.region = 'State/Region is required';
     if (!shippingAddress.zipCode?.trim()) errors.zipCode = 'ZIP code is required';
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (shippingAddress.email && !emailRegex.test(shippingAddress.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    // Phone validation
+    const phoneRegex = /^[+]?[\d\s-()]{10,}$/;
+    if (shippingAddress.phone && !phoneRegex.test(shippingAddress.phone.replace(/\s/g, ''))) {
+      errors.phone = 'Please enter a valid phone number';
+    }
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -126,13 +265,7 @@ const Checkout = () => {
     }
   };
 
-  // Calculate order totals
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shipping = subtotal > 50 ? 0 : 10;
-  const tax = subtotal * 0.08;
-  const grandTotal = subtotal + shipping + tax;
-
-  // ✅ FIXED: Get correct variant ID from cart items
+  // Get variant ID
   const getVariantId = (item) => {
     if (item.variantId && item.variantId !== 'default') {
       return item.variantId.toString();
@@ -148,7 +281,6 @@ const Checkout = () => {
     return null;
   };
 
-  // Step 1: Create Order in Database
   const createOrderHandler = async () => {
     try {
       setIsProcessing(true);
@@ -187,7 +319,10 @@ const Checkout = () => {
           zipCode: orderData.shippingAddress.zipCode?.trim() || ''
         },
         items: orderItems,
-        orderNotes: typeof orderData.orderNotes === 'string' ? orderData.orderNotes.trim() : ""
+        orderNotes: typeof orderData.orderNotes === 'string' ? orderData.orderNotes.trim() : "",
+        couponCode: appliedCoupon?.code || null,
+        discountAmount: discountAmount || 0,
+        finalAmount: finalTotal
       };
 
       console.log('🔄 Creating order payload:', JSON.stringify(orderPayload, null, 2));
@@ -195,7 +330,13 @@ const Checkout = () => {
       const result = await orderService.createOrder(orderPayload);
       
       if (result.success && result.data) {
-        console.log('✅ Order created:', result.data);
+        console.log('✅ Order created successfully:', result.data);
+        
+        // Validate the created order has an ID
+        if (!result.data.id) {
+          throw new Error('Order created but no order ID returned');
+        }
+        
         setCreatedOrder(result.data);
         setCurrentStep(3);
         return result.data;
@@ -204,44 +345,100 @@ const Checkout = () => {
       }
     } catch (error) {
       console.error('❌ Order creation failed:', error);
-      setOrderError(error.message);
+      
+      // More detailed error messages
+      let errorMessage = error.message;
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message.includes('network') || error.message.includes('Network')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      setOrderError(errorMessage);
       throw error;
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Step 2: Initialize Razorpay Payment
+  // Initialize Razorpay Payment
   const initializeRazorpayPayment = async () => {
     try {
+      setIsProcessing(true);
+      setOrderError('');
+
       if (!createdOrder) {
         throw new Error('No order found. Please create an order first.');
       }
 
-      setIsProcessing(true);
-      setOrderError('');
+      if (!createdOrder.id) {
+        throw new Error('Invalid order: Missing order ID');
+      }
+
+      console.log('🔄 Creating Razorpay payment order for order ID:', createdOrder.id);
       
+      // Load Razorpay script first
       const isScriptLoaded = await loadRazorpayScript();
       if (!isScriptLoaded) {
-        throw new Error('Failed to load payment gateway');
+        throw new Error('Failed to load payment gateway. Please try again.');
       }
 
-      console.log('🔄 Creating Razorpay order for:', createdOrder.id);
-      const paymentOrder = await paymentService.createPaymentOrder(createdOrder.id);
+      // Prepare payment data
+      const paymentData = {
+        orderId: createdOrder.id.toString()
+      };
+
+      console.log('💰 Payment data being sent:', paymentData);
+
+      const paymentOrder = await paymentService.createPaymentOrder(paymentData);
+      
+      console.log('📥 Complete payment order response:', paymentOrder);
       
       if (!paymentOrder.success) {
-        throw new Error(paymentOrder.message || 'Failed to create payment order');
+        console.error('❌ Payment order creation failed:', paymentOrder);
+        throw new Error(paymentOrder.message || paymentOrder.error || 'Failed to create payment order');
       }
 
-      console.log('✅ Razorpay order created:', paymentOrder.data);
+      // Check the actual response structure
+      if (!paymentOrder.data) {
+        console.error('❌ No data in response:', paymentOrder);
+        throw new Error('No payment data received from server');
+      }
 
+      // Extract values from the inner data object
+      const razorpayOrderId = paymentOrder.data.id;
+      const amount = paymentOrder.data.amount;
+      const currency = paymentOrder.data.currency || 'INR';
+
+      console.log('🎯 Extracted values:', {
+        razorpayOrderId,
+        amount,
+        currency
+      });
+
+      if (!razorpayOrderId) {
+        console.error('❌ Missing Razorpay order ID in response. Available fields:', Object.keys(paymentOrder.data));
+        throw new Error('Payment service did not return a valid order ID');
+      }
+
+      // Convert rupees to paise
+      const razorpayAmount = amount * 100;
+      
+      console.log('💰 Amount conversion:', {
+        'Original amount': amount,
+        'Razorpay amount (paise)': razorpayAmount
+      });
+
+      console.log('✅ Razorpay order created successfully. Order ID:', razorpayOrderId);
+
+      // Razorpay options
       const options = {
-        key: import.meta.env.VITE_APP_RAZORPAY_KEY_ID,
-        amount: paymentOrder.data.amount,
-        currency: paymentOrder.data.currency || 'INR',
+        key: paymentOrder.data.key || import.meta.env.VITE_APP_RAZORPAY_KEY_ID,
+        amount: razorpayAmount,
+        currency: currency,
         name: "Agumiya Collections",
         description: `Order #${createdOrder.id}`,
-        order_id: paymentOrder.data.id,
+        order_id: razorpayOrderId,
         handler: async (response) => {
           console.log('🔄 Payment handler called:', response);
           await handlePaymentVerification(response);
@@ -259,20 +456,38 @@ const Checkout = () => {
             console.log('Payment modal dismissed');
             setIsProcessing(false);
           }
+        },
+        notes: {
+          orderId: createdOrder.id.toString()
         }
       };
 
       const razorpay = new window.Razorpay(options);
+      
+      razorpay.on('payment.failed', function (response) {
+        console.error('❌ Payment failed:', response.error);
+        setOrderError(`Payment failed: ${response.error.description || 'Unknown error'}`);
+        setIsProcessing(false);
+      });
+
       razorpay.open();
 
     } catch (error) {
       console.error('❌ Payment initialization failed:', error);
-      setOrderError(error.message);
+      
+      let errorMessage = error.message;
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message.includes('network')) {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+      
+      setOrderError(errorMessage);
       setIsProcessing(false);
     }
   };
 
-  // Step 3: Handle Payment Verification
+  // Handle Payment Verification
   const handlePaymentVerification = async (response) => {
     try {
       setIsProcessing(true);
@@ -291,6 +506,27 @@ const Checkout = () => {
         console.log('✅ Payment verified successfully');
         setPaymentStatus('success');
         
+        // Mark coupon as used after successful payment
+        if (appliedCoupon && user?.id) {
+          try {
+            console.log('🎟️ Marking coupon as used:', appliedCoupon.code);
+
+            await couponService.markCouponAsUsed({
+              couponId: appliedCoupon.id,
+              userId: user.id,
+              orderId: createdOrder.id,
+              discountAmount,
+              couponCode: appliedCoupon.code
+            });
+
+            console.log('✅ Coupon usage recorded successfully');
+          } catch (couponError) {
+            console.error('❌ Failed to record coupon usage:', couponError);
+            // No need to block order; just log
+          }
+        }
+
+        // Clear cart only after successful payment
         clearCart();
         setCurrentStep(4);
         
@@ -298,7 +534,9 @@ const Checkout = () => {
           navigate(`/orders/${createdOrder.id}`, { 
             state: { 
               paymentSuccess: true,
-              orderId: createdOrder.id 
+              orderId: createdOrder.id,
+              discountApplied: !!appliedCoupon,
+              discountAmount: discountAmount
             } 
           });
         }, 3000);
@@ -368,19 +606,42 @@ const Checkout = () => {
     }
   };
 
-  // Debug cart items on mount
+  // Redirect if not authenticated or cart empty
   useEffect(() => {
-    console.log('🛒 Current cart items:', cartItems);
-    cartItems.forEach((item, index) => {
-      console.log(`Item ${index}:`, {
-        id: item.id,
-        name: item.name,
-        variantId: item.variantId,
-        variant: item.variant,
-        selectedVariantId: item.selectedVariantId
-      });
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/checkout' } });
+      return;
+    }
+    
+    if (!cartItems || cartItems.length === 0) {
+      navigate('/cart');
+      return;
+    }
+  }, [isAuthenticated, cartItems, navigate]);
+
+  // Load coupon suggestions when cart items change
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      loadAvailableCoupons();
+    }
+  }, [cartItems, subtotal]);
+
+  // Auto-apply best coupon when suggestions are loaded
+  useEffect(() => {
+    if (couponSuggestions.length > 0 && !appliedCoupon && currentStep === 2) {
+      // You can enable auto-apply here if desired
+      // applyBestCouponSuggestion();
+    }
+  }, [couponSuggestions, appliedCoupon, currentStep]);
+
+  // Debug cart items
+  useEffect(() => {
+    console.log('🛒 Checkout Cart Items:', {
+      count: cartItems.length,
+      items: cartItems,
+      step: currentStep
     });
-  }, [cartItems]);
+  }, [cartItems, currentStep]);
 
   if (!isAuthenticated || !cartItems || cartItems.length === 0) {
     return (
@@ -473,17 +734,36 @@ const Checkout = () => {
                   />
                 )}
 
-                {/* Step 2: Review */}
-                {currentStep === 2 && (
-                  <ReviewStep 
-                    orderData={orderData}
-                    cartItems={cartItems}
-                    subtotal={subtotal}
-                    shipping={shipping}
-                    tax={tax}
-                    grandTotal={grandTotal}
-                    formatPrice={formatPrice} // ✅ Pass formatPrice
-                  />
+                {/* Step 2: Review - Updated with Coupon Section */}
+                {currentStep === 2 && cartItems.length > 0 && (
+                  <div className="p-6">
+                    {/* Coupon Section with Suggestions */}
+                    <CouponSection
+                      userId={user?.id}
+                      subtotal={subtotal}
+                      cartItems={cartItems}
+                      availableCoupons={availableCoupons} // Pass as prop
+                      couponSuggestions={couponSuggestions} // Pass as prop
+                      couponLoading={couponLoading} // Pass loading state
+                      onApplyCoupon={handleCouponApplied}
+                      onRemoveCoupon={handleCouponRemoved}
+                      appliedCoupon={appliedCoupon}
+                      discountAmount={discountAmount}
+                      formatPrice={formatPrice}
+                    />
+                    
+                    <ReviewStep 
+                      orderData={orderData}
+                      cartItems={cartItems}
+                      subtotal={subtotal}
+                      shipping={shipping}
+                      tax={tax}
+                      grandTotal={finalTotal}
+                      formatPrice={formatPrice}
+                      appliedCoupon={appliedCoupon}
+                      discountAmount={discountAmount}
+                    />
+                  </div>
                 )}
 
                 {/* Step 3: Payment */}
@@ -494,6 +774,8 @@ const Checkout = () => {
                     paymentStatus={paymentStatus}
                     themeStyles={themeStyles}
                     onPaymentInit={initializeRazorpayPayment}
+                    finalAmount={finalTotal}
+                    discountAmount={discountAmount}
                   />
                 )}
 
@@ -502,6 +784,8 @@ const Checkout = () => {
                   <ConfirmationStep 
                     order={createdOrder}
                     paymentStatus={paymentStatus}
+                    discountAmount={discountAmount}
+                    appliedCoupon={appliedCoupon}
                   />
                 )}
               </AnimatePresence>
@@ -532,8 +816,8 @@ const Checkout = () => {
                     ) : (
                       <span>
                         {currentStep === 1 ? 'Continue to Review' : 
-                         currentStep === 2 ? 'Place Order' : 
-                         'Pay Now'}
+                         currentStep === 2 ? `Place Order ${discountAmount > 0 ? `& Save ${formatPrice(discountAmount).formatted}` : ''}` : 
+                         `Pay ${formatPrice(finalTotal).formatted}`}
                       </span>
                     )}
                   </button>
@@ -542,24 +826,34 @@ const Checkout = () => {
             </motion.div>
           </div>
 
-          {/* Order Summary Sidebar */}
+          {/* Enhanced Order Summary Sidebar */}
           <div className="lg:col-span-1">
-              <OrderSummary
-                cartItems={cartItems}
-                appliedCoupon={appliedCoupon}
-                shippingCost={selectedShipping?.cost || 0}
-                formatPrice={formatPrice}
-                getCurrencySymbol={getCurrencySymbol}
-                onApplyCoupon={handleApplyCoupon}
-                onRemoveCoupon={handleRemoveCoupon}
-                onProceedToCheckout={handleCompleteOrder}
-                couponLoading={couponLoading}
-                showCouponSection={true}
-                showActionButtons={true}
-                showItemsList={true}
-                isSticky={true}
-                isCheckout={true}
-              />
+            <EnhancedOrderSummary
+              // Data
+              cartItems={cartItems}
+              appliedCoupon={appliedCoupon}
+              shippingCost={shipping}
+              taxRate={0.08}
+              currency={userCurrency}
+              
+              // Functions
+              formatPrice={formatPrice}
+              onRemoveCoupon={handleCouponRemoved}
+              onProceedToCheckout={handleNextStep}
+              
+              // Configuration
+              mode="checkout"
+              showCouponSection={false}
+              showActionButtons={currentStep === 2}
+              showTrustBadges={true}
+              showItemsList={true}
+              isSticky={true}
+              showHeader={true}
+              
+              // State
+              isProcessing={isProcessing}
+              couponLoading={couponLoading}
+            />
           </div>
         </div>
       </div>

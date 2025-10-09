@@ -37,6 +37,7 @@ import ShippingPolicy from "../pages/general/ShippingPolicy";
 import CancellationRefundPolicy from "../pages/general/CancellationRefundPolicy";
 import SearchResults from "../pages/general/SearchResults";
 import OrderSuccess from "../pages/user/OrderSuccess";
+import AdminOrderCancellations from "../pages/dashboard/admin/AdminOrderCancellations";
 
 const router = createBrowserRouter([
     {
@@ -153,6 +154,10 @@ const router = createBrowserRouter([
                 element: <AdminOrders />,
             },
             {
+            path: 'cancellations',
+            element: <AdminOrderCancellations />,
+            },
+            {
                 path: 'products',
                 element: <AdminProduct />,
             },
@@ -172,6 +177,7 @@ const router = createBrowserRouter([
                 path: 'settings/admins',
                 element: <AdminRegistration />,
             },
+
         ],
     }
 ]);

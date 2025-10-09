@@ -5,7 +5,7 @@ import { X, Save, Calendar, DollarSign, Percent, Hash, Sparkles } from 'lucide-r
 import { useCoupon } from '../../../contexts/CouponContext';
 
 const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
-  const { createCoupon, isLoading, clearError } = useCoupon();
+  const { createCoupon, adminLoading, clearAdminError } = useCoupon();
   const [formData, setFormData] = useState({
     code: '',
     description: '',
@@ -25,7 +25,7 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    clearError();
+    clearAdminError();
 
     // Validation
     if (!formData.code.trim()) {
@@ -43,14 +43,24 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
       return;
     }
 
+    // Prepare data for backend - ensure all fields are properly formatted
     const couponData = {
-      ...formData,
+      code: formData.code.trim().toUpperCase(),
+      description: formData.description.trim() || `Discount coupon ${formData.code}`,
+      discountType: formData.discountType,
       discountValue: parseFloat(formData.discountValue),
-      minOrderAmount: formData.minOrderAmount ? parseFloat(formData.minOrderAmount) : null,
-      maxDiscountAmount: formData.maxDiscountAmount ? parseFloat(formData.maxDiscountAmount) : null,
-      usageLimit: formData.usageLimit ? parseInt(formData.usageLimit) : null,
-      validUntil: formData.validUntil || null
+      minOrderAmount: formData.minOrderAmount ? parseFloat(formData.minOrderAmount) : 0,
+      maxDiscountAmount: formData.maxDiscountAmount ? parseFloat(formData.maxDiscountAmount) : 0,
+      usageLimit: formData.usageLimit ? parseInt(formData.usageLimit, 10) : null,
+      validUntil: formData.validUntil || null,
+      isSingleUse: Boolean(formData.isSingleUse),
+      isActive: true, // Make sure this is included
+      applicableTo: formData.applicableTo,
+      categories: Array.isArray(formData.categories) ? formData.categories : [],
+      products: Array.isArray(formData.products) ? formData.products : []
     };
+
+    console.log('Sending coupon data:', couponData); // Debug log
 
     const result = await createCoupon(couponData);
 
@@ -92,6 +102,7 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
 
   const handleClose = () => {
     resetForm();
+    clearAdminError();
     onClose();
   };
 
@@ -119,14 +130,14 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
             onClick={handleClose}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            <X size={18} sm:size={20} />
+            <X size={20} />
           </button>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {error && (
-            <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-3 sm:px-4 py-2 sm:py-3 rounded text-sm sm:text-base">
+            <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded text-sm">
               {error}
             </div>
           )}
@@ -185,20 +196,20 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm sm:text-base"
               >
                 <option value="PERCENTAGE">Percentage (%)</option>
-                <option value="FIXED_AMOUNT">Fixed Amount ($)</option>
+                <option value="FIXED_AMOUNT">Fixed Amount</option>
               </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {formData.discountType === 'PERCENTAGE' ? 'Discount Value *' : 'Discount Amount *'}
+                {formData.discountType === 'PERCENTAGE' ? 'Discount Value * (%)' : 'Discount Amount *'}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   {formData.discountType === 'PERCENTAGE' ? (
-                    <Percent size={14} sm:size={16} className="text-gray-400" />
+                    <Percent size={16} className="text-gray-400" />
                   ) : (
-                    <DollarSign size={14} sm:size={16} className="text-gray-400" />
+                    <DollarSign size={16} className="text-gray-400" />
                   )}
                 </div>
                 <input
@@ -208,6 +219,7 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm sm:text-base"
                   placeholder={formData.discountType === 'PERCENTAGE' ? '10' : '15'}
                   min="0"
+                  max={formData.discountType === 'PERCENTAGE' ? '100' : undefined}
                   step={formData.discountType === 'PERCENTAGE' ? '0.1' : '0.01'}
                   required
                 />
@@ -223,7 +235,7 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <DollarSign size={14} sm:size={16} className="text-gray-400" />
+                  <DollarSign size={16} className="text-gray-400" />
                 </div>
                 <input
                   type="number"
@@ -240,11 +252,11 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
             {formData.discountType === 'PERCENTAGE' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Maximum Discount
+                  Maximum Discount Amount
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <DollarSign size={14} sm:size={16} className="text-gray-400" />
+                    <DollarSign size={16} className="text-gray-400" />
                   </div>
                   <input
                     type="number"
@@ -267,7 +279,7 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Hash size={14} sm:size={16} className="text-gray-400" />
+                  <Hash size={16} className="text-gray-400" />
                 </div>
                 <input
                   type="number"
@@ -286,7 +298,7 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Calendar size={14} sm:size={16} className="text-gray-400" />
+                  <Calendar size={16} className="text-gray-400" />
                 </div>
                 <input
                   type="datetime-local"
@@ -340,15 +352,15 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
             </button>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={adminLoading}
               className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 sm:px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg transition-colors text-sm sm:text-base font-medium shadow-lg"
             >
-              {isLoading ? (
+              {adminLoading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <Save size={16} />
               )}
-              <span>{isLoading ? 'Creating...' : 'Create Coupon'}</span>
+              <span>{adminLoading ? 'Creating...' : 'Create Coupon'}</span>
             </button>
           </div>
         </form>

@@ -207,7 +207,7 @@ export function CurrencyProvider({ children }) {
     return symbols[currency] || currency;
   }, [state.userCurrency]);
 
-  // ✅ Format price professionally
+  // ✅ Format price professionally (returns object with formatted and original)
   const formatPrice = useCallback((price, currency = state.userCurrency, showOriginal = false) => {
     const convertedPrice = convertPrice(price, 'USD', currency);
 
@@ -237,6 +237,12 @@ export function CurrencyProvider({ children }) {
     }
   }, [convertPrice, state.userCurrency]);
 
+  // ✅ NEW: Simple format function that returns just the formatted string
+  const formatPriceSimple = useCallback((price, currency = state.userCurrency) => {
+    const { formatted } = formatPrice(price, currency);
+    return formatted;
+  }, [formatPrice, state.userCurrency]);
+
   // Initialize
   useEffect(() => {
     const init = async () => {
@@ -258,7 +264,8 @@ export function CurrencyProvider({ children }) {
   const value = {
     ...state,
     convertPrice,
-    formatPrice,
+    formatPrice, // returns { formatted, original } object
+    formatPriceSimple, // returns just the formatted string
     getCurrencySymbol,
     refreshRates: () => fetchExchangeRates('USD'),
     detectUserLocation,

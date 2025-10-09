@@ -4,12 +4,55 @@ import { API_ENDPOINTS } from '../../config/constants.jsx';
 
 export const paymentService = {
   // Create Razorpay order
-  async createPaymentOrder(orderId) {
+  async createPaymentOrder(paymentData) {
     try {
-      const response = await apiClient.post(API_ENDPOINTS.PAYMENTS_CREATE_ORDER, { orderId });
-      return response.data;
+      console.log('🔄 Creating payment order with data:', paymentData);
+      
+      if (!paymentData.orderId) {
+        throw new Error('Order ID is required');
+      }
+
+      const requestData = {
+        orderId: paymentData.orderId.toString()
+      };
+
+      console.log('📤 Sending to backend:', requestData);
+
+      const response = await apiClient.post(API_ENDPOINTS.PAYMENTS_CREATE_ORDER, requestData);
+      
+      console.log('✅ Raw response from backend:', response);
+      console.log('✅ Response data:', response.data);
+      
+      // Your backend returns: { success: true, data: { id: "order_xxx", ... } }
+      // So we need to return response.data.data (the inner data object)
+      const paymentDataResponse = response.data.data;
+      
+      console.log('✅ Extracted payment data:', paymentDataResponse);
+      
+      if (!paymentDataResponse) {
+        throw new Error('No payment data found in response');
+      }
+      
+      return {
+        success: true,
+        data: paymentDataResponse, // This should be the inner data object
+        rawResponse: response.data // Keep the full response for reference
+      };
+      
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to create payment order');
+      console.error('❌ Payment order creation failed:', error);
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Failed to create payment order';
+      
+      return {
+        success: false,
+        error: errorMessage,
+        message: errorMessage,
+        status: error.response?.status
+      };
     }
   },
 

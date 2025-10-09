@@ -22,12 +22,6 @@ const ReviewStep = ({ orderData, cartItems, subtotal, shipping, tax, grandTotal,
     }
   };
 
-  // Safe price calculation
-  const getItemTotal = (item) => {
-    const price = typeof item.price === 'number' ? item.price : 0;
-    const quantity = typeof item.quantity === 'number' ? item.quantity : 0;
-    return price * quantity;
-  };
 
   return (
     <motion.div

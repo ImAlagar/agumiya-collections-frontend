@@ -425,91 +425,17 @@ const ProfileOverview = ({ userData, isAdmin, formatDate, onUpdateProfile }) => 
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center"
-        >
-          <div className={`text-2xl font-bold mb-2 ${
-            isAdmin ? 'text-purple-600 dark:text-purple-400' : 'text-indigo-600 dark:text-indigo-400'
-          }`}>
-            {userData?.orderCount || 0}
-          </div>
-          <div className="text-gray-600 dark:text-gray-400">
-            {isAdmin ? 'Total Store Orders' : 'Total Orders'}
-          </div>
-        </motion.div>
-
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center"
-        >
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-2">
-            {userData?.completedOrders || 0}
-          </div>
-          <div className="text-gray-600 dark:text-gray-400">
-            {isAdmin ? 'Completed Orders' : 'Completed'}
-          </div>
-        </motion.div>
-
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center"
-        >
-          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-            {userData?.pendingOrders || 0}
-          </div>
-          <div className="text-gray-600 dark:text-gray-400">
-            {isAdmin ? 'Pending Orders' : 'Pending'}
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Admin-specific stats */}
-      {isAdmin && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center"
-          >
-            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-2">
-              {userData?.totalProducts || 0}
-            </div>
-            <div className="text-gray-600 dark:text-gray-400">Total Products</div>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center"
-          >
-            <div className="text-2xl font-bold text-pink-600 dark:text-pink-400 mb-2">
-              {userData?.totalCustomers || 0}
-            </div>
-            <div className="text-gray-600 dark:text-gray-400">Total Customers</div>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center"
-          >
-            <div className="text-2xl font-bold text-teal-600 dark:text-teal-400 mb-2">
-              ${userData?.totalRevenue || 0}
-            </div>
-            <div className="text-gray-600 dark:text-gray-400">Total Revenue</div>
-          </motion.div>
-        </div>
-      )}
     </motion.div>
   );
 };
 
-// Order History Component
+
 const OrderHistory = ({ userData, isAdmin }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const { formatPrice } = useCurrency(); // 👈 ADD THIS HOOK
+  const [error, setError] = useState("");
+  const [showAll, setShowAll] = useState(false); // 👈 NEW STATE
+  const { formatPrice } = useCurrency();
 
   useEffect(() => {
     if (!isAdmin) {
@@ -520,17 +446,16 @@ const OrderHistory = ({ userData, isAdmin }) => {
   const loadUserOrders = async () => {
     try {
       setLoading(true);
-      setError('');
-      
+      setError("");
+
       const response = await authService.getUserOrders();
-      
       if (response && response.success) {
         setOrders(response.orders || response.data || []);
       } else {
-        setError(response?.message || 'Failed to load orders');
+        setError(response?.message || "Failed to load orders");
       }
     } catch (err) {
-      setError(err.message || 'Failed to load orders');
+      setError(err.message || "Failed to load orders");
     } finally {
       setLoading(false);
     }
@@ -538,51 +463,41 @@ const OrderHistory = ({ userData, isAdmin }) => {
 
   const getStatusColor = (status) => {
     const colors = {
-      PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      PROCESSING: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      SHIPPED: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
-      DELIVERED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      CANCELLED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      CONFIRMED: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+      PENDING: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+      PROCESSING: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+      SHIPPED: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
+      DELIVERED: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      CANCELLED: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+      CONFIRMED: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
     };
-    return colors[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+    return colors[status] || "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
   };
 
-  // 👇 REPLACE THE OLD formatCurrency FUNCTION
   const formatCurrency = (amount) => {
     const { formatted } = formatPrice(amount || 0);
     return formatted;
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'Unknown';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    if (!dateString) return "Unknown";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
-  // Safe function to get order display ID
   const getOrderDisplayId = (order) => {
-    if (order.orderNumber) return order.orderNumber;
-    if (order.id) {
-      // Convert to string and get last 8 characters for display
-      const idStr = order.id.toString();
-      return idStr.length > 8 ? idStr.slice(-8) : idStr;
-    }
-    if (order._id) {
-      // Convert to string and get last 8 characters for display
-      const idStr = order._id.toString();
-      return idStr.length > 8 ? idStr.slice(-8) : idStr;
-    }
-    return 'N/A';
+    const id = order.orderNumber || order.id || order._id;
+    if (!id) return "N/A";
+    const str = id.toString();
+    return str.length > 8 ? str.slice(-8) : str;
   };
 
-  // Safe function to get order ID for links
-  const getOrderId = (order) => {
-    return order.id || order._id || 'unknown';
-  };
+  const getOrderId = (order) => order.id || order._id || "unknown";
+
+  // ⚙️ Show only first 3 orders if showAll = false
+  const displayedOrders = showAll ? orders : orders.slice(0, 3);
 
   if (isAdmin) {
     return (
@@ -643,14 +558,16 @@ const OrderHistory = ({ userData, isAdmin }) => {
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full"
           />
-          <span className="ml-3 text-gray-600 dark:text-gray-400">Loading orders...</span>
+          <span className="ml-3 text-gray-600 dark:text-gray-400">
+            Loading orders...
+          </span>
         </div>
       ) : error ? (
         <div className="text-center py-8">
           <div className="text-red-500 dark:text-red-400 mb-4">
             Error loading orders: {error}
           </div>
-          <button 
+          <button
             onClick={loadUserOrders}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition-colors"
           >
@@ -674,95 +591,92 @@ const OrderHistory = ({ userData, isAdmin }) => {
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
-          {orders.map((order, index) => (
-            <motion.div
-              key={getOrderId(order) || index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow"
-            >
-              <div className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                  <div className="flex-1">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mb-3">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                        Order #{getOrderDisplayId(order)}
-                      </h3>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 sm:mt-0 ${getStatusColor(order.status)}`}>
-                        {order.status ? 
-                          order.status.charAt(0).toUpperCase() + order.status.slice(1).toLowerCase() 
-                          : 'Unknown'
-                        }
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-500 dark:text-gray-400">Placed:</span>
-                        <span className="ml-2 text-gray-900 dark:text-white">
-                          {formatDate(order.createdAt || order.orderDate)}
+        <>
+          <div className="space-y-4">
+            {displayedOrders.map((order, index) => (
+              <motion.div
+                key={getOrderId(order) || index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow"
+              >
+                <div className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div className="flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mb-3">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                          Order #{getOrderDisplayId(order)}
+                        </h3>
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 sm:mt-0 ${getStatusColor(order.status)}`}
+                        >
+                          {order.status
+                            ? order.status.charAt(0).toUpperCase() +
+                              order.status.slice(1).toLowerCase()
+                            : "Unknown"}
                         </span>
                       </div>
-                      <div>
-                        <span className="text-gray-500 dark:text-gray-400">Items:</span>
-                        <span className="ml-2 text-gray-900 dark:text-white">
-                          {order.items?.length || 0} items
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 dark:text-gray-400">Total:</span>
-                        <span className="ml-2 font-semibold text-indigo-600 dark:text-indigo-400">
-                          {formatCurrency(order.totalAmount || order.grandTotal || 0)}
-                        </span>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Placed:
+                          </span>
+                          <span className="ml-2 text-gray-900 dark:text-white">
+                            {formatDate(order.createdAt || order.orderDate)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Items:
+                          </span>
+                          <span className="ml-2 text-gray-900 dark:text-white">
+                            {order.items?.length || 0} items
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Total:
+                          </span>
+                          <span className="ml-2 font-semibold text-indigo-600 dark:text-indigo-400">
+                            {formatCurrency(order.totalAmount || order.grandTotal || 0)}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Order Items Preview */}
-                    {order.items && order.items.length > 0 && (
-                      <div className="mt-4">
-                        <div className="flex flex-wrap gap-2">
-                          {order.items.slice(0, 3).map((item, itemIndex) => (
-                            <div key={itemIndex} className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
-                              <span className="text-sm text-gray-600 dark:text-gray-300">
-                                {item.quantity || 1} × {item.productName || item.name || 'Product'}
-                              </span>
-                              {item.size && (
-                                <span className="text-xs bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">
-                                  {item.size}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                          {order.items.length > 3 && (
-                            <div className="flex items-center bg-gray-50 dark:bg-gray-700 rounded-lg px-3 py-2">
-                              <span className="text-sm text-gray-600 dark:text-gray-300">
-                                +{order.items.length - 3} more
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="mt-4 md:mt-0 md:ml-4 flex space-x-2">
-                    <Link
-                      to={`/orders/${getOrderId(order)}`}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center"
-                    >
-                      View Details
-                    </Link>
+                    <div className="mt-4 md:mt-0 md:ml-4 flex space-x-2">
+                      <Link
+                        to={`/orders/${getOrderId(order)}`}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center"
+                      >
+                        View Details
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* 👇 Show More / Show Less Button */}
+          {orders.length > 3 && (
+            <div className="text-center mt-6">
+              <button
+                onClick={() => setShowAll(!showAll)}
+                className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-6 py-2 rounded-lg font-medium transition-colors"
+              >
+                {showAll ? "Show Less" : "Show More"}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </motion.div>
   );
 };
+
+
 // Admin-specific Components
 const AdminAnalytics = ({ userData }) => (
   <motion.div

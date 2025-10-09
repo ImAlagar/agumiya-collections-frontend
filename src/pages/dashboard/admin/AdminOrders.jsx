@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useOrders } from '../../../contexts/OrdersContext';
 import OrderFilters from '../../../components/admin/order/OrderFilters';
 import OrderTable from '../../../components/admin/order/OrderTable';
-import { CheckCircle, TrainTrackIcon, RefreshCwIcon } from 'lucide-react';
+import { CheckCircle, AlertCircle, RefreshCw, X } from 'lucide-react';
 import OrderStats from '../../../components/admin/stats/OrderStats';
 
 const AdminOrders = () => {
@@ -18,6 +18,7 @@ const AdminOrders = () => {
     fetchOrderStats,
     updateOrderStatus,
     retryPrintifyOrder,
+    adminCancelOrder,
     updateFilters,
     clearError
   } = useOrders();
@@ -29,30 +30,31 @@ const AdminOrders = () => {
   const [actionLoading, setActionLoading] = useState(null);
   const [stats, setStats] = useState(null);
   const [localFilters, setLocalFilters] = useState(filters);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [initialLoad, setInitialLoad] = useState(true);
 
-  // ✅ FIXED: Safe data loading with proper error handling
+  // Load data on component mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log('🔄 Starting data load...');
+        console.log('🔄 [AdminOrders] Starting data load...');
+        setInitialLoad(true);
         
-        // Load orders first
-        await fetchOrders();
-        console.log('✅ Orders loaded successfully');
+        // Load orders first - explicitly call with page 1
+        await fetchOrders(1);
+        console.log('✅ [AdminOrders] Orders fetch completed');
         
-        // ✅ SAFE: Check if fetchOrderStats exists and handle undefined
+        // Load stats if available
         if (fetchOrderStats && typeof fetchOrderStats === 'function') {
-          console.log('🔄 Fetching order stats...');
+          console.log('🔄 [AdminOrders] Fetching order stats...');
           const statsResult = await fetchOrderStats();
-          console.log('📊 Stats result:', statsResult);
+          console.log('📊 [AdminOrders] Stats result:', statsResult);
           
-          // ✅ SAFE: Check if statsResult exists and has success property
           if (statsResult && typeof statsResult === 'object' && statsResult.success) {
-            console.log('✅ Stats loaded successfully:', statsResult.stats);
+            console.log('✅ [AdminOrders] Stats loaded successfully');
             setStats(statsResult.stats);
           } else {
-            console.warn('❌ Failed to load stats - invalid response:', statsResult);
-            // Set default stats to prevent errors
+            console.warn('❌ [AdminOrders] Failed to load stats');
             setStats({
               total: orders?.length || 0,
               pending: 0,
@@ -61,47 +63,54 @@ const AdminOrders = () => {
               revenue: 0
             });
           }
-        } else {
-          console.warn('⚠️ fetchOrderStats is not available as a function');
-          // Set default stats
-          setStats({
-            total: orders?.length || 0,
-            pending: 0,
-            completed: 0,
-            cancelled: 0,
-            revenue: 0
-          });
         }
       } catch (error) {
-        console.error('💥 Error loading data:', error);
-        // Set default stats on error
-        setStats({
-          total: orders?.length || 0,
-          pending: 0,
-          completed: 0,
-          cancelled: 0,
-          revenue: 0
-        });
+        console.error('💥 [AdminOrders] Error loading data:', error);
+      } finally {
+        setInitialLoad(false);
       }
     };
     
     loadData();
-  }, [fetchOrders, fetchOrderStats, orders?.length]);
+  }, [fetchOrders, fetchOrderStats]);
+
+  // Debug: Log orders state
+  useEffect(() => {
+    console.log('🔍 [AdminOrders] Orders state:', {
+      ordersType: typeof orders,
+      ordersIsArray: Array.isArray(orders),
+      ordersLength: orders?.length,
+      isLoading,
+      error,
+      pagination
+    });
+  }, [orders, isLoading, error, pagination]);
 
   // Handle filter changes with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (JSON.stringify(localFilters) !== JSON.stringify(filters)) {
         updateFilters(localFilters);
+        fetchOrders(1, localFilters);
       }
     }, 500);
     
     return () => clearTimeout(timeoutId);
-  }, [localFilters, updateFilters, filters]);
+  }, [localFilters, updateFilters, filters, fetchOrders]);
 
   // Handle page change
   const handlePageChange = (newPage) => {
-    fetchOrders(newPage);
+    console.log('📄 [AdminOrders] Changing to page:', newPage);
+    fetchOrders(newPage, localFilters);
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (newLimit) => {
+    console.log('📏 [AdminOrders] Changing page size to:', newLimit);
+    const updatedFilters = { ...localFilters, limit: newLimit };
+    setLocalFilters(updatedFilters);
+    updateFilters(updatedFilters);
+    fetchOrders(1, updatedFilters);
   };
 
   // View order details
@@ -110,24 +119,17 @@ const AdminOrders = () => {
     setShowDetails(true);
   };
 
-  // Update order status
-  const handleStatusUpdate = (order) => {
-    setStatusUpdateOrder(order);
-    setShowStatusModal(true);
-  };
-
-  const handleStatusConfirm = async (newStatus) => {
+  // Cancel order handler
+  const handleCancelOrder = async (orderId, reason) => {
     try {
-      setActionLoading('status-update');
-      const result = await updateOrderStatus(statusUpdateOrder.id, { status: newStatus });
+      setActionLoading(`cancel-${orderId}`);
+      const result = await adminCancelOrder(orderId, reason);
       
-      // ✅ SAFE: Check if result exists
-      if (result && result.success) {
-        setShowStatusModal(false);
-        setStatusUpdateOrder(null);
+      if (result.success) {
+        setSuccessMessage(`Order #${orderId} cancelled successfully`);
         
-        // Refresh orders and stats with safe handling
-        await fetchOrders(pagination.currentPage);
+        // Refresh orders and stats
+        await fetchOrders(pagination?.currentPage || 1);
         
         if (fetchOrderStats) {
           const statsResult = await fetchOrderStats();
@@ -135,26 +137,13 @@ const AdminOrders = () => {
             setStats(statsResult.stats);
           }
         }
+        
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        throw new Error(result.error || 'Failed to cancel order');
       }
     } catch (error) {
-      console.error('Status update error:', error);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Retry Printify forwarding
-  const handleRetryPrintify = async (orderId) => {
-    try {
-      setActionLoading(`retry-${orderId}`);
-      const result = await retryPrintifyOrder(orderId);
-      
-      // ✅ SAFE: Check if result exists
-      if (result && result.success) {
-        await fetchOrders(pagination.currentPage);
-      }
-    } catch (error) {
-      console.error('Retry Printify error:', error);
+      console.error('Cancel order error:', error);
     } finally {
       setActionLoading(null);
     }
@@ -166,21 +155,26 @@ const AdminOrders = () => {
 
   const handleRefresh = async () => {
     try {
-      await fetchOrders(pagination.currentPage);
+      await fetchOrders(pagination?.currentPage || 1);
       
-      // ✅ SAFE: Refresh stats with proper checking
       if (fetchOrderStats) {
         const statsResult = await fetchOrderStats();
         if (statsResult && statsResult.success) {
           setStats(statsResult.stats);
         }
       }
+      
+      setSuccessMessage('Orders refreshed successfully');
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       console.error('Refresh error:', error);
     }
   };
 
-  if (error) {
+  // Ensure orders is always an array when passing to components
+  const safeOrders = Array.isArray(orders) ? orders : [];
+
+  if (error && initialLoad) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -194,7 +188,10 @@ const AdminOrders = () => {
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
           <button
-            onClick={clearError}
+            onClick={() => {
+              clearError();
+              fetchOrders(1);
+            }}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Try Again
@@ -227,7 +224,7 @@ const AdminOrders = () => {
             disabled={isLoading}
             className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
           >
-            <RefreshCwIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
@@ -242,7 +239,7 @@ const AdminOrders = () => {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <TrainTrackIcon className="h-5 w-5 text-red-400 mr-2" />
+              <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
               <span className="text-red-800 dark:text-red-200">{error}</span>
             </div>
             <button
@@ -256,7 +253,7 @@ const AdminOrders = () => {
       )}
 
       {/* Success Alert */}
-      {actionLoading === 'success' && (
+      {successMessage && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -264,51 +261,57 @@ const AdminOrders = () => {
         >
           <div className="flex items-center">
             <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-            <span className="text-green-800 dark:text-green-200">Action completed successfully</span>
+            <span className="text-green-800 dark:text-green-200">{successMessage}</span>
           </div>
         </motion.div>
       )}
 
       {/* Order Statistics Dashboard */}
-      <OrderStats orders={orders} stats={stats} />
+      <OrderStats orders={safeOrders} stats={stats} />
 
       {/* Filters Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
         <OrderFilters
           filters={localFilters}
           onFilterChange={handleFilterChange}
-          onClearFilters={() => setLocalFilters({
-            search: '',
-            status: 'all',
-            paymentStatus: 'all',
-            sortBy: 'createdAt',
-            sortOrder: 'desc'
-          })}
+          onClearFilters={() => {
+            const defaultFilters = {
+              search: '',
+              status: 'all',
+              paymentStatus: 'all',
+              sortBy: 'createdAt',
+              sortOrder: 'desc',
+              limit: 5
+            };
+            setLocalFilters(defaultFilters);
+            updateFilters(defaultFilters);
+            fetchOrders(1, defaultFilters);
+          }}
         />
       </div>
 
       {/* Orders Table Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <OrderTable
-          orders={orders}
+          orders={safeOrders}
           isLoading={isLoading}
           pagination={pagination}
           onViewOrder={handleViewOrder}
-          onUpdateStatus={handleStatusUpdate}
-          onRetryPrintify={handleRetryPrintify}
+          onCancelOrder={handleCancelOrder}
           actionLoading={actionLoading}
           onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
         />
       </div>
 
-      {/* Sync Status Banner */}
+      {/* Loading Indicator */}
       {isLoading && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
         >
-          <RefreshCwIcon className="w-4 h-4 animate-spin" />
+          <RefreshCw className="w-4 h-4 animate-spin" />
           <span>Loading Orders...</span>
         </motion.div>
       )}
