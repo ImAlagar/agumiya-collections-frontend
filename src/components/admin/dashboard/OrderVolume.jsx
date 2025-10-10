@@ -3,7 +3,12 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ShoppingCart, RefreshCw, Truck, CheckCircle, Package } from 'lucide-react';
 
+// Add currency context import
+import { useCurrency } from '../../../contexts/CurrencyContext';
+
 const OrderVolume = ({ data }) => {
+  const { formatPriceSimple } = useCurrency(); // Add this
+
   // Use actual API data structure
   const orderStats = data?.stats || [];
   const totalOrders = data?.totalOrders || 0;
@@ -112,7 +117,7 @@ const OrderVolume = ({ data }) => {
                     {config.label.toLowerCase()}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    ${stat.amount.toLocaleString()}
+                    {formatPriceSimple(stat.amount)} {/* Updated */}
                   </p>
                 </motion.div>
               );

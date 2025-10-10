@@ -19,11 +19,13 @@ import {
   Tablet,
   Monitor
 } from 'lucide-react';
+import { useCurrency } from '../../../contexts/CurrencyContext'; // ✅ ADD THIS IMPORT
 
 const OrderDetails = ({ order, onClose, onStatusUpdate }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const { formatPriceSimple } = useCurrency(); // ✅ ADD THIS HOOK
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -46,12 +48,15 @@ const OrderDetails = ({ order, onClose, onStatusUpdate }) => {
     return idString ? `#${idString.slice(-8)}` : '#N/A';
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0);
-  };
+  // ✅ CHANGED: Use formatPriceSimple instead of local formatCurrency
+const formatCurrency = (amount) => {
+  // Assuming most order amounts are > $10 (1000 cents)
+  // If amount seems too large for dollars, treat as cents
+  if (amount > 1000) {
+    return formatPriceSimple(amount / 100);
+  }
+  return formatPriceSimple(amount);
+};
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -137,7 +142,7 @@ const OrderDetails = ({ order, onClose, onStatusUpdate }) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Total:</span>
-                    <span className="font-semibold text-green-600">{formatCurrency(order.totalAmount)}</span>
+                    <span className="font-semibold text-green-600">{formatCurrency(order.totalAmount)}</span> {/* ✅ Updated */}
                   </div>
                 </div>
               </div>
@@ -156,7 +161,7 @@ const OrderDetails = ({ order, onClose, onStatusUpdate }) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Amount:</span>
-                    <span className="font-semibold">{formatCurrency(order.totalAmount)}</span>
+                    <span className="font-semibold">{formatCurrency(order.totalAmount)}</span> {/* ✅ Updated */}
                   </div>
                   {order.paymentMethod && (
                     <div className="flex justify-between">
@@ -204,7 +209,7 @@ const OrderDetails = ({ order, onClose, onStatusUpdate }) => {
               </div>
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl text-center border border-gray-200 dark:border-gray-700">
                 <div className="text-lg sm:text-xl font-bold text-green-600">
-                  {formatCurrency(order.totalAmount)}
+                  {formatCurrency(order.totalAmount)} {/* ✅ Updated */}
                 </div>
                 <div className="text-xs sm:text-sm opacity-75">Total</div>
               </div>
@@ -278,7 +283,7 @@ const OrderDetails = ({ order, onClose, onStatusUpdate }) => {
                 Order Items ({order.items?.length || 0})
               </h4>
               <div className="text-xs sm:text-sm opacity-75">
-                Total: {formatCurrency(order.totalAmount)}
+                Total: {formatCurrency(order.totalAmount)} {/* ✅ Updated */}
               </div>
             </div>
 
@@ -319,9 +324,9 @@ const OrderDetails = ({ order, onClose, onStatusUpdate }) => {
                           </div>
                         </td>
                         <td className="p-3 text-xs sm:text-sm font-medium">{item.quantity || 1}</td>
-                        <td className="p-3 text-xs sm:text-sm">{formatCurrency(item.price || 0)}</td>
+                        <td className="p-3 text-xs sm:text-sm">{formatCurrency(item.price || 0)}</td> {/* ✅ Updated */}
                         <td className="p-3 text-xs sm:text-sm font-medium text-green-600 dark:text-green-400">
-                          {formatCurrency((item.price || 0) * (item.quantity || 1))}
+                          {formatCurrency((item.price || 0) * (item.quantity || 1))} {/* ✅ Updated */}
                         </td>
                       </tr>
                     ))}

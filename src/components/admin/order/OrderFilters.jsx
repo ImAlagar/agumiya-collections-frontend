@@ -404,7 +404,7 @@ const OrderFilters = ({ filters, onFilterChange, onClearFilters }) => {
               <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder={isMobile ? "Search orders..." : "Search orders by ID, customer name, email, or product..."}
+                placeholder={isMobile ? "Search orders..." : "Search by order ID, customer name, email, phone, or product..."}
                 value={filters.search}
                 onChange={(e) => handleFilterUpdate({ search: e.target.value })}
                 className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-3 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-base font-medium"

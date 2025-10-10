@@ -70,7 +70,6 @@ const AdminRegistration = () => {
     setLoading(true);
     setMessage('');
 
-    // Enhanced validation
     if (formData.password !== formData.confirmPassword) {
       setMessage('Passwords do not match');
       setLoading(false);
@@ -84,7 +83,6 @@ const AdminRegistration = () => {
     }
 
     try {
-      // Use authService for admin registration
       const result = await authService.registerAdmin({
         email: formData.email,
         password: formData.password,
@@ -159,310 +157,309 @@ const AdminRegistration = () => {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.3 }}
-      className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 dark:from-gray-900 dark:to-purple-900"
+      className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 dark:from-gray-900 dark:to-purple-900 px-4 sm:px-6 lg:px-8 py-6"
     >
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-8"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-2xl">
-                <UserPlus className="text-purple-600 dark:text-purple-400" size={32} />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Admin Registration
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
-                  Register new administrator accounts for your store
-                </p>
-              </div>
+      {/* Header - Mobile Optimized */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="mb-6 sm:mb-8"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            <div className="p-2 sm:p-3 bg-purple-100 dark:bg-purple-900 rounded-xl sm:rounded-2xl">
+              <UserPlus className="text-purple-600 dark:text-purple-400" size={24} sm:size={32} />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent leading-tight">
+                Admin Registration
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1 sm:mt-2 text-sm sm:text-base lg:text-lg">
+                Register new administrator accounts
+              </p>
             </div>
           </div>
-        </motion.div>
+        </div>
+      </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Form */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+        {/* Main Form */}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="lg:col-span-2"
+        >
           <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="lg:col-span-2"
+            whileHover={{ y: -2 }}
+            className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8"
           >
-            <motion.div
-              whileHover={{ y: -2 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8"
-            >
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Email */}
-                <motion.div variants={itemVariants}>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    Email Address *
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                      className="w-full pl-12 pr-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
-                      placeholder="admin@example.com"
-                    />
-                  </div>
-                </motion.div>
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+              {/* Email */}
+              <motion.div variants={itemVariants}>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">
+                  Email Address *
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} sm:size={20} />
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className="w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-4 text-base border border-gray-300 dark:border-gray-600 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
+                    placeholder="admin@example.com"
+                  />
+                </div>
+              </motion.div>
 
-                {/* Role */}
-                <motion.div variants={itemVariants}>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    Administrator Role
-                  </label>
-                  <div className="relative">
-                    <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <select
-                      name="role"
-                      value={formData.role}
-                      onChange={handleChange}
-                      className="w-full pl-12 pr-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white appearance-none transition-all duration-200"
-                    >
-                      <option value="ADMIN">Admin - Standard Administrator</option>
-                      <option value="SUPER_ADMIN">Super Admin - Full System Access</option>
-                    </select>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Super Admin has full system access including user management and system settings
-                  </p>
-                </motion.div>
-
-                {/* Password */}
-                <motion.div variants={itemVariants}>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    Password *
-                  </label>
-                  <div className="relative">
-                    <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      name="password"
-                      value={formData.password}
-                      onChange={handlePasswordChange}
-                      required
-                      className="w-full pl-12 pr-12 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
-                      placeholder="Create secure password"
-                    />
-                    <motion.button
-                      type="button"
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
-                    >
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </motion.button>
-                  </div>
-
-                  {/* Password Strength Meter */}
-                  {formData.password && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="mt-4 space-y-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Password Strength:
-                        </span>
-                        <span className={`text-sm font-semibold ${getStrengthColor(passwordStrength.score).replace('bg-', 'text-')}`}>
-                          {getStrengthText(passwordStrength.score)}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(passwordStrength.score / 5) * 100}%` }}
-                          transition={{ duration: 0.5 }}
-                          className={`h-2 rounded-full ${getStrengthColor(passwordStrength.score)}`}
-                        />
-                      </div>
-                    </motion.div>
-                  )}
-                </motion.div>
-
-                {/* Confirm Password */}
-                <motion.div variants={itemVariants}>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    Confirm Password *
-                  </label>
-                  <div className="relative">
-                    <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                      className="w-full pl-12 pr-12 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
-                      placeholder="Confirm your password"
-                    />
-                    <motion.button
-                      type="button"
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
-                    >
-                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </motion.button>
-                  </div>
-                </motion.div>
-
-                {/* Message */}
-                {message && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`p-4 rounded-xl border ${
-                      message.includes('successfully')
-                        ? 'bg-green-100 dark:bg-green-900 border-green-400 dark:border-green-700 text-green-800 dark:text-green-200'
-                        : 'bg-red-100 dark:bg-red-900 border-red-400 dark:border-red-700 text-red-800 dark:text-red-200'
-                    }`}
+              {/* Role */}
+              <motion.div variants={itemVariants}>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">
+                  Administrator Role
+                </label>
+                <div className="relative">
+                  <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} sm:size={20} />
+                  <select
+                    name="role"
+                    value={formData.role}
+                    onChange={handleChange}
+                    className="w-full pl-10 sm:pl-12 pr-8 sm:pr-10 py-3 sm:py-4 text-base border border-gray-300 dark:border-gray-600 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white appearance-none transition-all duration-200"
                   >
-                    <div className="flex items-center">
-                      {message.includes('successfully') && (
-                        <CheckCircle className="mr-2 flex-shrink-0" size={20} />
-                      )}
-                      <span className="font-medium">{message}</span>
+                    <option value="ADMIN">Admin - Standard Administrator</option>
+                    <option value="SUPER_ADMIN">Super Admin - Full System Access</option>
+                  </select>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+                  Super Admin has full system access including user management and system settings
+                </p>
+              </motion.div>
+
+              {/* Password */}
+              <motion.div variants={itemVariants}>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">
+                  Password *
+                </label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} sm:size={20} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={formData.password}
+                    onChange={handlePasswordChange}
+                    required
+                    className="w-full pl-10 sm:pl-12 pr-10 sm:pr-12 py-3 sm:py-4 text-base border border-gray-300 dark:border-gray-600 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
+                    placeholder="Create secure password"
+                  />
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
+                  >
+                    {showPassword ? <EyeOff size={18} sm:size={20} /> : <Eye size={18} sm:size={20} />}
+                  </motion.button>
+                </div>
+
+                {/* Password Strength Meter */}
+                {formData.password && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="mt-3 sm:mt-4 space-y-2 sm:space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Password Strength:
+                      </span>
+                      <span className={`text-sm font-semibold ${getStrengthColor(passwordStrength.score).replace('bg-', 'text-')}`}>
+                        {getStrengthText(passwordStrength.score)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 sm:h-2">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                        transition={{ duration: 0.5 }}
+                        className={`h-1.5 sm:h-2 rounded-full ${getStrengthColor(passwordStrength.score)}`}
+                      />
                     </div>
                   </motion.div>
                 )}
+              </motion.div>
 
-                {/* Submit Button */}
-                <motion.div variants={itemVariants} className="pt-4">
+              {/* Confirm Password */}
+              <motion.div variants={itemVariants}>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">
+                  Confirm Password *
+                </label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} sm:size={20} />
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    className="w-full pl-10 sm:pl-12 pr-10 sm:pr-12 py-3 sm:py-4 text-base border border-gray-300 dark:border-gray-600 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
+                    placeholder="Confirm your password"
+                  />
                   <motion.button
-                    type="submit"
-                    disabled={loading}
-                    whileHover={{ scale: loading ? 1 : 1.02 }}
-                    whileTap={{ scale: loading ? 1 : 0.98 }}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-4 rounded-xl font-semibold text-lg shadow-lg transition-all duration-200 disabled:cursor-not-allowed"
+                    type="button"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
                   >
-                    {loading ? (
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Registering Admin...</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center space-x-2">
-                        <Save size={20} />
-                        <span>Register Administrator</span>
-                      </div>
-                    )}
+                    {showConfirmPassword ? <EyeOff size={18} sm:size={20} /> : <Eye size={18} sm:size={20} />}
                   </motion.button>
+                </div>
+              </motion.div>
+
+              {/* Message */}
+              {message && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border ${
+                    message.includes('successfully')
+                      ? 'bg-green-100 dark:bg-green-900 border-green-400 dark:border-green-700 text-green-800 dark:text-green-200'
+                      : 'bg-red-100 dark:bg-red-900 border-red-400 dark:border-red-700 text-red-800 dark:text-red-200'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    {message.includes('successfully') && (
+                      <CheckCircle className="mr-2 flex-shrink-0" size={18} />
+                    )}
+                    <span className="font-medium text-sm sm:text-base">{message}</span>
+                  </div>
                 </motion.div>
-              </form>
-            </motion.div>
+              )}
+
+              {/* Submit Button */}
+              <motion.div variants={itemVariants} className="pt-2 sm:pt-4">
+                <motion.button
+                  type="submit"
+                  disabled={loading}
+                  whileHover={{ scale: loading ? 1 : 1.02 }}
+                  whileTap={{ scale: loading ? 1 : 0.98 }}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 sm:py-4 rounded-lg sm:rounded-xl font-semibold text-base sm:text-lg shadow-lg transition-all duration-200 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm sm:text-base">Registering Admin...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center space-x-2">
+                      <Save size={18} sm:size={20} />
+                      <span className="text-sm sm:text-base">Register Administrator</span>
+                    </div>
+                  )}
+                </motion.button>
+              </motion.div>
+            </form>
+          </motion.div>
+        </motion.div>
+
+        {/* Sidebar Information - Stack on mobile */}
+        <div className="space-y-4 sm:space-y-6">
+          {/* Security Requirements */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            whileHover={{ y: -2 }}
+            className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6"
+          >
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 flex items-center">
+              <Shield className="mr-2 text-purple-600" size={18} sm:size={20} />
+              Security Requirements
+            </h3>
+            <ul className="space-y-2 sm:space-y-3">
+              {[
+                'Minimum 8 characters',
+                'At least one uppercase letter',
+                'At least one lowercase letter',
+                'At least one number',
+                'At least one special character'
+              ].map((requirement, index) => (
+                <motion.li
+                  key={requirement}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 + index * 0.1 }}
+                  className="flex items-center text-xs sm:text-sm text-gray-600 dark:text-gray-400"
+                >
+                  <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full mr-2 sm:mr-3 flex-shrink-0 ${
+                    passwordStrength.score > index ? 'bg-green-500' : 'bg-gray-300'
+                  }`} />
+                  <span className="leading-relaxed">{requirement}</span>
+                </motion.li>
+              ))}
+            </ul>
           </motion.div>
 
-          {/* Sidebar Information */}
-          <div className="space-y-6">
-            {/* Security Requirements */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              whileHover={{ y: -2 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6"
-            >
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                <Shield className="mr-2 text-purple-600" size={20} />
-                Security Requirements
-              </h3>
-              <ul className="space-y-3">
-                {[
-                  'Minimum 8 characters',
-                  'At least one uppercase letter',
-                  'At least one lowercase letter',
-                  'At least one number',
-                  'At least one special character'
-                ].map((requirement, index) => (
-                  <motion.li
-                    key={requirement}
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 + index * 0.1 }}
-                    className="flex items-center text-sm text-gray-600 dark:text-gray-400"
-                  >
-                    <div className={`w-2 h-2 rounded-full mr-3 ${
-                      passwordStrength.score > index ? 'bg-green-500' : 'bg-gray-300'
-                    }`} />
-                    {requirement}
-                  </motion.li>
-                ))}
-              </ul>
-            </motion.div>
-
-            {/* Role Information */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 }}
-              whileHover={{ y: -2 }}
-              className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg p-6 text-white"
-            >
-              <h3 className="text-lg font-semibold mb-3">Role Permissions</h3>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold text-purple-100">Admin</h4>
-                  <p className="text-purple-200 text-sm mt-1">
-                    Can manage products, orders, customers, and basic settings
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-purple-100">Super Admin</h4>
-                  <p className="text-purple-200 text-sm mt-1">
-                    Full system access including user management and all settings
-                  </p>
-                </div>
+          {/* Role Information */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
+            whileHover={{ y: -2 }}
+            className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 text-white"
+          >
+            <h3 className="text-base sm:text-lg font-semibold mb-3">Role Permissions</h3>
+            <div className="space-y-3 sm:space-y-4">
+              <div>
+                <h4 className="font-semibold text-purple-100 text-sm sm:text-base">Admin</h4>
+                <p className="text-purple-200 text-xs sm:text-sm mt-1 leading-relaxed">
+                  Can manage products, orders, customers, and basic settings
+                </p>
               </div>
-            </motion.div>
+              <div>
+                <h4 className="font-semibold text-purple-100 text-sm sm:text-base">Super Admin</h4>
+                <p className="text-purple-200 text-xs sm:text-sm mt-1 leading-relaxed">
+                  Full system access including user management and all settings
+                </p>
+              </div>
+            </div>
+          </motion.div>
 
-            {/* Quick Tips */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6 }}
-              whileHover={{ y: -2 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6"
-            >
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                Best Practices
-              </h3>
-              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <li className="flex items-start">
-                  <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-1.5 mr-2 flex-shrink-0" />
-                  Use institutional email addresses
-                </li>
-                <li className="flex items-start">
-                  <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-1.5 mr-2 flex-shrink-0" />
-                  Enable two-factor authentication
-                </li>
-                <li className="flex items-start">
-                  <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-1.5 mr-2 flex-shrink-0" />
-                  Regularly review admin access
-                </li>
-                <li className="flex items-start">
-                  <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-1.5 mr-2 flex-shrink-0" />
-                  Use unique passwords for each admin
-                </li>
-              </ul>
-            </motion.div>
-          </div>
+          {/* Quick Tips */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+            whileHover={{ y: -2 }}
+            className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6"
+          >
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">
+              Best Practices
+            </h3>
+            <ul className="space-y-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+              <li className="flex items-start">
+                <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-1 mr-2 flex-shrink-0" />
+                <span className="leading-relaxed">Use institutional email addresses</span>
+              </li>
+              <li className="flex items-start">
+                <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-1 mr-2 flex-shrink-0" />
+                <span className="leading-relaxed">Enable two-factor authentication</span>
+              </li>
+              <li className="flex items-start">
+                <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-1 mr-2 flex-shrink-0" />
+                <span className="leading-relaxed">Regularly review admin access</span>
+              </li>
+              <li className="flex items-start">
+                <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-1 mr-2 flex-shrink-0" />
+                <span className="leading-relaxed">Use unique passwords for each admin</span>
+              </li>
+            </ul>
+          </motion.div>
         </div>
-
+      </div>
     </motion.div>
   );
 };

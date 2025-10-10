@@ -5,6 +5,7 @@ import Loader from '../../common/Loader';
 import OrderDetails from './OrderDetails';
 import { itemVariants, staggerVariants } from '../../../contexts/ProductsContext';
 import { Package, Calendar, User, CreditCard, Truck, ChevronLeft, ChevronRight, RefreshCw, X, AlertCircle } from 'lucide-react';
+import { useCurrency } from '../../../contexts/CurrencyContext'; // ✅ Already added
 
 const StatusBadge = ({ status }) => {
   const statusConfig = {
@@ -94,7 +95,8 @@ const OrderTable = ({
   const [showDetails, setShowDetails] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
-
+  const { formatPriceSimple, getCurrencySymbol } = useCurrency(); // ✅ Already added
+  
   // Safe function to ensure orders is always an array
   const safeOrders = Array.isArray(orders) ? orders : [];
   
@@ -116,12 +118,15 @@ const OrderTable = ({
     });
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
+  // ✅ CHANGED: Remove local formatCurrency and use formatPriceSimple directly
+const formatCurrency = (amount) => {
+  // Assuming most order amounts are > $10 (1000 cents)
+  // If amount seems too large for dollars, treat as cents
+  if (amount > 1000) {
+    return formatPriceSimple(amount / 100);
+  }
+  return formatPriceSimple(amount);
+};
 
   // Safe function to get order display ID
   const getOrderDisplayId = (order) => {
@@ -140,6 +145,7 @@ const OrderTable = ({
     return 'N/A';
   };
 
+  
   const handleRowClick = (order) => {
     setSelectedOrder(order);
     setShowDetails(true);
@@ -444,7 +450,7 @@ const OrderTable = ({
                 </td>
                 <td className="p-4">
                   <div className="font-semibold text-gray-900 dark:text-white">
-                    ${order.totalAmount ? (order.totalAmount / 100).toFixed(2) : '0.00'}
+                    {formatCurrency(order.totalAmount || 0)} {/* ✅ Already using updated formatCurrency */}
                   </div>
                 </td>
                 <td className="p-4">
@@ -519,7 +525,7 @@ const OrderTable = ({
                 <div>
                   <div className="text-gray-600 dark:text-gray-400">Amount</div>
                   <div className="font-semibold text-gray-900 dark:text-gray-100">
-                    {formatCurrency(order.totalAmount || 0)}
+                    {formatCurrency(order.totalAmount || 0)} {/* ✅ Already using updated formatCurrency */}
                   </div>
                 </div>
                 <div>
@@ -655,7 +661,7 @@ const OrderTable = ({
   );
 };
 
-// Icon components
+// Icon components (remain the same)
 const ClockIcon = (props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

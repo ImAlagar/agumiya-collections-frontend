@@ -1,13 +1,16 @@
+// src/components/ui/categories/CategorySection.jsx
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, ArrowRight, ChevronLeft, ChevronRight, Heart, Star } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useCurrency } from '../../../contexts/CurrencyContext';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import fallbackcategory from '../../../assets/images/categories/fallback-category.jpg';
 
 const CategorySection = ({ category, products, index }) => {
   const { theme } = useTheme();
   const { formatPrice, getCurrencySymbol } = useCurrency();
+  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(0);
   const productsPerPage = 4;
 
@@ -117,10 +120,20 @@ const CategorySection = ({ category, products, index }) => {
     return category.image;
   };
 
-  // Handle product click - navigate to shop page with product ID
+  // Handle product click - navigate to shop page with category filter
   const handleProductClick = (product) => {
-    // The Link component will handle navigation
-    return `/shop?category=${encodeURIComponent(category.value)}&product=${product.id}`;
+    // Navigate to shop page with category filter applied
+    navigate(`/shop?category=${encodeURIComponent(category.value)}`);
+  };
+
+  // Handle "View All" click - navigate to shop with category filter
+  const handleViewAllClick = () => {
+    navigate(`/shop?category=${encodeURIComponent(category.value)}`);
+  };
+
+  // Handle category showcase click - navigate to shop with category filter
+  const handleCategoryShowcaseClick = () => {
+    navigate(`/shop?category=${encodeURIComponent(category.value)}`);
   };
 
   return (
@@ -188,7 +201,7 @@ const CategorySection = ({ category, products, index }) => {
                     transition={{ duration: 1.2, ease: "easeOut" }}
                     onError={(e) => {
                       // Fallback if image fails to load
-                      e.target.src = '/images/fallback-category.jpg';
+                      e.target.src = fallbackcategory;
                     }}
                   />
                   
@@ -217,13 +230,13 @@ const CategorySection = ({ category, products, index }) => {
                       whileInView={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.7 }}
                     >
-                      <Link
-                        to={`/shop?category=${encodeURIComponent(category.value)}`}
+                      <button
+                        onClick={handleCategoryShowcaseClick}
                         className="inline-flex items-center gap-3 bg-white/20 backdrop-blur-lg text-white px-8 py-4 rounded-2xl hover:bg-white/30 transition-all duration-500 group/btn border border-white/20"
                       >
                         <span className="font-medium">Explore Collection</span>
                         <ArrowRight className="w-5 h-5 transform group-hover/btn:translate-x-1 transition-transform duration-300" />
-                      </Link>
+                      </button>
                     </motion.div>
                   </div>
                 </div>
@@ -257,72 +270,68 @@ const CategorySection = ({ category, products, index }) => {
                             exit="hidden"
                             whileHover="hover"
                             className={`group relative ${styles.card} ${styles.border} rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm cursor-pointer`}
+                            onClick={() => handleProductClick(product)}
                           >
-                            <Link 
-                              to={handleProductClick(product)}
-                              className="block"
-                            >
-                              {/* Product Image */}
-                              <div className="relative overflow-hidden">
-                                <motion.img
-                                  src={product.images?.[0] || getCategoryImage()}
-                                  alt={product.name}
-                                  className="w-full h-64 object-cover transform group-hover:scale-110 transition-transform duration-700"
-                                  whileHover={{ scale: 1.1 }}
-                                  transition={{ duration: 0.8 }}
-                                  onError={(e) => {
-                                    // Fallback if product image fails to load
-                                    e.target.src = getCategoryImage();
-                                  }}
-                                />
-                                
-                                {/* Overlay Gradient */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                
-                                {/* Stock Badge */}
-                                {product.inStock && (
-                                  <div className="absolute top-4 left-4">
-                                    <span className="px-3 py-1.5 bg-green-500 text-white rounded-full text-xs font-semibold backdrop-blur-sm">
-                                      In Stock
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
+                            {/* Product Image */}
+                            <div className="relative overflow-hidden">
+                              <motion.img
+                                src={product.images?.[0] || getCategoryImage()}
+                                alt={product.name}
+                                className="w-full h-64 object-cover transform group-hover:scale-110 transition-transform duration-700"
+                                whileHover={{ scale: 1.1 }}
+                                transition={{ duration: 0.8 }}
+                                onError={(e) => {
+                                  // Fallback if product image fails to load
+                                  e.target.src = getCategoryImage();
+                                }}
+                              />
                               
-                              {/* Product Info */}
-                              <div className="p-6">
-                                <div className="flex items-start justify-between mb-3">
-                                  <h4 className={`${styles.text} font-semibold text-lg leading-tight line-clamp-2 flex-1 pr-4`}>
-                                    {product.name}
-                                  </h4>
-                                  <div className="flex items-center gap-1">
-                                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                                    <span className={`${styles.subtitle} text-sm font-medium`}>4.8</span>
-                                  </div>
-                                </div>
-                                
-                                <p className={`${styles.subtitle} text-sm mb-4 line-clamp-2 font-light`}>
-                                  Premium quality {category.label.toLowerCase()} designed for excellence
-                                </p>
-                                
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <span className="text-orange-500 font-bold text-xl">
-                                      {currentPrice}
-                                    </span>
-                                    <span className={`${styles.subtitle} text-sm line-through ml-2`}>
-                                      {originalPrice}
-                                    </span>
-                                  </div>
-                                  <span className={`${styles.subtitle} text-xs font-medium px-3 py-1.5 rounded-full ${styles.border}`}>
-                                    {category.label}
+                              {/* Overlay Gradient */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                              
+                              {/* Stock Badge */}
+                              {product.inStock && (
+                                <div className="absolute top-4 left-4">
+                                  <span className="px-3 py-1.5 bg-green-500 text-white rounded-full text-xs font-semibold backdrop-blur-sm">
+                                    In Stock
                                   </span>
                                 </div>
+                              )}
+                            </div>
+                            
+                            {/* Product Info */}
+                            <div className="p-6">
+                              <div className="flex items-start justify-between mb-3">
+                                <h4 className={`${styles.text} font-semibold text-lg leading-tight line-clamp-2 flex-1 pr-4`}>
+                                  {product.name}
+                                </h4>
+                                <div className="flex items-center gap-1">
+                                  <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                                  <span className={`${styles.subtitle} text-sm font-medium`}>4.8</span>
+                                </div>
                               </div>
                               
-                              {/* Hover Effect Border */}
-                              <div className="absolute inset-0 rounded-3xl border-2 border-transparent group-hover:border-orange-500/30 transition-all duration-500"></div>
-                            </Link>
+                              <p className={`${styles.subtitle} text-sm mb-4 line-clamp-2 font-light`}>
+                                Premium quality {category.label.toLowerCase()} designed for excellence
+                              </p>
+                              
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <span className="text-orange-500 font-bold text-xl">
+                                    {currentPrice}
+                                  </span>
+                                  <span className={`${styles.subtitle} text-sm line-through ml-2`}>
+                                    {originalPrice}
+                                  </span>
+                                </div>
+                                <span className={`${styles.subtitle} text-xs font-medium px-3 py-1.5 rounded-full ${styles.border}`}>
+                                  {category.label}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Hover Effect Border */}
+                            <div className="absolute inset-0 rounded-3xl border-2 border-transparent group-hover:border-orange-500/30 transition-all duration-500"></div>
                           </motion.div>
                         );
                       })}
@@ -376,13 +385,13 @@ const CategorySection = ({ category, products, index }) => {
                     transition={{ delay: 1 }}
                     className="text-center mt-12"
                   >
-                    <Link
-                      to={`/shop?category=${encodeURIComponent(category.value)}`}
+                    <button
+                      onClick={handleViewAllClick}
                       className="inline-flex items-center gap-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-10 py-4 rounded-2xl hover:from-orange-600 hover:to-orange-700 transition-all duration-500 shadow-2xl hover:shadow-orange-500/25 group/viewall"
                     >
                       <span className="font-semibold">View All {category.count} Products</span>
                       <ArrowRight className="w-5 h-5 transform group-hover/viewall:translate-x-1 transition-transform duration-300" />
-                    </Link>
+                    </button>
                   </motion.div>
                 </div>
               ) : (

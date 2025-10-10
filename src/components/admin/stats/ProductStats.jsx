@@ -5,6 +5,7 @@ import StatsGrid from '../../shared/StatsGrid';
 import { Package, TrendingUp, AlertTriangle, DollarSign } from 'lucide-react';
 
 const ProductStats = ({ products }) => {
+
   const stats = {
     total: products?.length || 0,
     published: products?.filter(p => p.status === 'true').length || 0,

@@ -12,6 +12,8 @@ import {
   MoreVertical,
   Globe
 } from 'lucide-react';
+import { useCurrency } from '../../../contexts/CurrencyContext'; // Adjust path as needed
+
 
 const ProductTable = ({ 
   products, 
@@ -21,6 +23,7 @@ const ProductTable = ({
   onPageSizeChange, 
   onDeletePrintify 
 }) => {
+   const { formatPriceSimple, getCurrencySymbol } = useCurrency();
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -196,7 +199,7 @@ const handleConfirmDelete = async () => {
                   </td>
                   <td className="p-4">
                     <div className="font-semibold text-gray-900 dark:text-white">
-                      ${typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
+                       {formatPriceSimple(product.price)}
                     </div>
                   </td>
                   <td className="p-4">
@@ -310,7 +313,7 @@ const handleConfirmDelete = async () => {
               <div className="grid grid-cols-2 gap-4 text-sm mb-3">
                 <div>
                   <div className="text-gray-600 dark:text-gray-400">Price</div>
-                  <div className="font-semibold">${typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}</div>
+    <div className="font-semibold">{formatPriceSimple(product.price)}</div>
                 </div>
                 <div>
                   <div className="text-gray-600 dark:text-gray-400">Inventory</div>

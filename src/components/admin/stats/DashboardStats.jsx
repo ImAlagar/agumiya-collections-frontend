@@ -3,12 +3,15 @@ import React from 'react';
 import StatCard from '../../shared/StatCard';
 import StatsGrid from '../../shared/StatsGrid';
 import { DollarSign, ShoppingCart, Package, Users } from 'lucide-react';
+import { useCurrency } from '../../../contexts/CurrencyContext'; // Add this import
 
 const DashboardStats = ({ data, timeRange }) => {
+  const { formatPriceSimple } = useCurrency(); // Add this hook
+
   const stats = [
     {
       title: "Total Sales",
-      value: `$${(data?.sales?.total || 0).toLocaleString()}`,
+      value: formatPriceSimple(data?.sales?.total || 0), // ✅ CHANGED: Use formatPriceSimple
       change: data?.sales?.growth || 0,
       icon: DollarSign,   
       color: "green",

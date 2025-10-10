@@ -25,38 +25,55 @@ const CouponSection = ({
   const [couponsLoading, setCouponsLoading] = useState(false);
   const { applyCoupon: contextApplyCoupon, loading: contextLoading } = useCoupon();
 
-  console.log('🔍 [CouponSection] Component rendered:', {
-    userId,
-    subtotal,
-    cartItemsCount: cartItems?.length || 0,
-    appliedCoupon: appliedCoupon?.code,
-    availableCouponsCount: availableCoupons?.length || 0,
-    allAvailableCouponsCount: allAvailableCoupons.length
-  });
-
-  // Ensure arrays are always arrays
+  // Safe data handling - FIXED: Ensure we never render objects directly
   const safeAvailableCoupons = Array.isArray(availableCoupons) ? availableCoupons : [];
   const safeCouponSuggestions = Array.isArray(couponSuggestions) ? couponSuggestions : [];
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
 
-  // Format price helper
-  const formatPriceInternal = (amount) => {
-    if (formatPrice) {
-      return formatPrice(amount);
+  // Safe console.log - FIXED: Don't log entire objects that might be rendered
+  console.log('🔍 [CouponSection] Component rendered with safe data:', {
+    userId: userId || 'none',
+    subtotal: subtotal || 0,
+    cartItemsCount: safeCartItems.length,
+    appliedCouponCode: appliedCoupon?.code || 'none',
+    availableCouponsCount: safeAvailableCoupons.length,
+    allAvailableCouponsCount: allAvailableCoupons.length
+  });
+
+  // Safe render helper - FIXED: Prevent object rendering
+  const safeRender = (value, fallback = '') => {
+    if (value == null) return fallback;
+    if (typeof value === 'string' || typeof value === 'number') return value.toString();
+    if (typeof value === 'object') {
+      // Only render specific safe properties, never the entire object
+      return value.code || value.name || value.title || fallback;
     }
-    return {
-      formatted: new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD'
-      }).format(amount)
-    };
+    return fallback;
+  };
+
+  // Format price helper with safe fallback
+  const formatPriceInternal = (amount) => {
+    try {
+      if (formatPrice && typeof formatPrice === 'function') {
+        const result = formatPrice(amount);
+        // Ensure we always return a string or object with formatted property
+        if (typeof result === 'string') {
+          return { formatted: result };
+        } else if (result && typeof result === 'object') {
+          return { formatted: result.formatted || result.toString() || '₹0' };
+        }
+      }
+      return { formatted: `₹${amount || 0}` };
+    } catch (error) {
+      return { formatted: `₹${amount || 0}` };
+    }
   };
 
   // Load all available coupons
   useEffect(() => {
     console.log('🔄 [CouponSection useEffect] Checking if should load coupons:', {
       cartItemsCount: safeCartItems.length,
-      appliedCoupon: appliedCoupon?.code,
+      hasAppliedCoupon: !!appliedCoupon,
       shouldLoad: safeCartItems.length > 0 && !appliedCoupon
     });
 
@@ -69,32 +86,19 @@ const CouponSection = ({
     console.log('🚀 [loadAllAvailableCoupons] Starting to load coupons...');
     setCouponsLoading(true);
     try {
-      console.log('📡 [loadAllAvailableCoupons] Making API call with:', {
-        subtotal,
-        cartItemsCount: safeCartItems.length
-      });
-
       const response = await couponService.getPublicCoupons({
         minOrderAmount: subtotal
       });
 
-      console.log('✅ [loadAllAvailableCoupons] API Response:', {
+      console.log('✅ [loadAllAvailableCoupons] API Response summary:', {
         success: response.success,
-        dataCount: response.data?.length,
-        data: response.data
+        dataCount: response.data?.length || 0
       });
 
       if (response.success && response.data) {
         const couponsWithApplicability = response.data.map(coupon => {
           const isApplicable = isCouponApplicable(coupon);
           const potentialDiscount = calculatePotentialDiscount(coupon);
-          
-          console.log(`📋 [loadAllAvailableCoupons] Processing coupon ${coupon.code}:`, {
-            isApplicable,
-            potentialDiscount,
-            minOrderAmount: coupon.minOrderAmount,
-            isActive: coupon.isActive
-          });
           
           return {
             ...coupon,
@@ -103,21 +107,15 @@ const CouponSection = ({
           };
         });
 
-        console.log('💾 [loadAllAvailableCoupons] Setting coupons:', {
-          total: couponsWithApplicability.length,
-          applicable: couponsWithApplicability.filter(c => c.isApplicable).length
-        });
-
+        console.log('💾 [loadAllAvailableCoupons] Setting coupons count:', couponsWithApplicability.length);
         setAllAvailableCoupons(couponsWithApplicability);
       } else {
-        console.warn('⚠️ [loadAllAvailableCoupons] No data in response:', response);
+        console.warn('⚠️ [loadAllAvailableCoupons] No data in response');
+        setAllAvailableCoupons([]);
       }
     } catch (error) {
-      console.error('❌ [loadAllAvailableCoupons] Failed to load coupons:', error);
-      console.error('🔧 Error details:', {
-        message: error.message,
-        response: error.response?.data
-      });
+      console.error('❌ [loadAllAvailableCoupons] Failed to load coupons:', error.message);
+      setAllAvailableCoupons([]);
     } finally {
       setCouponsLoading(false);
     }
@@ -125,38 +123,20 @@ const CouponSection = ({
 
   // Check if coupon is applicable
   const isCouponApplicable = (coupon) => {
-    if (!coupon.isActive) {
-      console.log(`❌ [isCouponApplicable] Coupon ${coupon.code} is not active`);
-      return false;
-    }
+    if (!coupon.isActive) return false;
 
     const now = new Date();
-    if (coupon.validFrom && new Date(coupon.validFrom) > now) {
-      console.log(`❌ [isCouponApplicable] Coupon ${coupon.code} not yet valid`);
-      return false;
-    }
-    if (coupon.validUntil && new Date(coupon.validUntil) < now) {
-      console.log(`❌ [isCouponApplicable] Coupon ${coupon.code} expired`);
-      return false;
-    }
-    if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
-      console.log(`❌ [isCouponApplicable] Coupon ${coupon.code} usage limit reached`);
-      return false;
-    }
-    if (coupon.minOrderAmount && subtotal < coupon.minOrderAmount) {
-      console.log(`❌ [isCouponApplicable] Coupon ${coupon.code} min order not met`);
-      return false;
-    }
+    if (coupon.validFrom && new Date(coupon.validFrom) > now) return false;
+    if (coupon.validUntil && new Date(coupon.validUntil) < now) return false;
+    if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) return false;
+    if (coupon.minOrderAmount && subtotal < coupon.minOrderAmount) return false;
 
-    console.log(`✅ [isCouponApplicable] Coupon ${coupon.code} is applicable`);
     return true;
   };
 
   // Calculate potential discount
   const calculatePotentialDiscount = (coupon) => {
-    if (!coupon || !isCouponApplicable(coupon)) {
-      return 0;
-    }
+    if (!coupon || !isCouponApplicable(coupon)) return 0;
 
     let discount = 0;
     if (coupon.discountType === 'PERCENTAGE') {
@@ -173,20 +153,11 @@ const CouponSection = ({
 
   // Handle manual coupon application
   const handleApplyCoupon = async () => {
-    console.log('🎫 [handleApplyCoupon] Applying coupon:', {
-      code: couponCode,
-      cartItemsCount: safeCartItems.length
-    });
-
-    if (!couponCode.trim()) {
-      console.log('❌ [handleApplyCoupon] Empty coupon code');
-      return;
-    }
+    if (!couponCode.trim()) return;
 
     setIsApplying(true);
     try {
       if (contextApplyCoupon) {
-        console.log('📤 [handleApplyCoupon] Using context applyCoupon');
         await contextApplyCoupon({
           code: couponCode.trim(),
           subtotal,
@@ -195,14 +166,11 @@ const CouponSection = ({
         });
         setCouponCode('');
       } else if (onApplyCoupon) {
-        console.log('📤 [handleApplyCoupon] Using prop onApplyCoupon');
         await onApplyCoupon(couponCode);
         setCouponCode('');
-      } else {
-        console.warn('⚠️ [handleApplyCoupon] No apply coupon function available');
       }
     } catch (error) {
-      console.error('❌ [handleApplyCoupon] Failed to apply coupon:', error);
+      console.error('❌ [handleApplyCoupon] Failed to apply coupon:', error.message);
     } finally {
       setIsApplying(false);
     }
@@ -210,8 +178,6 @@ const CouponSection = ({
 
   // Handle coupon application from list
   const handleApplyCouponFromList = async (coupon) => {
-    console.log('🎫 [handleApplyCouponFromList] Applying coupon from list:', coupon.code);
-
     try {
       if (contextApplyCoupon) {
         await contextApplyCoupon({
@@ -225,55 +191,41 @@ const CouponSection = ({
       }
       setShowAllCoupons(false);
     } catch (error) {
-      console.error('❌ [handleApplyCouponFromList] Failed to apply coupon:', error);
+      console.error('❌ [handleApplyCouponFromList] Failed to apply coupon:', error.message);
     }
   };
 
   const handleRemoveCoupon = () => {
-    console.log('🗑️ [handleRemoveCoupon] Removing coupon');
     if (onRemoveCoupon) {
       onRemoveCoupon();
     }
-    // Reload coupons when coupon is removed
     loadAllAvailableCoupons();
   };
 
   // Get best coupon suggestion
   const getBestCouponSuggestion = () => {
     const applicableCoupons = allAvailableCoupons.filter(coupon => coupon.isApplicable);
-    
-    console.log('🏆 [getBestCouponSuggestion] Finding best coupon:', {
-      totalCoupons: allAvailableCoupons.length,
-      applicableCoupons: applicableCoupons.length
-    });
-
     if (applicableCoupons.length === 0) return null;
 
-    const bestCoupon = applicableCoupons.reduce((best, current) => 
+    return applicableCoupons.reduce((best, current) => 
       current.potentialDiscount > best.potentialDiscount ? current : best
     );
-
-    console.log('🎯 [getBestCouponSuggestion] Best coupon:', {
-      code: bestCoupon.code,
-      discount: bestCoupon.potentialDiscount
-    });
-
-    return bestCoupon;
   };
 
   const bestCoupon = getBestCouponSuggestion();
 
-  console.log('🎨 [CouponSection Render] Final state:', {
+  // FIXED: Safe final state logging
+  console.log('🎨 [CouponSection Render] Final safe state:', {
     allAvailableCouponsCount: allAvailableCoupons.length,
-    bestCoupon: bestCoupon?.code,
+    bestCouponCode: bestCoupon?.code || 'none',
     showAllCoupons,
     couponsLoading,
-    appliedCoupon: appliedCoupon?.code
+    appliedCouponCode: appliedCoupon?.code || 'none'
   });
 
   return (
     <div className="mb-8">
-      {/* Applied Coupon Display */}
+      {/* Applied Coupon Display - FIXED: Use safeRender */}
       {appliedCoupon && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -286,7 +238,7 @@ const CouponSection = ({
               <span className="text-green-600 text-lg">🎉</span>
               <div>
                 <div className="font-semibold text-green-800 dark:text-green-200">
-                  {appliedCoupon.code} Applied!
+                  {safeRender(appliedCoupon.code)} Applied!
                 </div>
                 <div className="text-sm text-green-600 dark:text-green-400">
                   You saved {formatPriceInternal(discountAmount).formatted}
@@ -312,7 +264,6 @@ const CouponSection = ({
               Apply Coupon Code
             </h3>
             
-            {/* Show available coupons count */}
             {allAvailableCoupons.length > 0 && (
               <button
                 onClick={() => setShowAllCoupons(!showAllCoupons)}
@@ -354,7 +305,7 @@ const CouponSection = ({
             </div>
           )}
 
-          {/* Best Coupon Suggestion */}
+          {/* Best Coupon Suggestion - FIXED: Use safeRender */}
           {bestCoupon && !showAllCoupons && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -369,10 +320,10 @@ const CouponSection = ({
                   </div>
                   <div>
                     <div className="font-semibold text-yellow-800 dark:text-yellow-200">
-                      BEST DEAL: {bestCoupon.code}
+                      BEST DEAL: {safeRender(bestCoupon.code)}
                     </div>
                     <div className="text-sm text-yellow-700 dark:text-yellow-300">
-                      {bestCoupon.description || `Save ${bestCoupon.discountValue}${bestCoupon.discountType === 'PERCENTAGE' ? '%' : ''} on your order`}
+                      {safeRender(bestCoupon.description) || `Save ${safeRender(bestCoupon.discountValue)}${bestCoupon.discountType === 'PERCENTAGE' ? '%' : ''} on your order`}
                     </div>
                   </div>
                 </div>
@@ -394,7 +345,7 @@ const CouponSection = ({
             </motion.div>
           )}
 
-          {/* All Coupons List */}
+          {/* All Coupons List - FIXED: Use safeRender everywhere */}
           <AnimatePresence>
             {showAllCoupons && allAvailableCoupons.length > 0 && (
               <motion.div
@@ -415,7 +366,7 @@ const CouponSection = ({
                 <div className="max-h-60 overflow-y-auto">
                   {allAvailableCoupons.map((coupon, index) => (
                     <div
-                      key={coupon.id}
+                      key={coupon.id || index}
                       className={`flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
                         coupon.isApplicable 
                           ? 'hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer' 
@@ -435,10 +386,10 @@ const CouponSection = ({
                         </div>
                         <div>
                           <div className="font-semibold text-gray-900 dark:text-white">
-                            {coupon.code}
+                            {safeRender(coupon.code)}
                           </div>
                           <div className="text-sm text-gray-600 dark:text-gray-400">
-                            {coupon.description || `${coupon.discountValue}${coupon.discountType === 'PERCENTAGE' ? '%' : ''} off`}
+                            {safeRender(coupon.description) || `${safeRender(coupon.discountValue)}${coupon.discountType === 'PERCENTAGE' ? '%' : ''} off`}
                           </div>
                           {!coupon.isApplicable && coupon.minOrderAmount && (
                             <div className="text-xs text-red-500 flex items-center mt-1">
@@ -503,7 +454,7 @@ const CouponSection = ({
             </div>
           )}
 
-          {/* Original Suggestions (if provided) */}
+          {/* Original Suggestions (if provided) - FIXED: Use safeRender */}
           <AnimatePresence>
             {safeCouponSuggestions.length > 0 && (
               <motion.div
@@ -517,7 +468,7 @@ const CouponSection = ({
                 </p>
                 {safeCouponSuggestions.map((coupon, index) => (
                   <motion.div
-                    key={coupon.id || coupon.code}
+                    key={coupon.id || coupon.code || index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
@@ -528,10 +479,10 @@ const CouponSection = ({
                       <span className="text-yellow-500">🎁</span>
                       <div>
                         <div className="font-semibold text-gray-900 dark:text-white">
-                          {coupon.code}
+                          {safeRender(coupon.code)}
                         </div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">
-                          {coupon.description || `Get ${coupon.discountValue}${coupon.discountType === 'PERCENTAGE' ? '%' : ''} off`}
+                          {safeRender(coupon.description) || `Get ${safeRender(coupon.discountValue)}${coupon.discountType === 'PERCENTAGE' ? '%' : ''} off`}
                         </div>
                       </div>
                     </div>

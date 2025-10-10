@@ -22,56 +22,68 @@ const CreateCouponModal = ({ isOpen, onClose, onCouponCreated }) => {
   });
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    clearAdminError();
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError('');
+  clearAdminError();
 
-    // Validation
-    if (!formData.code.trim()) {
-      setError('Coupon code is required');
-      return;
-    }
+  console.log('🟡 Form submission started...');
 
-    if (!formData.discountValue || parseFloat(formData.discountValue) <= 0) {
-      setError('Discount value must be greater than 0');
-      return;
-    }
+  // Validation
+  if (!formData.code.trim()) {
+    setError('Coupon code is required');
+    return;
+  }
 
-    if (formData.discountType === 'PERCENTAGE' && parseFloat(formData.discountValue) > 100) {
-      setError('Percentage discount cannot exceed 100%');
-      return;
-    }
+  if (!formData.discountValue || parseFloat(formData.discountValue) <= 0) {
+    setError('Discount value must be greater than 0');
+    return;
+  }
 
-    // Prepare data for backend - ensure all fields are properly formatted
-    const couponData = {
-      code: formData.code.trim().toUpperCase(),
-      description: formData.description.trim() || `Discount coupon ${formData.code}`,
-      discountType: formData.discountType,
-      discountValue: parseFloat(formData.discountValue),
-      minOrderAmount: formData.minOrderAmount ? parseFloat(formData.minOrderAmount) : 0,
-      maxDiscountAmount: formData.maxDiscountAmount ? parseFloat(formData.maxDiscountAmount) : 0,
-      usageLimit: formData.usageLimit ? parseInt(formData.usageLimit, 10) : null,
-      validUntil: formData.validUntil || null,
-      isSingleUse: Boolean(formData.isSingleUse),
-      isActive: true, // Make sure this is included
-      applicableTo: formData.applicableTo,
-      categories: Array.isArray(formData.categories) ? formData.categories : [],
-      products: Array.isArray(formData.products) ? formData.products : []
-    };
+  if (formData.discountType === 'PERCENTAGE' && parseFloat(formData.discountValue) > 100) {
+    setError('Percentage discount cannot exceed 100%');
+    return;
+  }
 
-    console.log('Sending coupon data:', couponData); // Debug log
+  // Prepare data for backend - ensure all fields are properly formatted
+  const couponData = {
+    code: formData.code.trim().toUpperCase(),
+    description: formData.description.trim() || `Discount coupon ${formData.code}`,
+    discountType: formData.discountType,
+    discountValue: parseFloat(formData.discountValue),
+    minOrderAmount: formData.minOrderAmount ? parseFloat(formData.minOrderAmount) : 0,
+    maxDiscountAmount: formData.maxDiscountAmount ? parseFloat(formData.maxDiscountAmount) : 0,
+    usageLimit: formData.usageLimit ? parseInt(formData.usageLimit, 10) : null,
+    validUntil: formData.validUntil || null,
+    isSingleUse: Boolean(formData.isSingleUse),
+    isActive: true, // Make sure this is included
+    applicableTo: formData.applicableTo,
+    categories: Array.isArray(formData.categories) ? formData.categories : [],
+    products: Array.isArray(formData.products) ? formData.products : []
+  };
 
+  console.log('📤 Sending coupon data to API:', couponData);
+
+  try {
     const result = await createCoupon(couponData);
+    console.log('📥 Response from createCoupon:', result);
 
     if (result.success) {
+      console.log('✅ Coupon created successfully!');
       onCouponCreated(result.data);
       onClose();
       resetForm();
     } else {
-      setError(result.error || 'Failed to create coupon');
+      console.log('❌ Coupon creation failed:', result.error);
+      const errorMessage = result.error || 'Failed to create coupon';
+      setError(errorMessage);
     }
-  };
+  } catch (err) {
+    console.error('🔥 Unexpected error in handleSubmit:', err);
+    const errorMessage = err.message || 'An unexpected error occurred while creating the coupon';
+    setError(errorMessage);
+  }
+};
 
   const resetForm = () => {
     setFormData({

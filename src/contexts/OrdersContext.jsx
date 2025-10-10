@@ -127,6 +127,54 @@ const fetchOrders = useCallback(
     try {
       dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
       const currentFilters = { ...state.filters, ...filters };
+      
+      // Build search query properly for your schema
+      let searchQuery = {};
+      if (currentFilters.search) {
+        const searchTerm = currentFilters.search.trim();
+        
+        // Try to parse as order ID first
+        const orderId = parseInt(searchTerm);
+        if (!isNaN(orderId)) {
+          // Search by order ID
+          searchQuery = {
+            OR: [
+              { id: { equals: orderId } },
+              { razorpayOrderId: { contains: searchTerm, mode: 'insensitive' } },
+              { printifyOrderId: { contains: searchTerm, mode: 'insensitive' } }
+            ]
+          };
+        } else {
+          // Search by customer information from user relation
+          searchQuery = {
+            OR: [
+              { razorpayOrderId: { contains: searchTerm, mode: 'insensitive' } },
+              { printifyOrderId: { contains: searchTerm, mode: 'insensitive' } },
+              { trackingNumber: { contains: searchTerm, mode: 'insensitive' } },
+              { 
+                user: {
+                  OR: [
+                    { name: { contains: searchTerm, mode: 'insensitive' } },
+                    { email: { contains: searchTerm, mode: 'insensitive' } },
+                    { phone: { contains: searchTerm, mode: 'insensitive' } }
+                  ]
+                }
+              },
+              // Search in order items product names
+              {
+                items: {
+                  some: {
+                    product: {
+                      name: { contains: searchTerm, mode: 'insensitive' }
+                    }
+                  }
+                }
+              }
+            ]
+          };
+        }
+      }
+
       const params = {
         page,
         limit: currentFilters.limit,
@@ -138,6 +186,8 @@ const fetchOrders = useCallback(
             : currentFilters.paymentStatus,
         sortBy: currentFilters.sortBy,
         sortOrder: currentFilters.sortOrder,
+        // Add the search query to params
+        ...(Object.keys(searchQuery).length > 0 && { searchQuery })
       };
 
       // Clean up empty params

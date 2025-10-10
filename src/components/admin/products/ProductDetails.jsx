@@ -18,9 +18,12 @@ import {
   Tablet,
   Monitor
 } from 'lucide-react';
+import { useCurrency } from '../../../contexts/CurrencyContext'; // Add this import
 
 const ProductDetails = ({ product, onClose }) => {
   const { theme } = useTheme();
+    const { formatPrice, formatPriceSimple, getCurrencySymbol } = useCurrency(); // Add this
+
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
@@ -101,14 +104,6 @@ const ProductDetails = ({ product, onClose }) => {
   };
 
   const themeClasses = getThemeClasses();
-
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price);
-  };
-
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -329,11 +324,10 @@ const ProductDetails = ({ product, onClose }) => {
 
                   <div className={`p-3 sm:p-4 rounded-lg ${themeClasses.card}`}>
                     <label className="block text-xs sm:text-sm font-semibold opacity-75 mb-2 flex items-center gap-2">
-                      <DollarSign size={isMobile ? 14 : 16} />
                       Price
                     </label>
                     <p className="text-lg sm:text-xl font-semibold text-green-600">
-                      {formatPrice(product.price)}
+                      {formatPriceSimple(product.price)}
                     </p>
                   </div>
 
@@ -434,7 +428,7 @@ const ProductDetails = ({ product, onClose }) => {
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-xs sm:text-sm">
-                        <span className="font-semibold text-green-600">{formatPrice(variant.price)}</span>
+                        <span className="font-semibold text-green-600">{formatPriceSimple(variant.price)}</span>
                         <span className="text-xs opacity-75 truncate ml-2">ID: {variant.id}</span>
                       </div>
                     </motion.div>

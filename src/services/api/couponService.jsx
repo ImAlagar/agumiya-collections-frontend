@@ -7,17 +7,17 @@ export const couponService = {
   // 🧑‍💼 ADMIN COUPON APIS
   // =========================
 
-  // ✅ Create new coupon
-  async createCoupon(data) {
-    try {
-      const response = await apiClient.post(API_ENDPOINTS.COUPONS, data);
-      return response.data;
-    } catch (error) {
-      console.error("❌ Failed to create coupon:", error);
-      throw error;
-    }
-  },
-
+// ✅ Create new coupon
+async createCoupon(data) {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.COUPONS, data);
+    console.log('Create coupon API response:', response); // Add this
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to create coupon:", error);
+    throw error;
+  }
+},
   // ✅ Get all coupons
   async getAllCoupons() {
     try {

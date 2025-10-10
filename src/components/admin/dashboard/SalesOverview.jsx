@@ -15,11 +15,15 @@ import {
 import { Chart as ChartJS, registerables } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 
+// Add currency context import
+import { useCurrency } from '../../../contexts/CurrencyContext';
+
 // Register everything (includes LineController, BarController, etc.)
 ChartJS.register(...registerables);
 
 const SalesOverview = ({ data, timeRange }) => {
   const chartRef = useRef(null);
+  const { formatPriceSimple, getCurrencySymbol } = useCurrency(); // Add this
 
   const salesData = data || [];
 
@@ -32,6 +36,7 @@ const SalesOverview = ({ data, timeRange }) => {
       (salesData[0]?.sales || 1) * 100
     : 0;
 
+  // Update chart data callbacks to use currency formatting
   const chartData = {
     labels: salesData.map(day => 
       new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -84,7 +89,7 @@ const SalesOverview = ({ data, timeRange }) => {
         position: 'left',
         ticks: {
           color: 'rgba(99, 102, 241, 0.8)',
-          callback: value => '$' + value.toLocaleString()
+          callback: value => formatPriceSimple(value) // Updated to use currency formatting
         },
         grid: { color: 'rgba(107, 114, 128, 0.1)' }
       },
@@ -119,7 +124,7 @@ const SalesOverview = ({ data, timeRange }) => {
             if (label) label += ': ';
             if (context.parsed.y !== null) {
               if (context.dataset.label === 'Revenue') {
-                label += '$' + context.parsed.y.toLocaleString();
+                label += formatPriceSimple(context.parsed.y); // Updated
               } else {
                 label += context.parsed.y.toLocaleString() + ' orders';
               }
@@ -189,7 +194,9 @@ const SalesOverview = ({ data, timeRange }) => {
             <h4 className="font-semibold">Total Revenue</h4>
             <DollarSign className="w-6 h-6" />
           </div>
-          <p className="text-3xl font-bold mb-2">${totalRevenue.toLocaleString()}</p>
+          <p className="text-3xl font-bold mb-2">
+            {formatPriceSimple(totalRevenue)} {/* Updated */}
+          </p>
           <div className="flex items-center text-blue-100">
             <TrendingUp className="w-4 h-4 mr-1" />
             <span className="text-sm">
@@ -204,7 +211,7 @@ const SalesOverview = ({ data, timeRange }) => {
             <Zap className="w-6 h-6" />
           </div>
           <p className="text-3xl font-bold mb-2">
-            ${averageDaily.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            {formatPriceSimple(averageDaily)} {/* Updated */}
           </p>
           <div className="flex items-center text-green-100">
             <ArrowUpRight className="w-4 h-4 mr-1" />
@@ -217,7 +224,7 @@ const SalesOverview = ({ data, timeRange }) => {
             <h4 className="font-semibold">Orders Summary</h4>
             <ShoppingCart className="w-6 h-6" />
           </div>
-          <p className="text-3xl font-bold mb-2">{totalOrders}</p>
+          <p className="text-3xl font-bold mb-2">{totalOrders.toLocaleString()}</p>
           <div className="text-purple-100 text-sm">{salesData.length} days of activity</div>
         </motion.div>
       </motion.div>

@@ -2,8 +2,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Award, TrendingUp, TrendingDown, Package } from 'lucide-react';
+import { useCurrency } from '../../../contexts/CurrencyContext';
 
 const BestSellingProducts = ({ data }) => {
+  const { formatPriceSimple } = useCurrency();
+
   // Use actual API data
   const products = data || [];
 
@@ -70,8 +73,9 @@ const BestSellingProducts = ({ data }) => {
               </div>
               
               <div className="text-right">
+                {/* ✅ CHANGED: Use formatPriceSimple instead of hardcoded $ */}
                 <p className="font-semibold text-gray-900 dark:text-white">
-                  ${(product.revenue || 0).toLocaleString()}
+                  {formatPriceSimple(product.revenue || 0)}
                 </p>
                 <div className={`flex items-center justify-end text-sm ${
                   (product.growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'

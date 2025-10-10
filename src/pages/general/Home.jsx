@@ -5,6 +5,13 @@ import { SEO } from "../../contexts/SEOContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import '../../styles/swiper-custom.css';
 import { productService } from '../../services/api/productService';
+import accessoriesBanner from '../../assets/images/categories/accessories-banner.jpg';
+import mensClothingBanner from '../../assets/images/categories/mens-clothing-banner.jpg';
+import womensClothingBanner from '../../assets/images/categories/womens-clothing-banner.jpg';
+import homeLivingBanner from '../../assets/images/categories/home-living-banner.jpg';
+import generalBanner from '../../assets/images/categories/general-banner.jpg';
+import defaultBanner from '../../assets/images/categories/default-banner.jpg';
+
 
 const Home = () => {
   const [categories, setCategories] = useState([]);
@@ -35,23 +42,22 @@ const Home = () => {
     }
   };
 
-  const enhanceCategoriesWithImages = async (categories) => {
-    // Use your product images or local fallback images
+const enhanceCategoriesWithImages = async (categories) => {
     const categoryImages = {
-      "Accessories": "/images/categories/accessories-banner.jpg",
-      "Men's Clothing": "/images/categories/mens-clothing-banner.jpg", 
-      "Women's Clothing": "/images/categories/womens-clothing-banner.jpg",
-      "Home & Living": "/images/categories/home-living-banner.jpg",
-      "general": "/images/categories/general-banner.jpg"
+      "Accessories": accessoriesBanner,
+      "Men's Clothing": mensClothingBanner, 
+      "Women's Clothing": womensClothingBanner,
+      "Home & Living": homeLivingBanner,
+      "general": generalBanner
     };
 
     return categories.map(category => ({
       ...category,
-      image: categoryImages[category.value] || "/images/categories/default-banner.jpg",
+      image: categoryImages[category.value] || defaultBanner,
       gradient: getCategoryGradient(category.value),
       description: getCategoryDescription(category.value)
     }));
-  };
+};
 
   const getCategoryDescription = (categoryValue) => {
     const descriptions = {

@@ -15,10 +15,12 @@ import {
   Loader 
 } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { useCurrency } from '../../../contexts/CurrencyContext'; // ✅ ADD THIS IMPORT
 import UserOrderStats from './UserOrderStats';
 
 const UserDetails = ({ user, onClose, onStatusUpdate, isLoading }) => {
   const { theme } = useTheme();
+  const { formatPriceSimple } = useCurrency(); // ✅ ADD THIS HOOK
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -30,12 +32,6 @@ const UserDetails = ({ user, onClose, onStatusUpdate, isLoading }) => {
     });
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
 
   const getStatusBadge = (isActive) => {
     if (isActive) {
@@ -212,8 +208,9 @@ const UserDetails = ({ user, onClose, onStatusUpdate, isLoading }) => {
                       </p>
                     </div>
                     <div className="text-right">
+                      {/* ✅ CHANGED: Use formatPriceSimple instead of formatCurrency */}
                       <p className="font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(order.totalAmount)}
+                        {formatPriceSimple(order.totalAmount)}
                       </p>
                       <div className="mt-1">
                         {getPaymentStatusBadge(order.paymentStatus)}

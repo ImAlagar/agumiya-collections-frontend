@@ -1,6 +1,7 @@
 // src/pages/Shop.jsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import { staggerVariants, itemVariants, useProducts } from '../../contexts/ProductsContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { SEO } from '../../contexts/SEOContext';
@@ -21,10 +22,53 @@ const AVAILABILITY_OPTIONS = [
   { value: 'false', label: 'Out of Stock' }
 ];
 
+// ✅ Category Banner Component
+const CategoryBanner = ({ category, categoryInfo, onClear, productCount }) => {
+  if (!category) return null;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-2xl p-4 sm:p-6 mb-6 shadow-2xl"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold">
+              {categoryInfo?.label || category} Collection
+            </h2>
+            <p className="text-orange-100 text-sm sm:text-base">
+              {productCount} premium products curated for you
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onClear}
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors font-medium text-sm sm:text-base flex-shrink-0"
+        >
+          View All Categories
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
 // ✅ MAIN COMPONENT - MOBILE RESPONSIVE VERSION
 const Shop = () => {
+  const [searchParams] = useSearchParams();
   const { products, isLoading, error, filters, pagination, fetchProducts, updateFilters, clearError } = useProducts();
   const { convertPrice, userCurrency, getCurrencySymbol, formatPrice } = useCurrency();
+  const productsSectionRef = useRef(null);
+  const [hasScrolled, setHasScrolled] = useState(false);
 
   // Filter state - synchronized with context
   const [localFilters, setLocalFilters] = useState({
@@ -73,6 +117,23 @@ const Shop = () => {
     fetchFilters();
   }, []);
 
+  // ✅ Read URL parameters for category
+  useEffect(() => {
+    const urlCategory = searchParams.get('category');
+    console.log('🔗 URL Category:', urlCategory);
+
+    if (urlCategory) {
+      const decodedCategory = decodeURIComponent(urlCategory);
+      console.log('🎯 Setting category from URL:', decodedCategory);
+      
+      setLocalFilters(prev => ({
+        ...prev,
+        categories: [decodedCategory],
+        page: 1
+      }));
+    }
+  }, [searchParams]);
+
   // ✅ Sync with context filters and fetch products when filters change
   useEffect(() => {
     if (filters && Object.keys(filters).length > 0) {
@@ -110,7 +171,7 @@ const Shop = () => {
       console.log('🔄 Fetching products with filters:', localFilters);
       fetchProducts(1, localFilters);
       setIsFiltering(false);
-    }, 500); // Debounce to avoid too many API calls
+    }, 500);
     
     return () => {
       clearTimeout(timeoutId);
@@ -118,10 +179,68 @@ const Shop = () => {
     };
   }, [localFilters.categories, localFilters.minPrice, localFilters.maxPrice, localFilters.inStock, localFilters.limit]);
 
-  // ✅ Handle filter change - UPDATED with auto-close
+  // ✅ Enhanced auto-scroll for home page navigation
+  useEffect(() => {
+    const urlCategory = searchParams.get('category');
+    
+    if (urlCategory && productsSectionRef.current && !hasScrolled) {
+      console.log('🚀 Auto-scroll triggered for category:', urlCategory);
+      
+      const performScroll = () => {
+        if (productsSectionRef.current && products.length > 0) {
+          try {
+            const element = productsSectionRef.current;
+            const headerHeight = 120;
+            const elementTop = element.getBoundingClientRect().top + window.pageYOffset;
+            const scrollPosition = elementTop - headerHeight;
+            
+            window.scrollTo({
+              top: scrollPosition,
+              behavior: 'smooth'
+            });
+            
+            console.log('✅ Successfully scrolled to products');
+            setHasScrolled(true);
+            
+          } catch (error) {
+            console.error('❌ Scroll failed:', error);
+          }
+        }
+      };
+      
+      // Try scrolling with increasing delays to ensure content is loaded
+      setTimeout(performScroll, 300);
+      setTimeout(performScroll, 800);
+      setTimeout(performScroll, 1500);
+    }
+  }, [searchParams, hasScrolled, products.length]);
+
+  // Reset scroll state when category changes
+  useEffect(() => {
+    const urlCategory = searchParams.get('category');
+    if (urlCategory) {
+      setHasScrolled(false);
+    }
+  }, [searchParams.get('category')]);
+
+  // ✅ Handle filter change
   const handleFilterChange = useCallback((newFilters) => {
     const updated = { ...localFilters, ...newFilters, page: 1 };
     setLocalFilters(updated);
+    
+    // Update URL when category changes
+    if (newFilters.categories !== undefined) {
+      const params = new URLSearchParams();
+      if (newFilters.categories.length > 0) {
+        params.set('category', encodeURIComponent(newFilters.categories[0]));
+      }
+      
+      const newUrl = newFilters.categories.length > 0 
+        ? `${window.location.pathname}?${params.toString()}`
+        : window.location.pathname;
+      
+      window.history.replaceState(null, '', newUrl);
+    }
     
     // Auto-close mobile sidebar on any filter change
     if (mobileFiltersOpen) {
@@ -129,29 +248,32 @@ const Shop = () => {
     }
   }, [localFilters, mobileFiltersOpen]);
 
-  // ✅ Individual filter handlers - UPDATED to close mobile sidebar
-  const handleCategoryChange = useCallback((categories) => {
-    console.log('🎯 Category changed:', categories);
+  // ✅ Handle category change
+  const handleCategoryChange = useCallback((selectedCategory) => {
+    console.log('🎯 Category changed:', selectedCategory);
+    
+    const categories = selectedCategory ? [selectedCategory] : [];
     handleFilterChange({ categories });
   }, [handleFilterChange]);
 
+  // ✅ Handle price range change
   const handlePriceRangeChange = useCallback(([min, max]) => {
     console.log('💰 Price range changed:', { min, max });
     
-    // Use raw USD values (no conversion needed since backend expects USD)
     handleFilterChange({ 
       minPrice: min,
       maxPrice: max
     });
   }, [handleFilterChange]);
 
+  // ✅ Handle availability change
   const handleAvailabilityChange = useCallback((inStock) => {
     console.log('📦 Availability changed:', inStock);
     handleFilterChange({ inStock });
   }, [handleFilterChange]);
 
-  // ✅ Remove individual filter - UPDATED to close mobile sidebar
-  const removeFilter = useCallback((filterType, value = null) => {
+  // ✅ Remove individual filter
+  const removeFilter = useCallback((filterType) => {
     console.log('🗑️ Removing filter:', filterType);
     
     let resetValue;
@@ -196,17 +318,15 @@ const Shop = () => {
     setMobileFiltersOpen(false);
   }, []);
 
-  // ✅ Format price for display - CORRECTED VERSION
+  // ✅ Format price for display
   const formatPriceForDisplay = useCallback((price) => {
     if (price === null || price === undefined) return 'N/A';
     
     try {
-      // Use the formatPrice function from currency context
       const { formatted } = formatPrice(price, userCurrency);
       return formatted;
     } catch (error) {
       console.warn('Price formatting failed, using fallback:', error);
-      // Fallback formatting
       const convertedPrice = convertPrice(price, 'USD', userCurrency);
       return `${getCurrencySymbol()}${convertedPrice.toFixed(2)}`;
     }
@@ -217,7 +337,7 @@ const Shop = () => {
     handleFilterChange({ page });
   }, [handleFilterChange]);
 
-  // ✅ Get current price values for display - CORRECTED
+  // ✅ Get current price values for display
   const getCurrentPriceValues = useCallback(() => {
     const minPrice = localFilters.minPrice !== null ? localFilters.minPrice : filterOptions.priceRange.min;
     const maxPrice = localFilters.maxPrice !== null ? localFilters.maxPrice : filterOptions.priceRange.max;
@@ -236,6 +356,71 @@ const Shop = () => {
     totalCount: 0, 
     hasPrev: false, 
     hasNext: false 
+  };
+
+  // ✅ Get active category info
+  const activeCategoryInfo = localFilters.categories?.length > 0 
+    ? filterOptions.categories.find(cat => cat.value === localFilters.categories[0])
+    : null;
+
+  // ✅ Active filters display
+  const renderActiveFilters = () => {
+    if (activeFilters.length === 0) return null;
+
+    const getFilterLabel = (filterType) => {
+      switch (filterType) {
+        case 'categories':
+          if (localFilters.categories?.length > 0) {
+            const activeCategory = filterOptions.categories.find(
+              opt => opt.value === localFilters.categories[0]
+            );
+            return `Category: ${activeCategory?.label || localFilters.categories[0]}`;
+          }
+          return '';
+        case 'minPrice':
+          return `Min: ${formatPriceForDisplay(localFilters.minPrice)}`;
+        case 'maxPrice':
+          return `Max: ${formatPriceForDisplay(localFilters.maxPrice)}`;
+        case 'availability':
+          const option = AVAILABILITY_OPTIONS.find(opt => opt.value === localFilters.inStock);
+          return `Availability: ${option?.label || 'All'}`;
+        default:
+          return filterType;
+      }
+    };
+
+    return (
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+          Active filters:
+        </span>
+        
+        {activeFilters.map(filter => {
+          const label = getFilterLabel(filter);
+          return label ? (
+            <motion.button
+              key={filter}
+              onClick={() => removeFilter(filter)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm font-medium hover:bg-primary-200 dark:hover:bg-primary-800/50 transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {label}
+              <span className="text-xs ml-1">×</span>
+            </motion.button>
+          ) : null;
+        })}
+        
+        {activeFilters.length > 0 && (
+          <button
+            onClick={clearAllFilters}
+            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium underline ml-2"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+    );
   };
 
   // ✅ Mobile Filters Overlay Component
@@ -312,7 +497,7 @@ const Shop = () => {
                   <ChipFilter
                     options={filterOptions.categories}
                     value={localFilters.categories[0] || ''}
-                    onChange={(value) => handleCategoryChange([value])}
+                    onChange={handleCategoryChange}
                     multiSelect={false}
                     showCounts={true}
                     maxVisible={10}
@@ -329,7 +514,7 @@ const Shop = () => {
                 <ChipFilter
                   options={AVAILABILITY_OPTIONS}
                   value={localFilters.inStock}
-                  onChange={(value) => handleAvailabilityChange(value)}
+                  onChange={handleAvailabilityChange}
                   multiSelect={false}
                   showCounts={false}
                 />
@@ -356,61 +541,11 @@ const Shop = () => {
     </AnimatePresence>
   );
 
-  // ✅ Active filters display - CORRECTED
-  const renderActiveFilters = () => {
-    if (activeFilters.length === 0) return null;
-
-    const getFilterLabel = (filterType) => {
-      switch (filterType) {
-        case 'categories':
-          const categoryLabels = localFilters.categories.map(cat => 
-            filterOptions.categories.find(opt => opt.value === cat)?.label || cat
-          );
-          return `Categories: ${categoryLabels.join(', ')}`;
-        case 'minPrice':
-          return `Min: ${formatPriceForDisplay(localFilters.minPrice)}`;
-        case 'maxPrice':
-          return `Max: ${formatPriceForDisplay(localFilters.maxPrice)}`;
-        case 'availability':
-          const option = AVAILABILITY_OPTIONS.find(opt => opt.value === localFilters.inStock);
-          return `Availability: ${option?.label || 'All'}`;
-        default:
-          return filterType;
-      }
-    };
-
-    return (
-      <div className="flex flex-wrap items-center gap-2 mb-6">
-        <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-          Active filters:
-        </span>
-        {activeFilters.map(filter => (
-          <motion.button
-            key={filter}
-            onClick={() => removeFilter(filter)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm font-medium hover:bg-primary-200 dark:hover:bg-primary-800/50 transition-colors"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            {getFilterLabel(filter)}
-            <span className="text-xs ml-1">×</span>
-          </motion.button>
-        ))}
-        <button
-          onClick={clearAllFilters}
-          className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium underline ml-2"
-        >
-          Clear all
-        </button>
-      </div>
-    );
-  };
-
   return (
     <>
       <SEO 
-        title="Shop All Products | ShopStyle"
-        description="Browse our complete collection of products with smart filters and categories."
+        title={activeCategoryInfo ? `${activeCategoryInfo.label} Collection | ShopStyle` : "Shop All Products | ShopStyle"}
+        description={activeCategoryInfo ? `Browse our exclusive ${activeCategoryInfo.label.toLowerCase()} collection` : "Browse our complete collection of products with smart filters and categories."}
         keywords="shop, products, filters, categories, ecommerce"
       />
       
@@ -421,10 +556,13 @@ const Shop = () => {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6 mb-6 sm:mb-8">
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2 truncate">
-                Shop All Products
+                {activeCategoryInfo ? `${activeCategoryInfo.label} Collection` : "Shop All Products"}
               </h1>
               <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 truncate">
-                Discover our curated collection of premium products
+                {activeCategoryInfo 
+                  ? `Discover our exclusive ${activeCategoryInfo.label.toLowerCase()} collection`
+                  : "Discover our curated collection of premium products"
+                }
               </p>
             </div>
             
@@ -432,7 +570,8 @@ const Shop = () => {
               <div className="hidden sm:block">
                 <CurrencySelector />
               </div>
-                            {/* Mobile Currency Selector */}
+              
+              {/* Mobile Currency Selector */}
               <div className="sm:hidden">
                 <CurrencySelector mobile />
               </div>
@@ -442,7 +581,7 @@ const Shop = () => {
                 onClick={() => setMobileFiltersOpen(true)}
                 className="flex lg:hidden items-center gap-2 px-3 sm:px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl sm:rounded-2xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
               >
-                <svg className=" w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
                 </svg>
                 <span className="hidden xs:inline">Filters</span>
@@ -452,10 +591,18 @@ const Shop = () => {
                   </span>
                 )}
               </button>
-
-
             </div>
           </div>
+
+          {/* ✅ Category Banner */}
+          {localFilters.categories?.length > 0 && (
+            <CategoryBanner 
+              category={localFilters.categories[0]}
+              categoryInfo={activeCategoryInfo}
+              onClear={() => removeFilter('categories')}
+              productCount={safePagination.totalCount}
+            />
+          )}
 
           {/* Loading Indicator */}
           {isFiltering && (
@@ -491,7 +638,7 @@ const Shop = () => {
               </div>
 
               <div className="space-y-6">
-                {/* Price Range - CORRECTED */}
+                {/* Price Range */}
                 <FilterSection 
                   title="Price Range" 
                   badgeCount={activeFilters.includes('minPrice') || activeFilters.includes('maxPrice') ? 1 : 0}
@@ -509,7 +656,7 @@ const Shop = () => {
                   />
                 </FilterSection>
 
-                {/* Categories - CORRECTED */}
+                {/* Categories */}
                 {filterOptions.categories.length > 0 && (
                   <FilterSection 
                     title="Categories" 
@@ -518,7 +665,7 @@ const Shop = () => {
                     <ChipFilter
                       options={filterOptions.categories}
                       value={localFilters.categories[0] || ''}
-                      onChange={(value) => handleCategoryChange([value])}
+                      onChange={handleCategoryChange}
                       multiSelect={false}
                       showCounts={true}
                       maxVisible={10}
@@ -526,7 +673,7 @@ const Shop = () => {
                   </FilterSection>
                 )}
 
-                {/* Availability - CORRECTED */}
+                {/* Availability */}
                 <FilterSection 
                   title="Availability" 
                   badgeCount={localFilters.inStock !== 'all' ? 1 : 0}
@@ -543,7 +690,7 @@ const Shop = () => {
             </motion.div>
 
             {/* 🧩 Product Grid Section */}
-            <div className="flex-1 min-w-0">
+            <div ref={productsSectionRef} className="flex-1 min-w-0 scroll-mt-24">
               {/* Results Info Bar */}
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4 mb-6 p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg">
                 <div className="flex-1 min-w-0">

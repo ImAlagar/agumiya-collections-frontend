@@ -19,6 +19,7 @@ export const ChipFilter = ({
 
   const handleClick = (optionValue) => {
     if (multiSelect) {
+      // Multiple selection logic
       const newValue = Array.isArray(value) 
         ? (value.includes(optionValue)
             ? value.filter(v => v !== optionValue)
@@ -26,14 +27,21 @@ export const ChipFilter = ({
         : [optionValue];
       onChange(newValue);
     } else {
-      onChange(value === optionValue ? '' : optionValue);
+      // ✅ SINGLE SELECTION - Toggle behavior
+      // If clicking the same option, clear selection (send empty string or null)
+      // If clicking different option, select that one
+      const newValue = value === optionValue ? '' : optionValue;
+      onChange(newValue);
     }
   };
 
   const isActive = (optionValue) => {
-    return multiSelect 
-      ? Array.isArray(value) && value.includes(optionValue)
-      : value === optionValue;
+    if (multiSelect) {
+      return Array.isArray(value) && value.includes(optionValue);
+    } else {
+      // ✅ SINGLE SELECTION - Compare directly
+      return value === optionValue;
+    }
   };
 
   return (
@@ -51,6 +59,7 @@ export const ChipFilter = ({
           return (
             <motion.button
               key={option.value}
+              type="button" // ✅ Add type="button" to prevent form submission
               onClick={() => handleClick(option.value)}
               className={`px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 border ${
                 active
@@ -79,6 +88,7 @@ export const ChipFilter = ({
         
         {hiddenCount > 0 && !showAll && (
           <button
+            type="button"
             onClick={() => setShowAll(true)}
             className="px-3 py-2 text-sm text-primary-600 dark:text-primary-400 font-medium hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors"
           >
@@ -88,6 +98,7 @@ export const ChipFilter = ({
         
         {showAll && hiddenCount > 0 && (
           <button
+            type="button"
             onClick={() => setShowAll(false)}
             className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors"
           >
