@@ -95,6 +95,15 @@ const CategorySection = ({ category, products, index }) => {
         ease: "easeOut"
       }
     },
+    exit: {
+      opacity: 0,
+      scale: 0.9,
+      y: -20,
+      transition: {
+        duration: 0.4,
+        ease: "easeIn"
+      }
+    },
     hover: {
       y: -8,
       scale: 1.02,
@@ -256,18 +265,18 @@ const CategorySection = ({ category, products, index }) => {
                 <div className="relative">
                   {/* Products Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <AnimatePresence mode="wait">
-                      {currentProducts.map((product, productIndex) => {
+                    <AnimatePresence mode="popLayout">
+                      {currentProducts.map((product) => {
                         const { formatted: currentPrice } = formatPrice(product.price);
                         const { formatted: originalPrice } = formatPrice(product.price * 1.2);
                         
                         return (
                           <motion.div
-                            key={`${product.id}-${currentPage}`}
+                            key={product.id}
                             variants={cardVariants}
                             initial="hidden"
                             animate="visible"
-                            exit="hidden"
+                            exit="exit"
                             whileHover="hover"
                             className={`group relative ${styles.card} ${styles.border} rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm cursor-pointer`}
                             onClick={() => handleProductClick(product)}
