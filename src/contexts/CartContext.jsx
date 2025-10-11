@@ -13,7 +13,6 @@ const loadCartFromStorage = (userId = 'guest') => {
     const savedCart = localStorage.getItem(cartKey);
     return savedCart ? JSON.parse(savedCart) : { items: [] };
   } catch (error) {
-    logger.error(`Cart load failed for user: ${userId}`, error);
     return { items: [] };
   }
 };
@@ -23,9 +22,7 @@ const saveCartToStorage = (cartState, userId = 'guest') => {
   try {
     const cartKey = getCartKey(userId);
     localStorage.setItem(cartKey, JSON.stringify(cartState));
-    logger.debug(`Cart saved: ${cartState.items?.length || 0} items for ${userId}`);
   } catch (error) {
-    logger.error(`Failed to save cart for user: ${userId}`, error);
   }
 };
 
@@ -50,7 +47,6 @@ const cartReducer = (state, action) => {
       } else {
         newState = { ...state, items: [...state.items, action.payload] };
       }
-      logger.info(`🛒 Added to cart: ${action.payload.name} (x${action.payload.quantity})`);
       break;
     }
 
@@ -62,7 +58,6 @@ const cartReducer = (state, action) => {
             !(item.id === action.payload.id && item.variantId === action.payload.variantId)
         ),
       };
-      logger.info(`🗑️ Removed item from cart: ${action.payload.id}`);
       break;
 
     case 'UPDATE_QUANTITY':
@@ -76,14 +71,11 @@ const cartReducer = (state, action) => {
           )
           .filter((item) => item.quantity > 0),
       };
-      logger.info(
-        `🔢 Updated quantity for ${action.payload.id} → ${action.payload.quantity}`
-      );
+
       break;
 
     case 'CLEAR_CART':
       newState = { ...state, items: [] };
-      logger.info('🧹 Cart cleared');
       break;
 
     case 'LOAD_CART':
@@ -92,9 +84,7 @@ const cartReducer = (state, action) => {
         items: action.payload.items || [],
         currentUserId: action.payload.userId || 'guest',
       };
-      logger.info(
-        `📦 Loaded cart for ${newState.currentUserId} with ${newState.items.length} items`
-      );
+
       break;
 
     case 'SWITCH_USER_CART':
@@ -103,14 +93,11 @@ const cartReducer = (state, action) => {
         items: action.payload.items || [],
         currentUserId: action.payload.userId,
       };
-      logger.info(
-        `🔁 Switched to cart of ${action.payload.userId} (${newState.items.length} items)`
-      );
+
       break;
 
     case 'RESET_TO_GUEST':
       newState = { items: [], currentUserId: 'guest' };
-      logger.info('👤 Reset cart to guest mode');
       break;
 
     default:
@@ -178,7 +165,6 @@ export const CartProvider = ({ children }) => {
   const handleUserLogin = (userId) => {
     try {
       if (userId && userId !== state.currentUserId) {
-        logger.info(`🔐 User logging in: ${userId}`);
 
         // Save current guest cart before switching
         if (state.items.length > 0 && state.currentUserId === 'guest') {
@@ -192,17 +178,14 @@ export const CartProvider = ({ children }) => {
           payload: { items: userCart.items, userId },
         });
 
-        logger.info(`✅ User cart loaded: ${userCart.items.length} items`);
       }
     } catch (error) {
-      logger.error(`❌ Failed to switch to user cart: ${userId}`, error);
     }
   };
 
   // Handle user logout
   const handleUserLogout = () => {
     try {
-      logger.info(`🚪 User logging out: ${state.currentUserId}`);
 
       if (state.currentUserId !== 'guest' && state.items.length > 0) {
         saveCartToStorage({ items: state.items }, state.currentUserId);
@@ -214,9 +197,7 @@ export const CartProvider = ({ children }) => {
         payload: { items: guestCart.items, userId: 'guest' },
       });
 
-      logger.info(`✅ Switched to guest cart (${guestCart.items.length} items)`);
     } catch (error) {
-      logger.error('❌ Error during logout cart switch:', error);
     }
   };
 
@@ -246,7 +227,6 @@ export const CartProvider = ({ children }) => {
 export const useCart = () => {
   const context = useContext(CartContext);
   if (!context) {
-    logger.error('useCart called outside CartProvider');
     throw new Error('useCart must be used within a CartProvider');
   }
   return context;

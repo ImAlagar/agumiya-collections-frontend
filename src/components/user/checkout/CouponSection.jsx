@@ -30,16 +30,6 @@ const CouponSection = ({
   const safeCouponSuggestions = Array.isArray(couponSuggestions) ? couponSuggestions : [];
   const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
 
-  // Safe console.log - FIXED: Don't log entire objects that might be rendered
-  console.log('🔍 [CouponSection] Component rendered with safe data:', {
-    userId: userId || 'none',
-    subtotal: subtotal || 0,
-    cartItemsCount: safeCartItems.length,
-    appliedCouponCode: appliedCoupon?.code || 'none',
-    availableCouponsCount: safeAvailableCoupons.length,
-    allAvailableCouponsCount: allAvailableCoupons.length
-  });
-
   // Safe render helper - FIXED: Prevent object rendering
   const safeRender = (value, fallback = '') => {
     if (value == null) return fallback;
@@ -71,11 +61,6 @@ const CouponSection = ({
 
   // Load all available coupons
   useEffect(() => {
-    console.log('🔄 [CouponSection useEffect] Checking if should load coupons:', {
-      cartItemsCount: safeCartItems.length,
-      hasAppliedCoupon: !!appliedCoupon,
-      shouldLoad: safeCartItems.length > 0 && !appliedCoupon
-    });
 
     if (safeCartItems.length > 0 && !appliedCoupon) {
       loadAllAvailableCoupons();
@@ -83,16 +68,10 @@ const CouponSection = ({
   }, [safeCartItems, appliedCoupon]);
 
   const loadAllAvailableCoupons = async () => {
-    console.log('🚀 [loadAllAvailableCoupons] Starting to load coupons...');
     setCouponsLoading(true);
     try {
       const response = await couponService.getPublicCoupons({
         minOrderAmount: subtotal
-      });
-
-      console.log('✅ [loadAllAvailableCoupons] API Response summary:', {
-        success: response.success,
-        dataCount: response.data?.length || 0
       });
 
       if (response.success && response.data) {
@@ -107,7 +86,6 @@ const CouponSection = ({
           };
         });
 
-        console.log('💾 [loadAllAvailableCoupons] Setting coupons count:', couponsWithApplicability.length);
         setAllAvailableCoupons(couponsWithApplicability);
       } else {
         console.warn('⚠️ [loadAllAvailableCoupons] No data in response');
@@ -214,15 +192,6 @@ const CouponSection = ({
 
   const bestCoupon = getBestCouponSuggestion();
 
-  // FIXED: Safe final state logging
-  console.log('🎨 [CouponSection Render] Final safe state:', {
-    allAvailableCouponsCount: allAvailableCoupons.length,
-    bestCouponCode: bestCoupon?.code || 'none',
-    showAllCoupons,
-    couponsLoading,
-    appliedCouponCode: appliedCoupon?.code || 'none'
-  });
-
   return (
     <div className="mb-8">
       {/* Applied Coupon Display - FIXED: Use safeRender */}
@@ -275,22 +244,31 @@ const CouponSection = ({
           </div>
 
           {/* Manual Coupon Input */}
-          <div className="flex space-x-3 mb-4">
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <input
               type="text"
               value={couponCode}
               onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
               placeholder="Enter coupon code"
-              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full sm:flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
+                        bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 
+                        focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               onKeyPress={(e) => e.key === 'Enter' && handleApplyCoupon()}
             />
+
             <button
               onClick={handleApplyCoupon}
-              disabled={!couponCode.trim() || isApplying || contextLoading || safeCartItems.length === 0}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors disabled:cursor-not-allowed"
+              disabled={
+                !couponCode.trim() ||
+                isApplying ||
+                contextLoading ||
+                safeCartItems.length === 0
+              }
+              className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 
+                        text-white rounded-lg font-semibold transition-colors disabled:cursor-not-allowed"
             >
               {isApplying || contextLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-2"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div>
               ) : (
                 'Apply'
               )}

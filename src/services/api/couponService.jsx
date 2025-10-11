@@ -11,7 +11,6 @@ export const couponService = {
 async createCoupon(data) {
   try {
     const response = await apiClient.post(API_ENDPOINTS.COUPONS, data);
-    console.log('Create coupon API response:', response); // Add this
     return response.data;
   } catch (error) {
     console.error("❌ Failed to create coupon:", error);
@@ -78,15 +77,15 @@ async createCoupon(data) {
   },
 
   // ✅ Get available coupons (for suggestions)
-  async getAvailableCoupons(data = {}) {
-    try {
-      const response = await apiClient.post(`${API_ENDPOINTS.COUPONS}/available`, data);
-      return response.data;
-    } catch (error) {
-      console.error("❌ Failed to fetch available coupons:", error);
-      throw error;
-    }
-  },
+  // async getAvailableCoupons(data = {}) {
+  //   try {
+  //     const response = await apiClient.post(`${API_ENDPOINTS.COUPONS}/available`, data);
+  //     return response.data;
+  //   } catch (error) {
+  //     console.error("❌ Failed to fetch available coupons:", error);
+  //     throw error;
+  //   }
+  // },
 
   // ✅ Mark coupon as used (after successful payment)
   async markCouponAsUsed(data) {

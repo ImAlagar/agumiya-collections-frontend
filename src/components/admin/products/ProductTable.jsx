@@ -47,22 +47,15 @@ const ProductTable = ({
 
 const handleConfirmDelete = async () => {
   if (!deleteConfirm || !onDeletePrintify) return;
-  
-  console.log('🔄 Starting delete process:', {
-    product: deleteConfirm.name,
-    printifyProductId: deleteConfirm.printifyProductId
-  });
-  
+    
   try {
     setIsDeleting(true);
     // Delete from Printify and local database
     const result = await onDeletePrintify('24454051', deleteConfirm.printifyProductId);
-    console.log('✅ Delete result:', result);
     
     setDeleteConfirm(null);
     setActionMenu(null);
   } catch (error) {
-    console.error('❌ Delete failed:', error);
     // Show error message to user
     alert(`Delete failed: ${error.message}`);
   } finally {

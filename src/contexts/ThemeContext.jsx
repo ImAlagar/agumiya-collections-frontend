@@ -1,6 +1,5 @@
 // src/contexts/ThemeContext.jsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import logger from '../utils/logger'; // ✅ Professional logger
 
 const ThemeContext = createContext();
 
@@ -9,13 +8,10 @@ export const ThemeProvider = ({ children }) => {
     try {
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme) {
-        logger.info(`🎨 Loaded saved theme: ${savedTheme}`);
         return savedTheme;
       }
-      logger.info('🎨 No saved theme found, defaulting to dark');
       return 'dark';
     } catch (error) {
-      logger.error('❌ Failed to load theme from localStorage', error);
       return 'dark';
     }
   });
@@ -34,10 +30,8 @@ export const ThemeProvider = ({ children }) => {
 
       if (theme === 'dark') html.classList.add('dark');
 
-      logger.info(`🌗 Theme applied: ${theme}`);
       setIsInitialized(true);
     } catch (error) {
-      logger.error('❌ Failed to apply theme:', error);
     }
   }, [theme]);
 
@@ -47,7 +41,6 @@ export const ThemeProvider = ({ children }) => {
         prev === 'light' ? 'dark' :
         prev === 'dark' ? 'smokey' :
         'light';
-      logger.info(`🔁 Theme toggled: ${prev} → ${nextTheme}`);
       return nextTheme;
     });
   };
@@ -62,7 +55,6 @@ export const ThemeProvider = ({ children }) => {
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
-    logger.error('❌ useTheme used outside of ThemeProvider');
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;

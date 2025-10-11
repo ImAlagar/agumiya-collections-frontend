@@ -95,7 +95,6 @@ export const CouponProvider = ({ children }) => {
         discountAmount,
         couponCode,
       });
-      console.log("✅ Coupon usage recorded successfully");
     } catch (error) {
       console.error("❌ Failed to record coupon usage:", error);
     }
@@ -117,7 +116,6 @@ const fetchAllCoupons = useCallback(async () => {
   setAdminError(null);
   try {
     const res = await couponService.getAllCoupons();
-    console.log('Fetch coupons API Response:', res); // Debug log
     
     // Handle multiple response formats
     if (res.success && res.data?.coupons) {
@@ -150,7 +148,6 @@ const createCoupon = useCallback(async (couponData) => {
   setAdminError(null);
   try {
     const res = await couponService.createCoupon(couponData);
-    console.log('Create coupon response:', res); // Debug log
     
     // Fix: Handle different response structures
     if (res.success) {

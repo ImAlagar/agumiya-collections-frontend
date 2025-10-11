@@ -7,10 +7,6 @@ export const orderService = {
     try {
       const response = await apiClient.get(API_ENDPOINTS.ORDERS, { params });
 
-      console.log("🔄 Admin Orders API Response:", {
-        status: response.status,
-        data: response.data,
-      });
 
       if (response.data && response.data.success) {
         const apiData = response.data.data || [];
@@ -92,7 +88,6 @@ export const orderService = {
   // Create order (for user)
   async createOrder(orderData) {
     try {
-      console.log("📦 Sending order data to backend:", orderData);
 
       const response = await apiClient.post(API_ENDPOINTS.ORDERS, orderData);
       return response.data;

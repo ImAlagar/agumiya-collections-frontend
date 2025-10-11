@@ -6,7 +6,6 @@ export const paymentService = {
   // Create Razorpay order
   async createPaymentOrder(paymentData) {
     try {
-      console.log('🔄 Creating payment order with data:', paymentData);
       
       if (!paymentData.orderId) {
         throw new Error('Order ID is required');
@@ -16,18 +15,14 @@ export const paymentService = {
         orderId: paymentData.orderId.toString()
       };
 
-      console.log('📤 Sending to backend:', requestData);
 
       const response = await apiClient.post(API_ENDPOINTS.PAYMENTS_CREATE_ORDER, requestData);
       
-      console.log('✅ Raw response from backend:', response);
-      console.log('✅ Response data:', response.data);
       
       // Your backend returns: { success: true, data: { id: "order_xxx", ... } }
       // So we need to return response.data.data (the inner data object)
       const paymentDataResponse = response.data.data;
       
-      console.log('✅ Extracted payment data:', paymentDataResponse);
       
       if (!paymentDataResponse) {
         throw new Error('No payment data found in response');

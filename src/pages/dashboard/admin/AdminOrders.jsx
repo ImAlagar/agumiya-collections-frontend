@@ -37,21 +37,16 @@ const AdminOrders = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log('🔄 [AdminOrders] Starting data load...');
         setInitialLoad(true);
         
         // Load orders first - explicitly call with page 1
         await fetchOrders(1);
-        console.log('✅ [AdminOrders] Orders fetch completed');
         
         // Load stats if available
         if (fetchOrderStats && typeof fetchOrderStats === 'function') {
-          console.log('🔄 [AdminOrders] Fetching order stats...');
           const statsResult = await fetchOrderStats();
-          console.log('📊 [AdminOrders] Stats result:', statsResult);
           
           if (statsResult && typeof statsResult === 'object' && statsResult.success) {
-            console.log('✅ [AdminOrders] Stats loaded successfully');
             setStats(statsResult.stats);
           } else {
             console.warn('❌ [AdminOrders] Failed to load stats');
@@ -74,17 +69,6 @@ const AdminOrders = () => {
     loadData();
   }, [fetchOrders, fetchOrderStats]);
 
-  // Debug: Log orders state
-  useEffect(() => {
-    console.log('🔍 [AdminOrders] Orders state:', {
-      ordersType: typeof orders,
-      ordersIsArray: Array.isArray(orders),
-      ordersLength: orders?.length,
-      isLoading,
-      error,
-      pagination
-    });
-  }, [orders, isLoading, error, pagination]);
 
   // Handle filter changes with debounce
   useEffect(() => {
@@ -100,13 +84,11 @@ const AdminOrders = () => {
 
   // Handle page change
   const handlePageChange = (newPage) => {
-    console.log('📄 [AdminOrders] Changing to page:', newPage);
     fetchOrders(newPage, localFilters);
   };
 
   // Handle page size change
   const handlePageSizeChange = (newLimit) => {
-    console.log('📏 [AdminOrders] Changing page size to:', newLimit);
     const updatedFilters = { ...localFilters, limit: newLimit };
     setLocalFilters(updatedFilters);
     updateFilters(updatedFilters);

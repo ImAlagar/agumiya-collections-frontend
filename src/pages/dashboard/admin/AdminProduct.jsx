@@ -69,11 +69,9 @@ const AdminProduct = () => {
   // ✅ Fixed delete handler
   const handleDeletePrintify = async (shopId, printifyProductId) => {
     try {
-      console.log('🔄 Admin: Deleting Printify product:', { shopId, printifyProductId });
       const result = await deletePrintifyProduct(shopId, printifyProductId);
       
       if (result.success) {
-        console.log('✅ Admin: Product deleted successfully');
         // Optional: Show success message or refresh products
         fetchProducts(pagination.currentPage); // Refresh the list
       } else {
@@ -86,14 +84,7 @@ const AdminProduct = () => {
     }
   };
 
-  // Debug pagination
-  useEffect(() => {
-    console.log('📊 Current pagination state:', {
-      productsCount: products.length,
-      pagination,
-      filters
-    });
-  }, [products, pagination, filters]);
+
 
   if (error) {
     return (

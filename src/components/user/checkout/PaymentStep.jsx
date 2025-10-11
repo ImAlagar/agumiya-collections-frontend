@@ -19,7 +19,7 @@ const PaymentStep = ({ createdOrder, isProcessing, onPaymentInit }) => {
           <div className="flex items-center space-x-2">
             <span className="text-green-600">✅</span>
             <span className="text-green-800 dark:text-green-200 font-medium">
-              Order #{createdOrder.id} created successfully
+              Order created successfully! Please complete your payment to confirm.
             </span>
           </div>
         </div>

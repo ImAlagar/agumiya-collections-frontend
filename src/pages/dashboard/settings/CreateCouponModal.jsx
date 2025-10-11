@@ -27,7 +27,6 @@ const handleSubmit = async (e) => {
   setError('');
   clearAdminError();
 
-  console.log('🟡 Form submission started...');
 
   // Validation
   if (!formData.code.trim()) {
@@ -62,19 +61,15 @@ const handleSubmit = async (e) => {
     products: Array.isArray(formData.products) ? formData.products : []
   };
 
-  console.log('📤 Sending coupon data to API:', couponData);
 
   try {
     const result = await createCoupon(couponData);
-    console.log('📥 Response from createCoupon:', result);
 
     if (result.success) {
-      console.log('✅ Coupon created successfully!');
       onCouponCreated(result.data);
       onClose();
       resetForm();
     } else {
-      console.log('❌ Coupon creation failed:', result.error);
       const errorMessage = result.error || 'Failed to create coupon';
       setError(errorMessage);
     }

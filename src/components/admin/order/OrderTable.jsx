@@ -100,13 +100,6 @@ const OrderTable = ({
   // Safe function to ensure orders is always an array
   const safeOrders = Array.isArray(orders) ? orders : [];
   
-  console.log('🔍 OrderTable Debug:', {
-    ordersType: typeof orders,
-    ordersIsArray: Array.isArray(orders),
-    ordersLength: safeOrders.length,
-    orders: orders
-  });
-
   // Rest of your component code remains the same...
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {

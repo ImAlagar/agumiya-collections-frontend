@@ -166,7 +166,6 @@ const UserResetPassword = () => {
         newPassword: password
         };
 
-        console.log('Attempting password reset with token:', token.substring(0, 10) + '...');
 
         const response = await authService.resetUserPassword(resetData);
 

@@ -1,7 +1,6 @@
 // src/contexts/ContactsContext.js
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import { contactService } from '../services/api/contactService';
-import logger from '../utils/logger'; // ✅ centralized logger import
 
 const CONTACT_ACTIONS = {
   SET_LOADING: 'SET_LOADING',
@@ -89,7 +88,6 @@ export const ContactsProvider = ({ children }) => {
   const fetchContacts = useCallback(async (page = 1, filters = {}) => {
     try {
       dispatch({ type: CONTACT_ACTIONS.SET_LOADING, payload: true });
-      logger.info('📞 Fetching contact list...');
 
       const currentFilters = { ...state.filters, ...filters };
       const params = {
@@ -132,12 +130,10 @@ export const ContactsProvider = ({ children }) => {
           }
         });
 
-        logger.info(`✅ Loaded ${totalCount} contacts (page ${currentPage}/${totalPages})`);
       } else {
         throw new Error(response.message || 'Failed to fetch contacts');
       }
     } catch (error) {
-      logger.error('💥 Fetch contacts failed:', error);
       dispatch({
         type: CONTACT_ACTIONS.SET_ERROR,
         payload: error.message || 'Failed to load contacts. Please try again.'
@@ -147,7 +143,6 @@ export const ContactsProvider = ({ children }) => {
 
   // 🔹 Update page size
   const updatePageSize = useCallback(async (newLimit) => {
-    logger.info(`📄 Updating page size to ${newLimit}`);
     dispatch({
       type: CONTACT_ACTIONS.SET_FILTERS,
       payload: { limit: newLimit }
@@ -159,16 +154,13 @@ export const ContactsProvider = ({ children }) => {
   const fetchContactById = useCallback(async (id) => {
     try {
       dispatch({ type: CONTACT_ACTIONS.SET_LOADING, payload: true });
-      logger.info(`🔍 Fetching contact ID: ${id}`);
       const response = await contactService.getContactById(id);
       if (response.success) {
         dispatch({ type: CONTACT_ACTIONS.SET_CONTACT, payload: response.data });
-        logger.info('✅ Contact details loaded');
       } else {
         throw new Error(response.message || 'Failed to fetch contact');
       }
     } catch (error) {
-      logger.error('💥 Fetch contact by ID failed:', error);
       dispatch({ type: CONTACT_ACTIONS.SET_ERROR, payload: error.message });
     }
   }, []);
@@ -176,17 +168,14 @@ export const ContactsProvider = ({ children }) => {
   // 🔹 Fetch contact stats
   const fetchContactStats = useCallback(async () => {
     try {
-      logger.info('📊 Fetching contact statistics...');
       const response = await contactService.getContactStats();
       if (response.success) {
         dispatch({ type: CONTACT_ACTIONS.SET_STATS, payload: response.data });
-        logger.info('✅ Contact statistics updated');
         return { success: true, stats: response.data };
       } else {
         throw new Error(response.message || 'Failed to fetch contact stats');
       }
     } catch (error) {
-      logger.error('💥 Fetch contact stats failed:', error);
       return { success: false, error: error.message };
     }
   }, []);
@@ -194,17 +183,14 @@ export const ContactsProvider = ({ children }) => {
   // 🔹 Update contact status
   const updateContactStatus = useCallback(async (contactId, statusData) => {
     try {
-      logger.info(`📝 Updating contact status (ID: ${contactId})`);
       const response = await contactService.updateContactStatus(contactId, statusData);
       if (response.success) {
         dispatch({ type: CONTACT_ACTIONS.UPDATE_CONTACT, payload: response.data });
-        logger.info('✅ Contact status updated');
         return { success: true, contact: response.data };
       } else {
         throw new Error(response.message || 'Update failed');
       }
     } catch (error) {
-      logger.error('💥 Contact status update failed:', error);
       dispatch({ type: CONTACT_ACTIONS.SET_ERROR, payload: error.message });
       return { success: false, error: error.message };
     }
@@ -213,16 +199,13 @@ export const ContactsProvider = ({ children }) => {
   // 🔹 Submit contact (user inquiry)
   const submitContact = useCallback(async (contactData) => {
     try {
-      logger.info('📨 Submitting new contact inquiry...');
       const response = await contactService.submitContact(contactData);
       if (response.success) {
-        logger.info('✅ Contact submitted successfully');
         return { success: true, contact: response.data };
       } else {
         throw new Error(response.message || 'Submission failed');
       }
     } catch (error) {
-      logger.error('💥 Contact submission failed:', error);
       dispatch({ type: CONTACT_ACTIONS.SET_ERROR, payload: error.message });
       return { success: false, error: error.message };
     }
@@ -234,12 +217,10 @@ export const ContactsProvider = ({ children }) => {
 
   const updateFilters = useCallback(async (newFilters) => {
     dispatch({ type: CONTACT_ACTIONS.SET_FILTERS, payload: newFilters });
-    logger.info('🔁 Filters updated, reloading contacts...');
     fetchContacts(1);
   }, [fetchContacts]);
 
   const clearError = useCallback(() => {
-    logger.debug('🧹 Clearing contact error state');
     dispatch({ type: CONTACT_ACTIONS.CLEAR_ERROR });
   }, []);
 
@@ -266,7 +247,6 @@ export const ContactsProvider = ({ children }) => {
 export const useContacts = () => {
   const context = useContext(ContactsContext);
   if (!context) {
-    logger.error('❌ useContacts must be used within a ContactsProvider');
     throw new Error('useContacts must be used within a ContactsProvider');
   }
   return context;

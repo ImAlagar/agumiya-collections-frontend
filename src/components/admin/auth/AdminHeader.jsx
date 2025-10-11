@@ -125,20 +125,6 @@ const AdminHeader = ({ onMenuClick, sidebarOpen }) => {
             <Search size={20} />
           </motion.button>
 
-          {/* Notifications */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="relative p-2.5 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 
-                        dark:from-gray-800 dark:to-gray-700 text-blue-600 dark:text-blue-400 
-                        shadow-lg hover:shadow-xl transition-all duration-300"
-            aria-label="Notifications"
-          >
-            <Bell size={20} />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-              3
-            </span>
-          </motion.button>
 
           {/* Home Button */}
           <motion.button

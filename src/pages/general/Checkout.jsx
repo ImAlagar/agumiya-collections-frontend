@@ -85,47 +85,43 @@ const Checkout = () => {
   // Final total after discount
   const finalTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
 
-  // Load available coupons for suggestions - FIXED VERSION
-  const loadAvailableCoupons = async () => {
-    try {
-      setCouponLoading(true);
+  // // Load available coupons for suggestions - FIXED VERSION
+  // const loadAvailableCoupons = async () => {
+  //   try {
+  //     setCouponLoading(true);
       
-      // Call the API to get available coupons
-      const response = await couponService.getAvailableCoupons({
-        cartItems,
-        subtotal,
-        userId: user?.id
-      });
+  //     // // Call the API to get available coupons
+  //     // const response = await couponService.getAvailableCoupons({
+  //     //   cartItems,
+  //     //   subtotal,
+  //     //   userId: user?.id
+  //     // });
       
-      console.log('📋 Available coupons response:', response);
       
-      if (response?.success) {
-        // Ensure we always set an array, even if data is undefined
-        const coupons = Array.isArray(response.data) ? response.data : [];
-        setAvailableCoupons(coupons);
+  //     if (response?.success) {
+  //       // Ensure we always set an array, even if data is undefined
+  //       const coupons = Array.isArray(response.data) ? response.data : [];
+  //       setAvailableCoupons(coupons);
         
-        // Generate suggestions
-        const suggestions = generateCouponSuggestions(coupons);
-        setCouponSuggestions(suggestions);
+  //       // Generate suggestions
+  //       const suggestions = generateCouponSuggestions(coupons);
+  //       setCouponSuggestions(suggestions);
         
-        console.log('✅ Loaded coupons:', {
-          available: coupons.length,
-          suggestions: suggestions.length
-        });
-      } else {
-        // If no success, set empty arrays
-        setAvailableCoupons([]);
-        setCouponSuggestions([]);
-      }
-    } catch (error) {
-      console.error('❌ Could not load coupon suggestions:', error);
-      // Set empty arrays on error
-      setAvailableCoupons([]);
-      setCouponSuggestions([]);
-    } finally {
-      setCouponLoading(false);
-    }
-  };
+
+  //     } else {
+  //       // If no success, set empty arrays
+  //       setAvailableCoupons([]);
+  //       setCouponSuggestions([]);
+  //     }
+  //   } catch (error) {
+  //     console.error('❌ Could not load coupon suggestions:', error);
+  //     // Set empty arrays on error
+  //     setAvailableCoupons([]);
+  //     setCouponSuggestions([]);
+  //   } finally {
+  //     setCouponLoading(false);
+  //   }
+  // };
 
   // Generate smart coupon suggestions - FIXED VERSION
   const generateCouponSuggestions = (coupons) => {
@@ -137,7 +133,6 @@ const Checkout = () => {
         
         // Filter coupons that are applicable to current cart
         if (coupon.minOrderAmount && subtotal < coupon.minOrderAmount) {
-          console.log(`Coupon ${coupon.code} skipped: subtotal ${subtotal} < min ${coupon.minOrderAmount}`);
           return false;
         }
         
@@ -162,7 +157,6 @@ const Checkout = () => {
       })
       .slice(0, 3); // Top 3 suggestions
     
-    console.log('🎯 Generated coupon suggestions:', suggestions.map(s => s.code));
     return suggestions;
   };
 
@@ -325,13 +319,10 @@ const Checkout = () => {
         finalAmount: finalTotal
       };
 
-      console.log('🔄 Creating order payload:', JSON.stringify(orderPayload, null, 2));
 
       const result = await orderService.createOrder(orderPayload);
       
       if (result.success && result.data) {
-        console.log('✅ Order created successfully:', result.data);
-        
         // Validate the created order has an ID
         if (!result.data.id) {
           throw new Error('Order created but no order ID returned');
@@ -375,7 +366,6 @@ const Checkout = () => {
         throw new Error('Invalid order: Missing order ID');
       }
 
-      console.log('🔄 Creating Razorpay payment order for order ID:', createdOrder.id);
       
       // Load Razorpay script first
       const isScriptLoaded = await loadRazorpayScript();
@@ -388,11 +378,9 @@ const Checkout = () => {
         orderId: createdOrder.id.toString()
       };
 
-      console.log('💰 Payment data being sent:', paymentData);
 
       const paymentOrder = await paymentService.createPaymentOrder(paymentData);
       
-      console.log('📥 Complete payment order response:', paymentOrder);
       
       if (!paymentOrder.success) {
         console.error('❌ Payment order creation failed:', paymentOrder);
@@ -410,11 +398,7 @@ const Checkout = () => {
       const amount = paymentOrder.data.amount;
       const currency = paymentOrder.data.currency || 'INR';
 
-      console.log('🎯 Extracted values:', {
-        razorpayOrderId,
-        amount,
-        currency
-      });
+
 
       if (!razorpayOrderId) {
         console.error('❌ Missing Razorpay order ID in response. Available fields:', Object.keys(paymentOrder.data));
@@ -424,12 +408,7 @@ const Checkout = () => {
       // Convert rupees to paise
       const razorpayAmount = amount * 100;
       
-      console.log('💰 Amount conversion:', {
-        'Original amount': amount,
-        'Razorpay amount (paise)': razorpayAmount
-      });
 
-      console.log('✅ Razorpay order created successfully. Order ID:', razorpayOrderId);
 
       // Razorpay options
       const options = {
@@ -440,7 +419,6 @@ const Checkout = () => {
         description: `Order #${createdOrder.id}`,
         order_id: razorpayOrderId,
         handler: async (response) => {
-          console.log('🔄 Payment handler called:', response);
           await handlePaymentVerification(response);
         },
         prefill: {
@@ -453,7 +431,6 @@ const Checkout = () => {
         },
         modal: {
           ondismiss: () => {
-            console.log('Payment modal dismissed');
             setIsProcessing(false);
           }
         },
@@ -493,7 +470,6 @@ const Checkout = () => {
       setIsProcessing(true);
       setPaymentStatus('verifying');
 
-      console.log('🔄 Verifying payment:', response);
       
       const verifyResult = await paymentService.verifyPayment({
         razorpay_payment_id: response.razorpay_payment_id,
@@ -503,13 +479,11 @@ const Checkout = () => {
       });
 
       if (verifyResult.success) {
-        console.log('✅ Payment verified successfully');
         setPaymentStatus('success');
         
         // Mark coupon as used after successful payment
         if (appliedCoupon && user?.id) {
           try {
-            console.log('🎟️ Marking coupon as used:', appliedCoupon.code);
 
             await couponService.markCouponAsUsed({
               couponId: appliedCoupon.id,
@@ -519,7 +493,6 @@ const Checkout = () => {
               couponCode: appliedCoupon.code
             });
 
-            console.log('✅ Coupon usage recorded successfully');
           } catch (couponError) {
             console.error('❌ Failed to record coupon usage:', couponError);
             // No need to block order; just log
@@ -563,7 +536,6 @@ const Checkout = () => {
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
       script.onload = () => {
-        console.log('✅ Razorpay SDK loaded');
         resolve(true);
       };
       script.onerror = () => {
@@ -619,12 +591,12 @@ const Checkout = () => {
     }
   }, [isAuthenticated, cartItems, navigate]);
 
-  // Load coupon suggestions when cart items change
-  useEffect(() => {
-    if (cartItems.length > 0) {
-      loadAvailableCoupons();
-    }
-  }, [cartItems, subtotal]);
+  // // Load coupon suggestions when cart items change
+  // useEffect(() => {
+  //   if (cartItems.length > 0) {
+  //     loadAvailableCoupons();
+  //   }
+  // }, [cartItems, subtotal]);
 
   // Auto-apply best coupon when suggestions are loaded
   useEffect(() => {
@@ -634,14 +606,7 @@ const Checkout = () => {
     }
   }, [couponSuggestions, appliedCoupon, currentStep]);
 
-  // Debug cart items
-  useEffect(() => {
-    console.log('🛒 Checkout Cart Items:', {
-      count: cartItems.length,
-      items: cartItems,
-      step: currentStep
-    });
-  }, [cartItems, currentStep]);
+
 
   if (!isAuthenticated || !cartItems || cartItems.length === 0) {
     return (
@@ -792,21 +757,23 @@ const Checkout = () => {
 
               {/* Navigation Buttons */}
               {currentStep < 4 && (
-                <div className="flex justify-between items-center p-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700">
+                  {/* Back Button */}
                   <button
                     type="button"
                     onClick={handlePreviousStep}
                     disabled={currentStep === 1 || isProcessing}
-                    className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full sm:w-auto px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Back
                   </button>
 
+                  {/* Next / Continue / Pay Button */}
                   <button
                     type="button"
                     onClick={handleNextStep}
                     disabled={isProcessing}
-                    className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
+                    className="w-full sm:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors disabled:cursor-not-allowed flex justify-center items-center space-x-2"
                   >
                     {isProcessing ? (
                       <>
@@ -815,14 +782,21 @@ const Checkout = () => {
                       </>
                     ) : (
                       <span>
-                        {currentStep === 1 ? 'Continue to Review' : 
-                         currentStep === 2 ? `Place Order ${discountAmount > 0 ? `& Save ${formatPrice(discountAmount).formatted}` : ''}` : 
-                         `Pay ${formatPrice(finalTotal).formatted}`}
+                        {currentStep === 1
+                          ? 'Continue to Review'
+                          : currentStep === 2
+                          ? `Place Order ${
+                              discountAmount > 0
+                                ? `& Save ${formatPrice(discountAmount).formatted}`
+                                : ''
+                            }`
+                          : `Pay ${formatPrice(finalTotal).formatted}`}
                       </span>
                     )}
                   </button>
                 </div>
               )}
+
             </motion.div>
           </div>
 

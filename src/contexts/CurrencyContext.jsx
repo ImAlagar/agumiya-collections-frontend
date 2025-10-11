@@ -85,7 +85,6 @@ const setCachedRates = (rates) => {
       rates,
       timestamp: Date.now()
     }));
-    console.info('✅ Cached new currency rates');
   } catch (error) {
     console.warn('Failed to cache rates', { error });
   }
@@ -97,7 +96,6 @@ export function CurrencyProvider({ children }) {
   // Detect user location
   const detectUserLocation = useCallback(async () => {
     try {
-      console.info('🌍 Detecting user location via IP');
       const ipResponse = await fetch('https://ipapi.co/json/');
       const ipData = await ipResponse.json();
       
@@ -109,7 +107,6 @@ export function CurrencyProvider({ children }) {
         payload: { country: countryCode, currency }
       });
       
-      console.info(`✅ Detected location: ${countryCode}, Currency: ${currency}`);
       return { country: countryCode, currency };
     } catch (error) {
       console.warn('⚠️ IP detection failed, using fallback method', { error });
@@ -123,7 +120,6 @@ export function CurrencyProvider({ children }) {
         payload: { country, currency }
       });
       
-      console.info(`🌐 Fallback detection: ${country}, Currency: ${currency}`);
       return { country, currency };
     }
   }, []);
@@ -135,7 +131,6 @@ export function CurrencyProvider({ children }) {
     // Check cache
     const cachedRates = getCachedRates();
     if (cachedRates) {
-      console.info('💾 Loaded exchange rates from cache');
       dispatch({
         type: CURRENCY_ACTIONS.SET_EXCHANGE_RATES,
         payload: { rates: cachedRates, timestamp: Date.now() }
@@ -144,7 +139,6 @@ export function CurrencyProvider({ children }) {
     }
 
     try {
-      console.info(`💱 Fetching exchange rates (base: ${baseCurrency})`);
       const response = await fetch(`https://api.frankfurter.app/latest?from=${baseCurrency}`);
       
       if (!response.ok) throw new Error('Frankfurter API request failed');
@@ -158,7 +152,6 @@ export function CurrencyProvider({ children }) {
         payload: { rates, timestamp: Date.now() }
       });
       
-      console.info('✅ Exchange rates updated successfully');
       return rates;
     } catch (error) {
       console.error('💥 Exchange rate fetch failed', { error });
@@ -246,7 +239,6 @@ export function CurrencyProvider({ children }) {
   // Initialize
   useEffect(() => {
     const init = async () => {
-      console.info('🚀 Initializing currency system...');
       await detectUserLocation();
       await fetchExchangeRates('USD');
     };
@@ -254,7 +246,6 @@ export function CurrencyProvider({ children }) {
 
     const interval = setInterval(() => {
       fetchExchangeRates('USD');
-      console.info('♻️ Auto-refreshing currency rates');
     }, 60 * 60 * 1000);
 
     return () => clearInterval(interval);

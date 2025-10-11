@@ -5,7 +5,6 @@ import React, {
   useCallback,
 } from "react";
 import { orderService } from "../services/api/orderService";
-import logger from "../utils/logger"; // ✅ Add professional logger
 
 const ORDER_ACTIONS = {
   SET_LOADING: "SET_LOADING",
@@ -193,11 +192,7 @@ const fetchOrders = useCallback(
       // Clean up empty params
       Object.keys(params).forEach((k) => !params[k] && delete params[k]);
 
-      console.log('🔄 [OrdersContext] fetchOrders called with:', { page, params });
-
       const response = await orderService.getAllOrders(params);
-
-      console.log('📊 [OrdersContext] FULL API RESPONSE:', response);
 
       if (response.success && response.data) {
         // ✅ FIX: Handle the nested orders structure
@@ -206,25 +201,21 @@ const fetchOrders = useCallback(
 
         // Check for nested orders.orders structure
         if (response.data.orders && response.data.orders.orders && Array.isArray(response.data.orders.orders)) {
-          console.log('📦 [OrdersContext] Found nested orders.orders structure');
           ordersArray = response.data.orders.orders;
           paginationData = response.data.orders.pagination || response.data.pagination || {};
         } 
         // Check for direct orders array
         else if (Array.isArray(response.data.orders)) {
-          console.log('📦 [OrdersContext] Found direct orders array');
           ordersArray = response.data.orders;
           paginationData = response.data.pagination || {};
         }
         // Check for data.orders array
         else if (Array.isArray(response.data.data)) {
-          console.log('📦 [OrdersContext] Found data.data array');
           ordersArray = response.data.data;
           paginationData = response.data.pagination || response.data.meta || {};
         }
         // Fallback: if response.data itself is an array
         else if (Array.isArray(response.data)) {
-          console.log('📦 [OrdersContext] Response.data is array');
           ordersArray = response.data;
           paginationData = {};
         }
@@ -239,17 +230,6 @@ const fetchOrders = useCallback(
           hasPrev: paginationData.hasPrev || false
         };
 
-        console.log('✅ [OrdersContext] Final processed data:', {
-          ordersCount: ordersArray.length,
-          ordersArray: ordersArray,
-          paginationData: paginationData
-        });
-
-        // Log first order structure if available
-        if (ordersArray.length > 0) {
-          console.log('📦 [OrdersContext] First order sample:', ordersArray[0]);
-        }
-
         dispatch({
           type: ORDER_ACTIONS.SET_ORDERS,
           payload: { 
@@ -258,14 +238,10 @@ const fetchOrders = useCallback(
           },
         });
 
-        logger.info(`✅ Loaded ${ordersArray.length} orders successfully`);
       } else {
-        console.error('❌ [OrdersContext] API returned failure or no data');
         throw new Error(response.message || "Failed to fetch orders");
       }
     } catch (error) {
-      console.error('💥 [OrdersContext] fetchOrders error:', error);
-      logger.error(`❌ Fetch orders failed: ${error.message}`);
       dispatch({
         type: ORDER_ACTIONS.SET_ERROR,
         payload: error.message || "Failed to load orders",
@@ -277,18 +253,15 @@ const fetchOrders = useCallback(
     // ✅ Fetch Order Tracking (NEW METHOD)
   const fetchOrderTracking = useCallback(async (orderId) => {
     try {
-      logger.info(`📍 Fetching order tracking for #${orderId}`);
       dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
       const response = await orderService.getOrderTracking(orderId);
 
       if (response.success) {
         dispatch({ type: ORDER_ACTIONS.SET_ORDER_TRACKING, payload: response.data });
-        logger.info(`✅ Order tracking #${orderId} fetched successfully`);
       } else {
         throw new Error(response.message);
       }
     } catch (error) {
-      logger.error(`❌ Fetch order tracking #${orderId} failed: ${error.message}`);
       dispatch({ type: ORDER_ACTIONS.SET_ERROR, payload: error.message });
     }
   }, []);
@@ -296,16 +269,13 @@ const fetchOrders = useCallback(
   // ✅ Fetch Single Order
   const fetchOrderById = useCallback(async (id) => {
     try {
-      logger.info(`🔍 Fetching order #${id}`);
       dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
       const response = await orderService.getOrderById(id);
 
       if (response.success) {
         dispatch({ type: ORDER_ACTIONS.SET_ORDER, payload: response.data });
-        logger.info(`✅ Order #${id} fetched successfully`);
       } else throw new Error(response.message);
     } catch (error) {
-      logger.error(`❌ Fetch order #${id} failed: ${error.message}`);
       dispatch({ type: ORDER_ACTIONS.SET_ERROR, payload: error.message });
     }
   }, []);
@@ -313,16 +283,12 @@ const fetchOrders = useCallback(
   // ✅ Create Order
   const createOrder = useCallback(async (orderData) => {
     try {
-      logger.info(
-        `🧾 Creating new order for user: ${orderData.userId || "unknown"}`
-      );
+
       const response = await orderService.createOrder(orderData);
       if (response.success) {
-        logger.info(`✅ Order created: ${response.data?.id}`);
         return { success: true, order: response.data };
       } else throw new Error(response.message);
     } catch (error) {
-      logger.error(`❌ Create order failed: ${error.message}`);
       dispatch({
         type: ORDER_ACTIONS.SET_ERROR,
         payload: error.message,
@@ -334,18 +300,15 @@ const fetchOrders = useCallback(
   // ✅ Update Order Status
   const updateOrderStatus = useCallback(async (orderId, statusData) => {
     try {
-      logger.info(`⚙️ Updating order #${orderId} → ${statusData.status}`);
       const response = await orderService.updateOrderStatus(
         orderId,
         statusData
       );
       if (response.success) {
         dispatch({ type: ORDER_ACTIONS.UPDATE_ORDER, payload: response.data });
-        logger.info(`✅ Order #${orderId} updated successfully`);
         return { success: true };
       } else throw new Error(response.message);
     } catch (error) {
-      logger.error(`❌ Update order #${orderId} failed: ${error.message}`);
       dispatch({ type: ORDER_ACTIONS.SET_ERROR, payload: error.message });
       return { success: false };
     }
@@ -354,42 +317,32 @@ const fetchOrders = useCallback(
   // ✅ Retry Printify Order
   const retryPrintifyOrder = useCallback(async (orderId) => {
     try {
-      logger.info(`🔁 Retrying Printify order sync for #${orderId}`);
       const response = await orderService.retryPrintifyOrder(orderId);
       if (response.success) {
         dispatch({ type: ORDER_ACTIONS.UPDATE_ORDER, payload: response.data });
-        logger.info(`✅ Printify order #${orderId} retried successfully`);
         return { success: true };
       } else throw new Error(response.message);
     } catch (error) {
-      logger.error(
-        `❌ Retry Printify order #${orderId} failed: ${error.message}`
-      );
+
       dispatch({ type: ORDER_ACTIONS.SET_ERROR, payload: error.message });
       return { success: false };
     }
   }, []);
 
   // ✅ Fetch Order Stats
-  // Debug version to see exactly what's happening
   const fetchOrderStats = useCallback(async () => {
     try {
-      console.log("🔄 [DEBUG] fetchOrderStats called");
 
-      logger.info("📊 Fetching order statistics...");
       const response = await orderService.getOrderStats();
 
-      console.log("📊 [DEBUG] orderService response:", response);
 
       if (response && response.success) {
         dispatch({ type: ORDER_ACTIONS.SET_STATS, payload: response.data });
-        logger.info("✅ Order statistics fetched successfully");
 
         const result = {
           success: true,
           stats: response.data,
         };
-        console.log("✅ [DEBUG] Returning success:", result);
         return result;
       } else {
         const result = {
@@ -397,31 +350,25 @@ const fetchOrders = useCallback(
           error: response?.message || "No success flag in response",
           stats: null,
         };
-        console.log("❌ [DEBUG] Returning failure:", result);
         return result;
       }
     } catch (error) {
-      console.error("💥 [DEBUG] fetchOrderStats error:", error);
-      logger.error(`❌ Fetch order stats failed: ${error.message}`);
 
       const result = {
         success: false,
         error: error.message,
         stats: null,
       };
-      console.log("❌ [DEBUG] Returning error result:", result);
       return result;
     }
   }, []);
 
   const setFilters = useCallback((newFilters) => {
-    logger.info(`🔍 Updating filters: ${JSON.stringify(newFilters)}`);
     dispatch({ type: ORDER_ACTIONS.SET_FILTERS, payload: newFilters });
   }, []);
 
   const updateFilters = useCallback(
     (newFilters) => {
-      logger.info(`🔄 Filters applied: ${JSON.stringify(newFilters)}`);
       dispatch({ type: ORDER_ACTIONS.SET_FILTERS, payload: newFilters });
       fetchOrders(1);
     },
@@ -458,18 +405,15 @@ const fetchOrders = useCallback(
   // ✅ User Cancels Order
   const cancelOrder = useCallback(async (orderId, reason) => {
     try {
-      logger.info(`🗑️ User cancelling order #${orderId}: ${reason}`);
       const response = await orderService.cancelOrder(orderId, reason);
       
       if (response.success) {
         dispatch({ type: ORDER_ACTIONS.UPDATE_ORDER_STATUS, payload: response.data });
-        logger.info(`✅ Order #${orderId} cancelled successfully`);
         return { success: true, order: response.data };
       } else {
         throw new Error(response.message);
       }
     } catch (error) {
-      logger.error(`❌ Cancel order #${orderId} failed: ${error.message}`);
       return { success: false, error: error.message };
     }
   }, []);
@@ -477,18 +421,15 @@ const fetchOrders = useCallback(
   // ✅ Admin Cancels Order
   const adminCancelOrder = useCallback(async (orderId, reason) => {
     try {
-      logger.info(`👨‍💼 Admin cancelling order #${orderId}: ${reason}`);
       const response = await orderService.adminCancelOrder(orderId, reason);
       
       if (response.success) {
         dispatch({ type: ORDER_ACTIONS.UPDATE_ORDER_STATUS, payload: response.data });
-        logger.info(`✅ Admin cancelled order #${orderId} successfully`);
         return { success: true, order: response.data };
       } else {
         throw new Error(response.message);
       }
     } catch (error) {
-      logger.error(`❌ Admin cancel order #${orderId} failed: ${error.message}`);
       return { success: false, error: error.message };
     }
   }, []);
@@ -497,19 +438,16 @@ const fetchOrders = useCallback(
   const processRefund = useCallback(async (orderId, reason) => {
     try {
       dispatch({ type: ORDER_ACTIONS.SET_REFUND_LOADING, payload: true });
-      logger.info(`💰 Processing refund for order #${orderId}`);
       
       const response = await orderService.processRefund(orderId, reason);
       
       if (response.success) {
         dispatch({ type: ORDER_ACTIONS.UPDATE_ORDER_STATUS, payload: response.data });
-        logger.info(`✅ Refund processed for order #${orderId}`);
         return { success: true, refund: response.data };
       } else {
         throw new Error(response.message);
       }
     } catch (error) {
-      logger.error(`❌ Process refund #${orderId} failed: ${error.message}`);
       return { success: false, error: error.message };
     } finally {
       dispatch({ type: ORDER_ACTIONS.SET_REFUND_LOADING, payload: false });
@@ -520,19 +458,16 @@ const fetchOrders = useCallback(
   const retryRefund = useCallback(async (orderId) => {
     try {
       dispatch({ type: ORDER_ACTIONS.SET_REFUND_LOADING, payload: true });
-      logger.info(`🔄 Retrying refund for order #${orderId}`);
       
       const response = await orderService.retryRefund(orderId);
       
       if (response.success) {
         dispatch({ type: ORDER_ACTIONS.UPDATE_ORDER_STATUS, payload: response.data });
-        logger.info(`✅ Refund retried successfully for order #${orderId}`);
         return { success: true, refund: response.data };
       } else {
         throw new Error(response.message);
       }
     } catch (error) {
-      logger.error(`❌ Retry refund #${orderId} failed: ${error.message}`);
       return { success: false, error: error.message };
     } finally {
       dispatch({ type: ORDER_ACTIONS.SET_REFUND_LOADING, payload: false });
@@ -565,12 +500,10 @@ const fetchOrders = useCallback(
           payload: { orders, pagination }
         });
         
-        logger.info(`✅ Loaded ${orders.length} cancelled orders`);
       } else {
         throw new Error(response.message);
       }
     } catch (error) {
-      logger.error(`❌ Fetch cancelled orders failed: ${error.message}`);
       dispatch({ type: ORDER_ACTIONS.SET_ERROR, payload: error.message });
     }
   }, []);
@@ -582,13 +515,11 @@ const fetchOrders = useCallback(
       
       if (response.success) {
         dispatch({ type: ORDER_ACTIONS.SET_CANCELLATION_STATS, payload: response.data });
-        logger.info("✅ Cancellation statistics fetched successfully");
         return { success: true, stats: response.data };
       } else {
         throw new Error(response.message);
       }
     } catch (error) {
-      logger.error(`❌ Fetch cancellation stats failed: ${error.message}`);
       return { success: false, error: error.message };
     }
   }, []);
@@ -623,7 +554,6 @@ const fetchOrders = useCallback(
 export const useOrders = () => {
   const context = useContext(OrdersContext);
   if (!context) {
-    logger.error("❌ useOrders used outside OrdersProvider");
     throw new Error("useOrders must be used within a OrdersProvider");
   }
   return context;

@@ -96,7 +96,6 @@ const Shop = () => {
         const res = await productService.getProductFilters();
         if (res.success && res.data) {
           const { categories, priceRange } = res.data;
-          console.log('📊 Filter options loaded:', { categories, priceRange });
           
           setFilterOptions({
             categories: categories || [],
@@ -120,11 +119,9 @@ const Shop = () => {
   // ✅ Read URL parameters for category
   useEffect(() => {
     const urlCategory = searchParams.get('category');
-    console.log('🔗 URL Category:', urlCategory);
 
     if (urlCategory) {
       const decodedCategory = decodeURIComponent(urlCategory);
-      console.log('🎯 Setting category from URL:', decodedCategory);
       
       setLocalFilters(prev => ({
         ...prev,
@@ -168,7 +165,6 @@ const Shop = () => {
   useEffect(() => {
     setIsFiltering(true);
     const timeoutId = setTimeout(() => {
-      console.log('🔄 Fetching products with filters:', localFilters);
       fetchProducts(1, localFilters);
       setIsFiltering(false);
     }, 500);
@@ -184,7 +180,6 @@ const Shop = () => {
     const urlCategory = searchParams.get('category');
     
     if (urlCategory && productsSectionRef.current && !hasScrolled) {
-      console.log('🚀 Auto-scroll triggered for category:', urlCategory);
       
       const performScroll = () => {
         if (productsSectionRef.current && products.length > 0) {
@@ -199,7 +194,6 @@ const Shop = () => {
               behavior: 'smooth'
             });
             
-            console.log('✅ Successfully scrolled to products');
             setHasScrolled(true);
             
           } catch (error) {
@@ -250,7 +244,6 @@ const Shop = () => {
 
   // ✅ Handle category change
   const handleCategoryChange = useCallback((selectedCategory) => {
-    console.log('🎯 Category changed:', selectedCategory);
     
     const categories = selectedCategory ? [selectedCategory] : [];
     handleFilterChange({ categories });
@@ -258,7 +251,6 @@ const Shop = () => {
 
   // ✅ Handle price range change
   const handlePriceRangeChange = useCallback(([min, max]) => {
-    console.log('💰 Price range changed:', { min, max });
     
     handleFilterChange({ 
       minPrice: min,
@@ -268,13 +260,11 @@ const Shop = () => {
 
   // ✅ Handle availability change
   const handleAvailabilityChange = useCallback((inStock) => {
-    console.log('📦 Availability changed:', inStock);
     handleFilterChange({ inStock });
   }, [handleFilterChange]);
 
   // ✅ Remove individual filter
   const removeFilter = useCallback((filterType) => {
-    console.log('🗑️ Removing filter:', filterType);
     
     let resetValue;
 
@@ -300,7 +290,6 @@ const Shop = () => {
 
   // ✅ Reset all filters
   const clearAllFilters = useCallback(() => {
-    console.log('🧹 Clearing all filters');
     const reset = {
       categories: [],
       minPrice: filterOptions.priceRange.min,

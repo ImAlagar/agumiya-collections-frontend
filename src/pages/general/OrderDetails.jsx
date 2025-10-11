@@ -209,35 +209,6 @@ const OrderDetails = () => {
   const discountAmount = getDiscountAmount();
   const totalAmount = order?.totalAmount || order?.finalAmount || (subtotal + shippingCost + taxAmount - discountAmount);
 
-  // Debug logging to see what data we have
-  useEffect(() => {
-    if (order) {
-      console.log('📦 Full Order Data:', order);
-      console.log('💰 Price Breakdown:', {
-        subtotal,
-        shippingCost,
-        taxAmount,
-        discountAmount,
-        totalAmount,
-        hasCoupon: hasCouponDiscount(),
-        couponCode: getCouponCode(),
-        couponData: getCouponInfo(),
-        locationState: location.state
-      });
-      
-      // Check if we can detect discount from item prices
-      if (order.items?.length > 0) {
-        const itemsTotal = order.items.reduce((sum, item) => 
-          sum + (item.price * item.quantity), 0
-        );
-        console.log('🛒 Items Total vs Subtotal:', {
-          itemsTotal,
-          subtotal,
-          possibleDiscount: itemsTotal - subtotal
-        });
-      }
-    }
-  }, [order]);
 
   const formatItemPrice = (price, quantity = 1) => {
     const { formatted } = formatPrice((price || 0) * quantity);

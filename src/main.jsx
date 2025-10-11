@@ -31,7 +31,6 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 // 🪶 Optional: log environment info at startup
-logger.info(`App starting in ${import.meta.env.MODE} mode`);
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

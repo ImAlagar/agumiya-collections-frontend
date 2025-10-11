@@ -46,7 +46,6 @@ export const productService = {
 
   async getFilteredProducts(filters = {}) {
     try {
-      console.log('🔄 Sending filters to API:', filters);
       
       const response = await apiClient.get('/products/filter', {
         params: this.normalizeFilters(filters),
@@ -133,7 +132,6 @@ async deletePrintifyProduct(shopId, printifyProductId) {
   normalizeFilters(filters) {
     const normalized = { ...filters };
     
-    console.log('📦 Raw filters before normalization:', filters);
     
     // Handle categories - ensure it's properly formatted for the API
     if (normalized.categories) {
@@ -167,7 +165,6 @@ async deletePrintifyProduct(shopId, printifyProductId) {
       }
     });
     
-    console.log('📦 Normalized filters for API:', normalized);
     return normalized;
   },
   

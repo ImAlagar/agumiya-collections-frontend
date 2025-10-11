@@ -170,7 +170,6 @@ export const ProductsProvider = ({ children }) => {
         apiFilters.inStock = currentFilters.inStock === 'true'; // ✅ correct comparison
       }
 
-      console.log('🔍 Fetching products with API filters:', apiFilters);
 
       // Use the filter endpoint
       const response = await productService.getFilteredProducts(apiFilters);
