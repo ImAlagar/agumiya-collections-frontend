@@ -39,24 +39,26 @@ const Profile = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+
   const handleLogout = async () => {
-    try {
-      // Clear user's cart before logging out
-      handleUserLogout();
-      
-      // Perform the actual logout
-      await logout();
-      
-      // Navigate to home and close profile dropdown
-      navigate('/');
-      setIsOpen(false);
-      
-      // Optional: Show success message
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Optional: Show error message to user
-    }
-  };
+  try {
+    // Clear user's cart before logging out
+    handleUserLogout();
+    
+    // Perform the actual logout with redirect
+    await logout({ redirect: true });
+    
+    // Close profile dropdown
+    setIsOpen(false);
+    
+    // Optional: Show success message
+    // toast.success('Logged out successfully');
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Optional: Show error message to user
+    // toast.error('Logout failed. Please try again.');
+  }
+};
 
   const getInitials = (name) => {
     return name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U';

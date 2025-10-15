@@ -282,16 +282,45 @@ async resetUserPassword(resetData) {
   
 
   // ------------------ COMMON METHODS ------------------
-  async logout() {
+  async logoutAdmin() {
     try {
-      await apiClient.post(API_ENDPOINTS.LOGOUT);
+      const token = storageManager.getItem(STORAGE_KEYS.AUTH_TOKEN, USER_TYPES.ADMIN);
+      
+      if (token) {
+        await apiClient.post(API_ENDPOINTS.ADMIN_LOGOUT, {}, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
     } catch (error) {
-      console.warn('Logout API call failed:', error);
+      console.warn('Admin logout API call failed:', error);
+    } finally {
+      storageManager.clearAllAuth();
     }
-
-    // Clear all tokens (user & admin)
-    storageManager.clearAllAuth();
+    
     return { success: true };
-  }
+  },
+
+    async logoutUser() {
+    try {
+      const token = storageManager.getItem(STORAGE_KEYS.AUTH_TOKEN, USER_TYPES.USER);
+      
+      if (token) {
+        await apiClient.post(API_ENDPOINTS.USER_LOGOUT, {}, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (error) {
+      console.warn('User logout API call failed:', error);
+    } finally {
+      storageManager.clearAllAuth();
+    }
+    
+    return { success: true };
+  },
+
 };
 

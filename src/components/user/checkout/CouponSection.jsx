@@ -209,9 +209,7 @@ const CouponSection = ({
                 <div className="font-semibold text-green-800 dark:text-green-200">
                   {safeRender(appliedCoupon.code)} Applied!
                 </div>
-                <div className="text-sm text-green-600 dark:text-green-400">
-                  You saved {formatPriceInternal(discountAmount).formatted}
-                </div>
+
               </div>
             </div>
             <button

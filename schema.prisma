@@ -1,0 +1,333 @@
+// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// 🔹 Admin Table
+//
+model Admin {
+  id               Int      @id @default(autoincrement())
+  email            String   @unique
+  password         String
+  role             Role     @default(ADMIN)
+  resetToken       String?  @unique
+  resetTokenExpiry DateTime?
+  createdAt        DateTime @default(now())
+
+  @@map("admins")
+}
+
+//
+// 🔹 User Table
+//
+model User {
+  id                Int       @id @default(autoincrement())
+  name              String
+  email             String    @unique
+  password          String
+  phone             String?
+  address           String?
+  razorpayCustomerId String?  @unique
+  isActive          Boolean   @default(true)
+  emailVerified     Boolean   @default(false)
+  verificationToken String?   @unique
+  resetToken        String?   @unique
+  resetTokenExpiry  DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  orders            Order[]
+  couponUsages      CouponUsage[]
+  paymentLogs       PaymentLog[]
+
+  @@map("users")
+}
+
+//
+// 🔹 Product Table (Synced from Printify)
+//
+model Product {
+  id                Int       @id @default(autoincrement())
+  name              String
+  description       String
+  price             Float
+  images            String[]
+  printifyProductId String    @unique
+  sku               String?
+  category          String?
+  inStock           Boolean   @default(true)
+  isPublished       Boolean   @default(false)
+  
+  // Printify-specific fields
+  printifyVariants          Json?
+  printifyBlueprintId       Int?
+  printifyPrintProviderId   Int?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  orderItems        OrderItem[]
+
+  @@map("products")
+}
+
+//
+// 🔹 Order Table (Razorpay Only)
+//
+model Order {
+  id                  Int              @id @default(autoincrement())
+  userId              Int
+  totalAmount         Float
+  subtotalAmount      Float            // Amount before discount
+  paymentStatus       PaymentStatus    @default(PENDING)
+  fulfillmentStatus   FulfillmentStatus @default(PLACED)
+  
+  // Razorpay fields
+  razorpayOrderId     String?          @unique
+  razorpayPaymentId   String?          @unique
+  razorpayRefundId    String?          @unique
+  
+  // Shipping & Tracking
+  shippingAddress     Json?
+  trackingNumber      String?
+  trackingUrl         String?
+  carrier             String?
+  shipmentDate        DateTime?
+  estimatedDelivery   DateTime?
+  
+  // Printify integration fields
+  printifyOrderId     String?          @unique
+  printifyStatus      String?
+  orderImage          String?          // Custom design image
+  orderNotes          String?          // Special instructions
+  
+  // Coupon fields
+  couponCode          String?
+  discountAmount      Float?           @default(0)
+  couponId            Int?
+  
+  // Cancellation & Refund fields
+  cancelledAt         DateTime?
+  cancellationReason String?
+  cancelledBy         String?          // 'user' or 'admin'
+  refundStatus        RefundStatus?    @default(PENDING)
+  refundAmount        Float?
+  refundRequestedAt   DateTime?
+  refundProcessedAt   DateTime?
+  
+  // Timestamps
+  createdAt           DateTime         @default(now())  
+  updatedAt           DateTime?        @updatedAt
+
+  // Relations
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       OrderItem[]
+  couponUsage CouponUsage?
+  paymentLogs PaymentLog[]
+  refunds     Refund[]
+
+  @@map("orders")
+}
+
+// 🔹 OrderItem Table
+//
+model OrderItem {
+  id                  Int     @id @default(autoincrement())
+  orderId             Int
+  productId           Int
+  quantity            Int
+  price               Float
+
+  // Printify specific fields
+  printifyVariantId       String?
+  printifyBlueprintId     Int?
+  printifyPrintProviderId Int?
+  size                 String?
+  color                String?
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([orderId, productId, printifyVariantId])
+  @@map("order_items")
+}
+
+//
+// 🔹 Coupon Code Table
+//
+model Coupon {
+  id               Int       @id @default(autoincrement())
+  code             String    @unique
+  description      String?
+  discountType     DiscountType @default(PERCENTAGE)
+  discountValue    Float
+  minOrderAmount   Float?    @default(0)
+  maxDiscountAmount Float?
+  usageLimit       Int?
+  usedCount        Int       @default(0)
+  validFrom        DateTime  @default(now())
+  validUntil       DateTime?
+  isActive         Boolean   @default(true)
+  isSingleUse      Boolean   @default(false)
+  applicableTo     CouponApplicability @default(ALL_PRODUCTS)
+  categories       String[]
+  products         Int[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  couponUsages CouponUsage[]
+
+  @@map("coupons")
+}
+
+//
+// 🔹 Coupon Usage Table
+//
+model CouponUsage {
+  id        Int      @id @default(autoincrement())
+  couponId  Int
+  userId    Int
+  orderId   Int
+  usedAt    DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, userId])
+  @@unique([orderId])
+  @@map("coupon_usages")
+}
+
+//
+// 🔹 Payment Log Table
+//
+model PaymentLog {
+  id           Int      @id @default(autoincrement())
+  orderId      Int
+  userId       Int?
+  paymentId    String   @unique
+  amount       Float
+  currency     String   @default("INR")
+  status       String   // CAPTURED, FAILED, REFUNDED
+  gateway      String   @default("RAZORPAY")
+  errorMessage String?
+  rawResponse  Json?
+  createdAt    DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("payment_logs")
+}
+
+//
+// 🔹 Refund Table
+//
+model Refund {
+  id          Int       @id @default(autoincrement())
+  orderId     Int
+  refundId    String    @unique
+  amount      Float
+  status      RefundStatus
+  reason      String?
+  processedAt DateTime
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("refunds")
+}
+
+//
+// 🔹 Contact Inquiry Table
+//
+model ContactInquiry {
+  id              Int       @id @default(autoincrement())
+  name            String
+  email           String
+  phone           String?
+  subject         String
+  message         String
+  inquiryType     InquiryType @default(GENERAL)
+  status          InquiryStatus @default(PENDING)
+  callbackTime    DateTime?
+  adminNotes      String?
+  country         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("contact_inquiries")
+}
+
+//
+// 🔹 Enums
+//
+enum Role {
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUND_PENDING
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum FulfillmentStatus {
+  PLACED
+  PROCESSING
+  SHIPPED 
+  DELIVERED
+  CANCELLED
+  FAILED
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  NOT_REQUIRED
+}
+
+enum InquiryType {
+  GENERAL
+  ORDER_SUPPORT
+  PRODUCT_QUESTION
+  SHIPPING
+  RETURNS
+  COMPLAINT
+  FEEDBACK
+  OTHER
+}
+
+enum InquiryStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  SPAM
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum CouponApplicability {
+  ALL_PRODUCTS
+  CATEGORY_SPECIFIC
+  PRODUCT_SPECIFIC
+}

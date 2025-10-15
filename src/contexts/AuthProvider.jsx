@@ -87,16 +87,27 @@ export const AuthProvider = ({ children }) => {
   }, [checkExistingAuth]);
 
   // Logout
-  const handleLogout = useCallback(async () => {
-    try {
-      await authService.logout();
-    } catch (error) {
-    } finally {
-      storageManager.clearAllAuth();
-      dispatch({ type: ACTION_TYPES.LOGOUT });
-      handleUserLogout(); // Also clear user’s cart
+const handleLogout = useCallback(async () => {
+  try {
+    // Get current user type before clearing storage
+    const userType = storageManager.getCurrentUserType();
+    
+    // Call the appropriate logout based on user type
+    if (userType === USER_TYPES.ADMIN) {
+      await authService.logoutAdmin();
+    } else {
+      await authService.logoutUser();
     }
-  }, [handleUserLogout]);
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Still clear storage even if API call fails
+    storageManager.clearAllAuth();
+  } finally {
+    // Always dispatch logout and clear cart
+    dispatch({ type: ACTION_TYPES.LOGOUT });
+    handleUserLogout(); // Also clear user's cart
+  }
+}, [handleUserLogout]);
 
   // Login
   const login = async (credentials) => {

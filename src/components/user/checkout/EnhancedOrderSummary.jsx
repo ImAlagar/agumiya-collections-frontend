@@ -351,27 +351,6 @@ const EnhancedOrderSummary = ({
           </div>
         )}
 
-        {/* Free Shipping Achieved Badge */}
-        {isFreeShipping && !shippingLoading && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-xl"
-          >
-            <div className="flex items-center justify-center space-x-2">
-              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                <FiCheck className="text-white text-sm" />
-              </div>
-              <span className="font-semibold text-green-800 dark:text-green-200">
-                🎉 Free Shipping Unlocked!
-              </span>
-            </div>
-            <p className="text-sm text-green-700 dark:text-green-300 text-center mt-2">
-              Estimated delivery: {estimatedDays.min}-{estimatedDays.max} days
-            </p>
-          </motion.div>
-        )}
-
         {/* Professional Coupon Section */}
         {showCouponSection && mode === 'cart' && (
           <div className="mb-6">
@@ -773,21 +752,7 @@ const EnhancedOrderSummary = ({
             </div>
           </div>
 
-          {/* ✅ Updated Savings Display with Tax */}
-          {(appliedCoupon && discountAmount > 0) || isFreeShipping ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800"
-            >
-              <p className="text-green-700 dark:text-green-300 text-sm text-center">
-                🎉 You saved {formatPriceInternal(
-                  discountAmount + (isFreeShipping ? shippingCost : 0)
-                ).formatted}!
-                {isFreeShipping && ' (Including free shipping!)'}
-              </p>
-            </motion.div>
-          ) : null}
+
         </div>
 
         {/* Action Buttons */}

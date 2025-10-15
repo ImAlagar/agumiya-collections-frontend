@@ -19,7 +19,7 @@ export const API_ENDPOINTS = {
   ADMIN_PROFILE: '/admin/dashboard',
   ADMIN_FORGOT_PASSWORD: '/admin/forgot-password',
   ADMIN_RESET_PASSWORD: '/admin/reset-password',
-  
+  ADMIN_LOGOUT:'/admin/logout',
   // User endpoints
   USER_LOGIN: '/users/login',
   USER_REGISTER: '/users/register',
@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
   USER_UPDATE_PROFILE: '/users/profile',
   USER_FORGOT_PASSWORD: '/users/forgot-password',
   USER_RESET_PASSWORD: '/users/reset-password',
+  USER_LOGOUT:'/users/logout',
   ALL_USERS: '/users',
   
   // Products endpoints

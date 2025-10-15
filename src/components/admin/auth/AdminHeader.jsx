@@ -26,11 +26,22 @@ const AdminHeader = ({ onMenuClick, sidebarOpen }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/');
+const handleLogout = async () => {
+  try {
+    // Perform logout with redirect
+    await logout({ redirect: true });
+    
+    // Close profile dropdown
     setIsProfileOpen(false);
-  };
+    
+    // Optional: Show success message
+    // toast.success('Admin logged out successfully');
+  } catch (error) {
+    console.error('Admin logout error:', error);
+    // Optional: Show error message
+    // toast.error('Logout failed. Please try again.');
+  }
+};
 
   const handleHomeClick = () => {
     navigate('/');

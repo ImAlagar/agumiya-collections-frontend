@@ -936,9 +936,7 @@ const getReviewableProductsCount = () => {
                                       <p className="text-blue-600 dark:text-blue-400 text-sm mt-1">
                                         Special discount applied
                                       </p>
-                                      <p className="text-blue-600 dark:text-blue-400 text-xs">
-                                        You saved {formatCurrency(getDiscountAmount())}
-                                      </p>
+
                                     </>
                                   )}
                                 </div>
