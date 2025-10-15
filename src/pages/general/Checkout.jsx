@@ -144,12 +144,7 @@ const Checkout = () => {
         shippingAddress.zipCode;
       
       if (cartItems.length === 0 || !hasRequiredAddress) {
-        console.log('🛑 Tax calculation skipped - incomplete address:', {
-          country: shippingAddress.country,
-          region: shippingAddress.region,
-          city: shippingAddress.city,
-          zipCode: shippingAddress.zipCode
-        });
+ 
         
         setTaxData({
           amount: 0,
@@ -183,10 +178,8 @@ const Checkout = () => {
           shippingCost: parseFloat(shippingData.cost)
         };
 
-        console.log('🧾 Calculating tax with backend-compatible payload:', taxPayload);
         
         const result = await calculateTax(taxPayload);
-        console.log('📊 Tax calculation result:', result);
         
         if (result.success && result.data) {
           setTaxData({
@@ -507,7 +500,6 @@ const Checkout = () => {
         finalAmount: finalTotal
       };
 
-      console.log('📦 Order payload with tax:', orderPayload);
 
       const result = await orderService.createOrder(orderPayload);
       

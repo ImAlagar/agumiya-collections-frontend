@@ -70,19 +70,13 @@ const ShippingTaxSettings = () => {
 
 
   const handleSaveTaxSettings = async () => {
-    console.log('🔄 Starting tax settings update process...');
-    console.log('📦 Current local tax settings:', JSON.stringify(localTaxSettings, null, 2));
-    
+
     try {
       setSaving(true);
-      console.log('🚀 Calling updateTaxSettings API...');
       
       const result = await updateTaxSettings(localTaxSettings);
-      console.log('📨 API Response:', result);
       
       if (result.success) {
-        console.log('✅ Tax settings updated successfully!');
-        console.log('📊 Updated data:', result.data);
         
         setIsEditing(false);
         setValidationResult(null);
