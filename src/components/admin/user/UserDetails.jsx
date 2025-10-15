@@ -153,9 +153,6 @@ const UserDetails = ({ user, onClose, onStatusUpdate, isLoading }) => {
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
                 <p className="text-gray-900 dark:text-white">{user.email}</p>
-                <span className={`text-xs ${user.emailVerified ? 'text-green-600' : 'text-yellow-600'}`}>
-                  {user.emailVerified ? 'Verified' : 'Unverified'}
-                </span>
               </div>
             </div>
 

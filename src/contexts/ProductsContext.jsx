@@ -280,7 +280,7 @@ export const ProductsProvider = ({ children }) => {
   // 🔸 Sync Products
   // ========================
   const syncProducts = useCallback(
-    async (shopId = "24454051") => {
+    async (shopId = "23342579") => {
       try {
         dispatch({
           type: PRODUCT_ACTIONS.SET_SYNC_STATUS,

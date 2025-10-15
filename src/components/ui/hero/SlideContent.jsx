@@ -199,7 +199,6 @@ const SlideContent = ({
       >
         {[
           { icon: Truck, text: "Free Shipping" },
-          { icon: Shield, text: "1 Year Warranty" },
           { icon: Star, text: "Premium Quality" }
         ].map((item, i) => (
           <motion.div 

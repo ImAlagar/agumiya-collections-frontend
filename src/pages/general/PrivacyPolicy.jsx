@@ -224,7 +224,7 @@ const PrivacyPolicy = () => {
                       <div className="space-y-3 text-gray-700 dark:text-gray-300">
                         <p className="flex items-center text-lg">
                           <Mail className="w-5 h-5 mr-3 text-blue-600" />
-                          Email: contact@agumiyacollections.com
+                          Email: support@agumiyacollections.com
                         </p>
                         <p className="flex items-center">
                           <Clock className="w-5 h-5 mr-3 text-blue-600" />

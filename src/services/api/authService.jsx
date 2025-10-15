@@ -218,6 +218,69 @@ async resetUserPassword(resetData) {
   }
 },
 
+  async getReviewableProducts() {
+    try {
+      // This endpoint should return products from delivered orders that haven't been reviewed yet
+      const response = await apiClient.get('/api/v1/reviews/reviewable-products');
+      return response.data;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to fetch reviewable products',
+        data: { products: [] }
+      };
+    }
+  },
+
+  // Alternative: If you don't have a dedicated endpoint, use this method
+  async getReviewableProductsFromOrders() {
+    try {
+      // Get user orders first
+      const ordersResponse = await apiClient.get(API_ENDPOINTS.USER_ORDERS);
+      
+      if (!ordersResponse.data.success) {
+        return { success: false, data: { products: [] } };
+      }
+
+      const orders = ordersResponse.data.orders || ordersResponse.data.data || [];
+      
+      // Filter delivered orders and extract products
+      const deliveredOrders = orders.filter(order => 
+        order.status === 'DELIVERED' || order.fulfillmentStatus === 'DELIVERED'
+      );
+
+      const reviewableProducts = [];
+      
+      deliveredOrders.forEach(order => {
+        if (order.items) {
+          order.items.forEach(item => {
+            // Check if product hasn't been reviewed (you might need to add this check)
+            if (item.product && !item.reviewed) {
+              reviewableProducts.push({
+                ...item.product,
+                orderId: order.id || order._id,
+                orderDate: order.createdAt,
+                purchasedDate: order.createdAt
+              });
+            }
+          });
+        }
+      });
+
+      return {
+        success: true,
+        data: { products: reviewableProducts }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to fetch reviewable products',
+        data: { products: [] }
+      };
+    }
+  },
+  
+
   // ------------------ COMMON METHODS ------------------
   async logout() {
     try {

@@ -17,18 +17,16 @@ const ShippingPolicy = () => {
 
   const shippingMethods = [
     {
-      region: "Domestic (Within India)",
+      region: "Domestic",
       time: "7-15 business days",
       cost: "Calculated at checkout",
       carrier: "Registered domestic courier",
-      icon: "🇮🇳"
     },
     {
       region: "International",
       time: "15-21 business days",
       cost: "Calculated at checkout",
       carrier: "International courier services",
-      icon: "🌍"
     }
   ];
 
@@ -123,7 +121,6 @@ const ShippingPolicy = () => {
                           className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-2xl p-6 border border-purple-200 dark:border-purple-800"
                         >
                           <div className="flex items-center mb-4">
-                            <span className="text-2xl mr-3">{method.icon}</span>
                             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{method.region}</h3>
                           </div>
                           <div className="grid md:grid-cols-3 gap-4">
@@ -200,8 +197,7 @@ const ShippingPolicy = () => {
                         {[
                           'Customs duties and taxes are the responsibility of the recipient',
                           'Delivery times may vary due to customs processing',
-                          'Some restrictions may apply based on destination country',
-                          'All international shipments include tracking and insurance'
+                          'Some restrictions may apply based on destination country'
                         ].map((item, index) => (
                           <div key={index} className="flex items-center space-x-3 p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
                             <Globe className="w-5 h-5 text-blue-500 flex-shrink-0" />

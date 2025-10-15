@@ -9,7 +9,7 @@ export const CONTACT_INFO = [
   {
     icon: Mail,
     label: "Customer Support",
-    value: "agumiyacollections",
+    value: "support@agumiyacollections.com",
   },
   {
     icon: Truck,
@@ -59,7 +59,7 @@ export const SOCIAL_LINKS = [
         <path d="M13.5 22v-8.25h2.77l.41-3.2h-3.18V8.83c0-.93.26-1.56 1.58-1.56h1.69V4.35A22.41 22.41 0 0 0 13.88 4C11.46 4 9.75 5.5 9.75 8.52v2.03H7v3.2h2.75V22h3.75Z" />
       </svg>
     ),
-    url: "https://www.facebook.com/profile.php?id=61581576428542",
+    url: "https://www.facebook.com/AgumiyaCollections123/",
     color: "hover:text-blue-400",
     bgcolor: "hover:bg-blue-800",
   },

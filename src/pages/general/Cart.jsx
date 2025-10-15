@@ -1,11 +1,12 @@
 // src/pages/general/Cart.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../contexts/CartContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useAuth } from '../../contexts/AuthProvider';
 import { useCoupon } from '../../contexts/CouponContext';
+import { shippingService } from '../../services/api/shippingService';
 import { 
   FiShoppingBag,
   FiTrash2, 
@@ -21,16 +22,136 @@ const Cart = () => {
   const { user } = useAuth();
   const { validateCoupon, isLoading: couponLoading } = useCoupon();
   const navigate = useNavigate();
-  
+  const [userCountry, setUserCountry] = useState('US'); // Default fallback
+
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponError, setCouponError] = useState('');
+  
+  // Shipping state - same as checkout
+  const [shippingData, setShippingData] = useState({
+    cost: 0,
+    isFree: false,
+    loading: false,
+    message: '',
+    progress: 0,
+    estimatedDays: { min: 3, max: 7 },
+    hasFallback: false
+  });
 
   // Calculate totals
   const subtotal = getCartTotal?.() || total || cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shipping = subtotal > 0 ? 10 : 0; // Free shipping if no items
-  const tax = subtotal * 0.08;
   const discountAmount = appliedCoupon?.discountAmount || 0;
-  const grandTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
+  const grandTotal = Math.max(0, subtotal + shippingData.cost - discountAmount);
+
+  // Get variant ID function - same as checkout
+  const getVariantId = useCallback((item) => {
+    if (item.variantId && item.variantId !== 'default') {
+      return item.variantId.toString();
+    }
+    if (item.variant?.id) {
+      return item.variant.id.toString();
+    }
+    if (item.selectedVariantId) {
+      return item.selectedVariantId.toString();
+    }
+    
+    console.warn('No variant ID found for item:', item);
+    return null;
+  }, []);
+
+  useEffect(() => {
+  // Try to get country from user profile, geolocation, or use default
+  const getUserCountry = async () => {
+    if (user?.country) {
+      setUserCountry(user.country);
+    } else {
+      // You can add geolocation here or use a service
+      // For now, we'll use a default
+      setUserCountry('US');
+    }
+  };
+  
+  getUserCountry();
+}, [user]);
+
+// Update the shipping calculation useEffect to use userCountry
+useEffect(() => {
+  let timeoutId;
+
+  const calculateShipping = async () => {
+    if (cartItems.length === 0) {
+      setShippingData({
+        cost: 0,
+        isFree: false,
+        loading: false,
+        message: 'Add items to calculate shipping',
+        progress: 0,
+        estimatedDays: { min: 3, max: 7 },
+        hasFallback: false
+      });
+      return;
+    }
+
+    setShippingData(prev => ({ ...prev, loading: true }));
+    
+    try {
+      const apiCartItems = cartItems.map(item => {
+        const variantId = getVariantId(item);
+        return {
+          productId: item.id,
+          variantId: variantId,
+          quantity: item.quantity,
+          price: item.price,
+          name: item.name
+        };
+      }).filter(item => item.variantId !== null);
+
+      // Use userCountry instead of hardcoded 'US'
+      const response = await shippingService.getShippingEstimates({
+        cartItems: apiCartItems,
+        subtotal: subtotal,
+        country: userCountry, // ✅ Use actual user country
+        region: null
+      });
+
+      if (response.success && response.data) {
+        setShippingData({
+          cost: response.data.totalShipping || 0,
+          isFree: response.data.isFree || false,
+          loading: false,
+          message: response.data.message || '',
+          progress: response.data.progress || 0,
+          estimatedDays: response.data.estimatedDays || { min: 3, max: 7 },
+          hasFallback: response.data.hasFallback || false
+        });
+      } else {
+        throw new Error(response.message || 'Failed to calculate shipping');
+      }
+    } catch (error) {
+      console.error('Shipping API error in cart:', error);
+      // Fallback calculation
+      const FREE_SHIPPING_THRESHOLD = 50;
+      const isFree = subtotal >= FREE_SHIPPING_THRESHOLD;
+      const fallbackCost = isFree ? 0 : 5.99;
+      const amountNeeded = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
+      
+      setShippingData({
+        cost: fallbackCost,
+        isFree: isFree,
+        loading: false,
+        message: isFree 
+          ? '🎉 You got free shipping!' 
+          : `Add $${amountNeeded.toFixed(2)} more for free shipping!`,
+        progress: Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100),
+        estimatedDays: { min: 3, max: 7 },
+        hasFallback: true
+      });
+    }
+  };
+
+  timeoutId = setTimeout(calculateShipping, 500);
+  return () => clearTimeout(timeoutId);
+}, [cartItems, subtotal, getVariantId, userCountry]); // ✅ Add userCountry to depende
 
   const handleApplyCoupon = async (couponCode) => {
     if (!couponCode.trim()) {
@@ -88,8 +209,7 @@ const Cart = () => {
       totals: {
         subtotal,
         discount: discountAmount,
-        shipping,
-        tax,
+        shipping: shippingData.cost,
         grandTotal
       }
     };
@@ -371,16 +491,21 @@ const Cart = () => {
               // Data
               cartItems={cartItems}
               appliedCoupon={appliedCoupon}
-              shippingCost={shipping}
-              taxRate={0.08}
+              shippingCost={shippingData.cost}
+              isFreeShipping={shippingData.isFree}
+              freeShippingThreshold={50}
+              shippingProgress={shippingData.progress}
+              shippingMessage={shippingData.message}
+              estimatedDays={shippingData.estimatedDays}
+              shippingLoading={shippingData.loading}
               currency={userCurrency}
               
+              userCountry={userCountry}
               // Functions
               formatPrice={formatPrice}
               onApplyCoupon={handleApplyCoupon}
               onRemoveCoupon={handleRemoveCoupon}
-              onProceedToCheckout={handleProceedToCheckout} // This is required
-
+              onProceedToCheckout={handleProceedToCheckout}
               
               // Configuration
               mode="cart"

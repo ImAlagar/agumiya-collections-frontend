@@ -12,6 +12,7 @@ import {
   Globe
 } from "lucide-react";
 import { useContacts } from "../../contexts/ContactsContext";
+import CountryDropdown from "../../components/common/CountryDropdown";
 
 const Contact = () => {
   const { theme } = useTheme();
@@ -206,38 +207,7 @@ const Contact = () => {
     }
   };
 
-  // Common countries for dropdown
-  const countries = [
-    "United States",
-    "Canada",
-    "United Kingdom",
-    "Australia",
-    "Germany",
-    "France",
-    "Japan",
-    "India",
-    "Brazil",
-    "Mexico",
-    "Spain",
-    "Italy",
-    "Netherlands",
-    "Sweden",
-    "Norway",
-    "Denmark",
-    "Finland",
-    "Switzerland",
-    "Austria",
-    "Belgium",
-    "Portugal",
-    "Ireland",
-    "New Zealand",
-    "South Africa",
-    "Singapore",
-    "United Arab Emirates",
-    "South Korea",
-    "China",
-    "Other"
-  ];
+
 
   return (
     <section
@@ -415,7 +385,7 @@ const Contact = () => {
                       <p className={`font-medium ${getTextColor()}`}>
                         {item.label}
                       </p>
-                      <p className={getSecondaryTextColor()}>
+                      <p className={` text-[10px] ${getSecondaryTextColor()}`}>
                         {item.value}
                       </p>
                     </div>
@@ -629,38 +599,25 @@ const Contact = () => {
               </motion.div>
 
               {/* 🔥 NEW FIELD - Country Dropdown */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: 0.55 }}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: 0.55 }}
+            >
+              <label 
+                htmlFor="country" 
+                className={`block mb-2 font-medium ${getTextColor()}`}
               >
-                <label 
-                  htmlFor="country" 
-                  className={`block mb-2 font-medium ${getTextColor()}`}
-                >
-                  Country
-                </label>
-                <div className="relative">
-                  <select
-                    id="country"
-                    value={formData.country}
-                    onChange={(e) => handleInputChange('country', e.target.value)}
-                    className={`w-full px-4 py-3 rounded-lg border focus:border-transparent focus:ring-2 focus:ring-blue-500 transition-all appearance-none ${
-                      getInputBackground()} ${getInputBorder()} ${getTextColor()}`}
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Select your country</option>
-                    {countries.map((country) => (
-                      <option key={country} value={country}>
-                        {country}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <Globe size={18} className={getSecondaryTextColor()} />
-                  </div>
-                </div>
-              </motion.div>
+                Country
+              </label>
+              <CountryDropdown
+                value={formData.country}
+                onChange={(value) => handleInputChange('country', value)}
+                disabled={isSubmitting}
+                theme={theme}
+                placeholder="Select your country"
+              />
+            </motion.div>
 
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}

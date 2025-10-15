@@ -143,7 +143,6 @@ const handleConfirmDelete = async () => {
                 <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Category</th>
                 <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Price</th>
                 <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Inventory</th>
-                <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Variants</th>
                 <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Media</th>
                 <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400">Created</th>
                 <th className="text-left p-4 font-semibold text-gray-600 dark:text-gray-400 w-20">Actions</th>
@@ -205,12 +204,6 @@ const handleConfirmDelete = async () => {
                       }`}>
                         {product.inStock ? 'In Stock' : 'Out of Stock'}
                       </span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                      <Package className="w-4 h-4" />
-                      {product.printifyVariants?.length || 0}
                     </div>
                   </td>
                   <td className="p-4">
@@ -312,13 +305,6 @@ const handleConfirmDelete = async () => {
                   <div className="text-gray-600 dark:text-gray-400">Inventory</div>
                   <div className={`font-medium ${product.inStock ? 'text-green-600' : 'text-red-600'}`}>
                     {product.inStock ? 'In Stock' : 'Out of Stock'}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400">Variants</div>
-                  <div className="font-medium flex items-center gap-1">
-                    <Package className="w-3 h-3" />
-                    {product.printifyVariants?.length || 0}
                   </div>
                 </div>
                 <div>

@@ -8,7 +8,7 @@ const ProductStats = ({ products }) => {
 
   const stats = {
     total: products?.length || 0,
-    published: products?.filter(p => p.status === 'true').length || 0,
+    published: products?.length || 0,
     outOfStock: products?.filter(p => p.stock <= 0).length || 0,
     totalValue: products?.reduce((sum, p) => sum + (p.price * p.stock), 0) || 0
   };

@@ -1,3 +1,4 @@
+// src/main.jsx
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
@@ -17,9 +18,10 @@ import { CartProvider } from './contexts/CartContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { SearchProvider } from './contexts/SearchContext';
 import { CouponProvider } from './contexts/CouponContext';
-import logger from './utils/logger.jsx'; // ✅ import your frontend logger
+import { ReviewProvider } from './contexts/ReviewContext';
+import logger from './utils/logger.jsx';
 import ErrorBoundary from './components/common/ErrorBoundary.jsx';
-
+import { TaxProvider } from './contexts/TaxContext.jsx';
 
 // 🧠 Setup Global Error Handlers (production-safe)
 window.addEventListener('error', (event) => {
@@ -29,8 +31,6 @@ window.addEventListener('error', (event) => {
 window.addEventListener('unhandledrejection', (event) => {
   logger.error(`Unhandled Promise rejection: ${event.reason}`, event.reason);
 });
-
-// 🪶 Optional: log environment info at startup
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -43,20 +43,22 @@ createRoot(document.getElementById('root')).render(
                 <SearchProvider>
                   <LoadingProvider>
                     <CurrencyProvider>
-                    <ProductsProvider>
-                      
+                      <ProductsProvider>
                         <OrdersProvider>
                           <UsersProvider>
                             <ContactsProvider>
-                              <ProgressLoader />
-                              <Loader />
-                              <RouterProvider router={router}/>
+                              <ReviewProvider>
+                                <TaxProvider> {/* ADD TAXPROVIDER HERE */}
+                                  <ProgressLoader />
+                                  <Loader />
+                                  <RouterProvider router={router}/>
+                                </TaxProvider> {/* CLOSE TAXPROVIDER HERE */}
+                              </ReviewProvider>
                             </ContactsProvider>
                           </UsersProvider>  
                         </OrdersProvider>
-                    
-                    </ProductsProvider>
-                      </CurrencyProvider>
+                      </ProductsProvider>
+                    </CurrencyProvider>
                   </LoadingProvider>
                 </SearchProvider>
               </CouponProvider>

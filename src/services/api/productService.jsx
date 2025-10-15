@@ -59,7 +59,6 @@ export const productService = {
   },
 
 
-
   async updateProduct(id, productData) {
     try {
       const response = await apiClient.put(`/products/${id}`, productData, {
@@ -180,4 +179,89 @@ async deletePrintifyProduct(shopId, printifyProductId) {
       throw error;
     }
   },
+
+  // Get products with review stats (for home page)
+  async getProductsWithReviewStats(filters = {}) {
+    try {
+      const response = await apiClient.get('/products', {
+        params: filters,
+        timeout: 30000
+      });
+      
+      if (response.data.success && response.data.data) {
+        const products = response.data.data.products || response.data.data;
+        
+        // Fetch review stats for each product
+        const productsWithReviews = await Promise.all(
+          products.map(async (product) => {
+            try {
+              const reviewResponse = await this.getProductReviewStats(product.id);
+              return {
+                ...product,
+                reviewStats: reviewResponse.data || {
+                  averageRating: 0,
+                  totalReviews: 0,
+                  ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+                }
+              };
+            } catch (error) {
+              console.error(`Error fetching reviews for product ${product.id}:`, error);
+              return {
+                ...product,
+                reviewStats: {
+                  averageRating: 0,
+                  totalReviews: 0,
+                  ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+                }
+              };
+            }
+          })
+        );
+        
+        return {
+          success: true,
+          data: productsWithReviews
+        };
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Get products with review stats error:', error);
+      throw error;
+    }
+  },
+
+async getProductReviewStats(productId) {
+  try {
+    
+    // Use the reviews endpoint to get stats
+    const response = await apiClient.get(`/reviews/product/${productId}`, {
+      params: { limit: 1 }, // Just get the summary, not all reviews
+      timeout: 30000
+    });
+    
+    
+    if (response.data.success) {
+      const stats = response.data.data.summary || {
+        averageRating: 0,
+        totalReviews: 0,
+        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      };
+      return {
+        success: true,
+        data: stats
+      };
+    }
+    return response.data;
+  } catch (error) {
+    // Return default stats if API fails
+    return {
+      success: true,
+      data: {
+        averageRating: 0,
+        totalReviews: 0,
+        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      }
+    };
+  }
+}
 };

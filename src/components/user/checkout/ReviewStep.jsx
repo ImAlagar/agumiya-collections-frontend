@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const ReviewStep = ({ orderData, cartItems, subtotal, shipping, tax, grandTotal, formatPrice }) => {
+const ReviewStep = ({ orderData, cartItems, subtotal, shipping, grandTotal, formatPrice }) => {
   const shippingAddress = orderData?.shippingAddress || {};
 
   // Safe price formatting function
@@ -21,7 +21,6 @@ const ReviewStep = ({ orderData, cartItems, subtotal, shipping, tax, grandTotal,
       return price?.toString() || '0';
     }
   };
-
 
   return (
     <motion.div
@@ -189,58 +188,7 @@ const ReviewStep = ({ orderData, cartItems, subtotal, shipping, tax, grandTotal,
               </div>
             </div>
 
-            {/* Order Summary Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8">
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-                Order Summary
-              </h3>
-              
-              <div className="space-y-3 sm:space-y-4">
-                {/* Subtotal */}
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">Subtotal</span>
-                  <span className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
-                    {getFormattedPrice(subtotal)}
-                  </span>
-                </div>
 
-                {/* Shipping */}
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">Shipping</span>
-                  <span className="font-semibold text-green-600 dark:text-green-400 text-sm sm:text-base">
-                    {shipping === 0 ? 'FREE' : getFormattedPrice(shipping)}
-                  </span>
-                </div>
-
-                {/* Tax */}
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">Tax</span>
-                  <span className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
-                    {getFormattedPrice(tax)}
-                  </span>
-                </div>
-
-                {/* Divider */}
-                <div className="border-t border-gray-200 dark:border-gray-700 my-3 sm:my-4"></div>
-
-                {/* Grand Total */}
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Total</span>
-                  <span className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400">
-                    {getFormattedPrice(grandTotal)}
-                  </span>
-                </div>
-
-                {/* Savings Notice */}
-                {shipping === 0 && (
-                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-4">
-                    <p className="text-xs sm:text-sm text-green-700 dark:text-green-300 text-center">
-                      🎉 You saved {getFormattedPrice(shipping)} on shipping!
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </div>

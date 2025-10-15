@@ -40,7 +40,7 @@ export const paymentService = {
       const errorMessage = error.response?.data?.message || 
                           error.response?.data?.error || 
                           error.message || 
-                          'Failed to create payment order';
+                        'Failed to create payment order';
       
       return {
         success: false,

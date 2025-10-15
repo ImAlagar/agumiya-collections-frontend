@@ -89,7 +89,7 @@ const CancellationRefundPolicy = () => {
                           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Cancellation Allowed</h3>
                         </div>
                         <ul className="space-y-3 text-gray-700 dark:text-gray-300">
-                          {['Within 3 days of order placement', 'Before order is shipped'].map((item, index) => (
+                          {['Within 1 days of order placement', 'Before order is shipped'].map((item, index) => (
                             <li key={index} className="flex items-center">
                               <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
                               {item}
@@ -238,16 +238,9 @@ const CancellationRefundPolicy = () => {
                           For damaged, defective, or wrong items received
                         </p>
                       </div>
-                      <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-2xl p-6 border border-orange-200 dark:border-orange-800">
-                        <h3 className="font-semibold text-orange-800 dark:text-orange-200 mb-3 text-lg">📦 Customer Covers Return Shipping</h3>
-                        <p className="text-orange-700 dark:text-orange-300">
-                          For change of mind or size exchange requests
-                        </p>
-                      </div>
                     </div>
                   </div>
                 )}
-
                 {activeSection === 'contact' && (
                   <div className="space-y-6">
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Contact Information</h2>
@@ -256,7 +249,7 @@ const CancellationRefundPolicy = () => {
                       <div className="space-y-3 text-gray-700 dark:text-gray-300">
                         <p className="flex items-center">
                           <Mail className="w-5 h-5 mr-3 text-purple-600" />
-                          Email: contact@agumiyacollections.com
+                          Email: support@agumiyacollections.com
                         </p>
                         <p className="flex items-center">
                           <Clock className="w-5 h-5 mr-3 text-purple-600" />

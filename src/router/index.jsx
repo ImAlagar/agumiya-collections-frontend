@@ -38,6 +38,8 @@ import CancellationRefundPolicy from "../pages/general/CancellationRefundPolicy"
 import SearchResults from "../pages/general/SearchResults";
 import OrderSuccess from "../pages/user/OrderSuccess";
 import AdminOrderCancellations from "../pages/dashboard/admin/AdminOrderCancellations";
+import AdminReviews from "../pages/dashboard/admin/AdminReviews";
+import UserReviews from "../pages/user/UserReviews";
 
 const router = createBrowserRouter([
     {
@@ -98,9 +100,14 @@ const router = createBrowserRouter([
                 element: <UserResetPassword />,
             },
             {
+                path: 'my-reviews',
+                element: <UserReviews />,
+            },
+            {
                 path: 'profile',
                 element: <UserProfile />,
             },
+
             {
                 path: 'lookbook',
                 element: <Lookbook />,
@@ -176,6 +183,10 @@ const router = createBrowserRouter([
             {
                 path: 'settings/admins',
                 element: <AdminRegistration />,
+            },
+            {
+                path: 'reviews',
+                element: <AdminReviews />,
             },
 
         ],

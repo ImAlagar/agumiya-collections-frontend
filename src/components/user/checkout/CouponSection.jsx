@@ -377,27 +377,6 @@ const CouponSection = ({
                           )}
                         </div>
                       </div>
-                      
-                      <div className="text-right">
-                        <div className={`font-semibold ${
-                          coupon.isApplicable ? 'text-green-600 dark:text-green-400' : 'text-gray-400'
-                        }`}>
-                          Save {formatPriceInternal(coupon.potentialDiscount).formatted}
-                        </div>
-                        {coupon.isApplicable ? (
-                          <button 
-                            className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors mt-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleApplyCouponFromList(coupon);
-                            }}
-                          >
-                            Apply
-                          </button>
-                        ) : (
-                          <div className="text-xs text-red-500 mt-1">Not applicable</div>
-                        )}
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -465,9 +444,6 @@ const CouponSection = ({
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold text-green-600 dark:text-green-400">
-                        Save {formatPriceInternal(calculatePotentialDiscount(coupon)).formatted}
-                      </div>
                       {coupon.minOrderAmount && (
                         <div className="text-xs text-gray-500">
                           Min. order: {formatPriceInternal(coupon.minOrderAmount).formatted}

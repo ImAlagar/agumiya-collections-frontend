@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useProducts } from '../../contexts/ProductsContext';
 import { useCart } from '../../contexts/CartContext';
 import { SEO } from '../../contexts/SEOContext';
+
 import {
   FiShoppingCart,
   FiTruck,
@@ -18,9 +19,10 @@ import {
 } from 'react-icons/fi';
 import FlyingItem from '../../components/user/products/FlyingItem';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { useTheme } from '../../contexts/ThemeContext'; // ADD THIS IMPORT
 import CurrencySelector from '../../components/common/CurrencySelector';
-import SimilarProducts from '../../components/user/products/SimilarProducts';
 import EnhancedSimilarProducts from '../../components/user/products/EnhancedSimilarProducts';
+import ProductReviews from '../../components/reviews/ProductReviews';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -31,6 +33,7 @@ const ProductDetails = () => {
   } = useProducts();
   const { formatPrice, userCurrency, convertPrice, getCurrencySymbol } = useCurrency();
   const { addToCart } = useCart();
+   const { theme } = useTheme();
   const [similarProducts, setSimilarProducts] = useState([]);
   const [product, setProduct] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -281,7 +284,7 @@ const ProductDetails = () => {
         ))}
       </AnimatePresence>
 
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 sm:py-8">
+      <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'} py-6 sm:py-8`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Enhanced Breadcrumb with Currency Selector */}
           <nav className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -753,20 +756,17 @@ const ProductDetails = () => {
                   </motion.div>
                 )}
 
-                {activeTab === 'reviews' && (
-                  <motion.div
-                    key="reviews"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="space-y-3 sm:space-y-4 text-sm sm:text-base"
-                  >
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Reviews coming soon...
-                    </p>
-                  </motion.div>
-                )}
-
+                  {activeTab === 'reviews' && (
+                    <motion.div
+                      key="reviews"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="space-y-6"
+                    >
+                      <ProductReviews productId={product.id} />
+                    </motion.div>
+                  )}
                 {activeTab === 'shipping' && (
                   <motion.div
                     key="shipping"
@@ -822,7 +822,7 @@ const ProductDetails = () => {
                 showViewAll={true}
               />
             )}
-        </div>
+        </div>  
       </div>
     </>
   );

@@ -9,7 +9,11 @@ import {
   FiX, 
   FiClock,
   FiStar,
-  FiInfo
+  FiInfo,
+  FiTruck,
+  FiGlobe,
+  FiMapPin,
+  FiPercent
 } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { couponService } from '../../../services/api/couponService';
@@ -19,12 +23,22 @@ const EnhancedOrderSummary = ({
   cartItems = [],
   appliedCoupon = null,
   shippingCost = 0,
-  taxRate = 0.08,
+  taxAmount = 0, // ✅ New tax prop
+  taxRate = 0, // ✅ New tax rate prop
+  isFreeShipping = false,
+  freeShippingThreshold = 50,
+  shippingProgress = 0,
+  shippingMessage = '',
+  estimatedDays = { min: 3, max: 7 },
   currency = 'USD',
-  
+  userCountry = 'US',
+  userRegion = null,
+  showFreeShippingProgress = true,
+  shippingLoading = false,
+  taxLoading = false, // ✅ New tax loading prop
+
   // Function props
   formatPrice,
-  getCurrencySymbol,
   onApplyCoupon,
   onRemoveCoupon,
   onProceedToCheckout,
@@ -60,15 +74,16 @@ const EnhancedOrderSummary = ({
   const [showAllCoupons, setShowAllCoupons] = useState(false);
   const [couponsLoading, setCouponsLoading] = useState(false);
 
-  // Calculate totals
+  // Calculate totals with tax
   const subtotal = safeCartItems.reduce((sum, item) => 
     sum + (item.price || 0) * (item.quantity || 1), 0
   );
   
-  const shipping = shippingCost;
-  const tax = subtotal * taxRate;
   const discountAmount = appliedCoupon?.discountAmount || 0;
-  const grandTotal = Math.max(0, subtotal + shipping + tax - discountAmount);
+  
+  // ✅ Updated grand total calculation with tax
+  const taxableAmount = Math.max(0, subtotal - discountAmount);
+  const grandTotal = Math.max(0, subtotal + shippingCost + taxAmount - discountAmount);
 
   // Format price helper if not provided
   const formatPriceInternal = (amount, curr = currency) => {
@@ -83,12 +98,26 @@ const EnhancedOrderSummary = ({
     };
   };
 
+  // Create shipping estimate object from props for consistent usage
+  const shippingEstimate = {
+    cost: shippingCost,
+    isFree: isFreeShipping,
+    freeShippingThreshold: freeShippingThreshold,
+    amountNeeded: Math.max(0, freeShippingThreshold - subtotal),
+    progress: shippingProgress,
+    estimatedDays: estimatedDays,
+    message: shippingMessage,
+    currency: currency,
+    isAvailable: true
+  };
+
   // Load available coupons when cart changes
   useEffect(() => {
     if (safeCartItems.length > 0 && !appliedCoupon) {
       loadAvailableCoupons();
     }
   }, [safeCartItems, appliedCoupon]);
+
 
   const loadAvailableCoupons = async () => {
     setCouponsLoading(true);
@@ -98,7 +127,6 @@ const EnhancedOrderSummary = ({
       });
 
       if (response.success && response.data) {
-        // Professional: Show ALL coupons but mark applicable ones
         const couponsWithApplicability = response.data.map(coupon => ({
           ...coupon,
           isApplicable: isCouponApplicable(coupon),
@@ -180,7 +208,6 @@ const EnhancedOrderSummary = ({
     if (onRemoveCoupon) {
       onRemoveCoupon();
     }
-    // Reload coupons when coupon is removed
     loadAvailableCoupons();
   };
 
@@ -191,7 +218,6 @@ const EnhancedOrderSummary = ({
     const applicableCoupons = availableCoupons.filter(coupon => coupon.isApplicable);
     if (applicableCoupons.length === 0) return null;
     
-    // Return coupon with highest discount
     return applicableCoupons.reduce((best, current) => 
       current.potentialDiscount > best.potentialDiscount ? current : best
     );
@@ -205,14 +231,15 @@ const EnhancedOrderSummary = ({
         totals: {
           subtotal,
           discount: discountAmount,
-          shipping,
-          tax,
-          grandTotal
+          shipping: shippingCost,
+          tax: taxAmount, // ✅ Include tax in totals
+          taxRate: taxRate, // ✅ Include tax rate
+          grandTotal,
+          shippingEstimate
         }
       });
     } else {
       console.warn('onProceedToCheckout function not provided');
-      // Fallback behavior
       alert('Proceeding to checkout...');
     }
   };
@@ -247,6 +274,104 @@ const EnhancedOrderSummary = ({
           </h3>
         )}
 
+        {/* Location Info */}
+        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+          <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center">
+              <FiMapPin className="mr-2" />
+              Shipping to: {userCountry}
+              {userRegion && `, ${userRegion}`}
+            </div>
+            {/* ✅ Tax Rate Display */}
+            {taxRate > 0 && (
+              <div className="flex items-center bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded text-blue-700 dark:text-blue-300">
+                <FiPercent className="mr-1" size={12} />
+                {taxRate}% Tax
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Shipping Loading State */}
+        {shippingLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl"
+          >
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+              <p className="text-blue-700 dark:text-blue-300 text-sm">
+                Calculating shipping costs...
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ✅ Tax Loading State */}
+        {taxLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-xl"
+          >
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-3"></div>
+              <p className="text-purple-700 dark:text-purple-300 text-sm">
+                Calculating tax...
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Free Shipping Progress Bar */}
+        {showFreeShippingProgress && mode === 'cart' && !isFreeShipping && !shippingLoading && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-blue-800 dark:text-blue-200 flex items-center">
+                <FiTruck className="mr-2" />
+                Free Shipping Progress
+              </span>
+              <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                {formatPriceInternal(subtotal).formatted} / {formatPriceInternal(freeShippingThreshold).formatted}
+              </span>
+            </div>
+            
+            <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-3 mb-2">
+              <motion.div 
+                className="bg-gradient-to-r from-green-500 to-blue-500 h-3 rounded-full transition-all duration-1000"
+                initial={{ width: 0 }}
+                animate={{ width: `${shippingProgress}%` }}
+              />
+            </div>
+            
+            <p className="text-sm text-blue-700 dark:text-blue-300 text-center">
+              {shippingMessage}
+            </p>
+          </div>
+        )}
+
+        {/* Free Shipping Achieved Badge */}
+        {isFreeShipping && !shippingLoading && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-xl"
+          >
+            <div className="flex items-center justify-center space-x-2">
+              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                <FiCheck className="text-white text-sm" />
+              </div>
+              <span className="font-semibold text-green-800 dark:text-green-200">
+                🎉 Free Shipping Unlocked!
+              </span>
+            </div>
+            <p className="text-sm text-green-700 dark:text-green-300 text-center mt-2">
+              Estimated delivery: {estimatedDays.min}-{estimatedDays.max} days
+            </p>
+          </motion.div>
+        )}
+
         {/* Professional Coupon Section */}
         {showCouponSection && mode === 'cart' && (
           <div className="mb-6">
@@ -256,7 +381,6 @@ const EnhancedOrderSummary = ({
                 Apply Coupon
               </h4>
               
-              {/* Show available coupons count */}
               {!appliedCoupon && availableCoupons.length > 0 && (
                 <button
                   onClick={() => setShowAllCoupons(!showAllCoupons)}
@@ -566,7 +690,7 @@ const EnhancedOrderSummary = ({
           </div>
         )}
 
-        {/* Pricing Breakdown */}
+        {/* ✅ Updated Pricing Breakdown with Tax */}
         <div className="space-y-3 mb-6">
           <div className="flex justify-between items-center py-1">
             <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
@@ -588,19 +712,51 @@ const EnhancedOrderSummary = ({
             </motion.div>
           )}
 
+          {/* Shipping Cost Display */}
           <div className="flex justify-between items-center py-1 border-t border-gray-100 dark:border-gray-700">
-            <span className="text-gray-600 dark:text-gray-400">Shipping</span>
+            <span className="text-gray-600 dark:text-gray-400 flex items-center">
+              Shipping
+              {shippingLoading && (
+                <div className="ml-2 animate-spin rounded-full h-3 w-3 border-b-2 border-gray-400"></div>
+              )}
+              {userCountry !== 'US' && (
+                <FiGlobe className="ml-1 text-blue-500" size={14} />
+              )}
+              {isFreeShipping && (
+                <span className="text-green-600 dark:text-green-400 ml-1">(Free!)</span>
+              )}
+            </span>
             <span className="text-gray-900 dark:text-white font-semibold">
-              {shipping === 0 ? 'Free' : formatPriceInternal(shipping).formatted}
+              {shippingLoading ? 'Calculating...' : 
+               isFreeShipping ? 'Free' : formatPriceInternal(shippingCost).formatted}
             </span>
           </div>
 
-          <div className="flex justify-between items-center py-1">
-            <span className="text-gray-600 dark:text-gray-400">Tax</span>
+          {/* ✅ Tax Display */}
+          <div className="flex justify-between items-center py-1 border-t border-gray-100 dark:border-gray-700">
+            <span className="text-gray-600 dark:text-gray-400 flex items-center">
+              Tax 
+              {taxRate > 0 && `(${taxRate}%)`}
+              {taxLoading && (
+                <div className="ml-2 animate-spin rounded-full h-3 w-3 border-b-2 border-purple-400"></div>
+              )}
+              {!taxLoading && taxAmount === 0 && taxRate === 0 && (
+                <span className="ml-1 text-xs text-gray-400">(Calculated at checkout)</span>
+              )}
+            </span>
             <span className="text-gray-900 dark:text-white font-semibold">
-              {formatPriceInternal(tax).formatted}
+              {taxLoading ? 'Calculating...' : 
+              taxAmount > 0 ? formatPriceInternal(taxAmount).formatted : '—'}
             </span>
           </div>
+
+          {/* Delivery Estimate */}
+          {estimatedDays && !shippingLoading && (
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+              Estimated delivery: {estimatedDays.min}-{estimatedDays.max} days
+              {userCountry !== 'US' && ' (International)'}
+            </div>
+          )}
           
           {/* Total */}
           <div className="flex justify-between items-center pt-4 border-t-2 border-gray-200 dark:border-gray-700">
@@ -617,18 +773,21 @@ const EnhancedOrderSummary = ({
             </div>
           </div>
 
-          {/* Savings Display */}
-          {appliedCoupon && discountAmount > 0 && (
+          {/* ✅ Updated Savings Display with Tax */}
+          {(appliedCoupon && discountAmount > 0) || isFreeShipping ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800"
             >
               <p className="text-green-700 dark:text-green-300 text-sm text-center">
-                🎉 You saved {formatPriceInternal(discountAmount).formatted}!
+                🎉 You saved {formatPriceInternal(
+                  discountAmount + (isFreeShipping ? shippingCost : 0)
+                ).formatted}!
+                {isFreeShipping && ' (Including free shipping!)'}
               </p>
             </motion.div>
-          )}
+          ) : null}
         </div>
 
         {/* Action Buttons */}
@@ -636,13 +795,16 @@ const EnhancedOrderSummary = ({
           <div className="space-y-4">
             <button
               onClick={handleProceedToCheckout}
-              disabled={isProcessing || safeCartItems.length === 0}
+              disabled={isProcessing || safeCartItems.length === 0 || shippingLoading || taxLoading}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-4 px-6 rounded-2xl font-bold text-lg text-center block transition-all duration-300 transform hover:scale-105 disabled:scale-100 shadow-lg hover:shadow-xl disabled:shadow-md flex items-center justify-center space-x-3 group disabled:cursor-not-allowed"
             >
-              {isProcessing ? (
+              {isProcessing || shippingLoading || taxLoading ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Processing...</span>
+                  <span>
+                    {shippingLoading ? 'Calculating Shipping...' : 
+                     taxLoading ? 'Calculating Tax...' : 'Processing...'}
+                  </span>
                 </>
               ) : (
                 <>

@@ -4,7 +4,7 @@ export const CONTACT_INFO = [
   {
     icon: Mail,
     label: "Customer Support",
-    value: "contact@agumiyacollections.com",
+    value: "support@agumiyacollections.com",
   },
   {
     icon: Truck,
@@ -77,7 +77,7 @@ export const socialLinks = [
   { 
     name: "Facebook", 
     icon: <Facebook className="w-5 h-5" />,
-    url: "https://www.facebook.com/profile.php?id=61581576428542"
+    url: "https://www.facebook.com/AgumiyaCollections123/"
   },
   { 
     name: "Instagram", 
@@ -90,8 +90,8 @@ export const socialLinks = [
 export const contactInfo = [
   {
     icon: <Mail size={16} />,
-    text: "contact@agumiyacollections.com",
-    href: "mailto:contact@agumiyacollections.com"
+    text: "support@agumiyacollections.com",
+    href: "mailto:support@agumiyacollections.com"
   },
 ];
 

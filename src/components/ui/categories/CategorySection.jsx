@@ -1,4 +1,3 @@
-// src/components/ui/categories/CategorySection.jsx
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, ArrowRight, ChevronLeft, ChevronRight, Heart, Star } from 'lucide-react';
@@ -7,7 +6,7 @@ import { useCurrency } from '../../../contexts/CurrencyContext';
 import { useNavigate } from 'react-router-dom';
 import fallbackcategory from '../../../assets/images/categories/fallback-category.jpg';
 
-const CategorySection = ({ category, products, index }) => {
+const CategorySection = ({ category, products, reviewStats, index }) => {
   const { theme } = useTheme();
   const { formatPrice, getCurrencySymbol } = useCurrency();
   const navigate = useNavigate();
@@ -26,6 +25,48 @@ const CategorySection = ({ category, products, index }) => {
 
   const prevPage = () => {
     setCurrentPage((prev) => (prev - 1 + totalPages) % totalPages);
+  };
+
+  const renderDynamicStars = (rating, size = 'sm') => {
+    const sizeClasses = {
+      sm: 'w-4 h-4',
+      md: 'w-5 h-5',
+      lg: 'w-6 h-6'
+    };
+
+    const numericRating = typeof rating === 'number' ? rating : 0;
+    const displayRating = numericRating > 0 ? numericRating.toFixed(1) : '0.0';
+
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Star
+              key={star}
+              className={`${sizeClasses[size]} ${
+                star <= Math.floor(numericRating)
+                  ? 'text-yellow-400 fill-current'
+                  : star <= numericRating
+                  ? 'text-yellow-400 fill-current opacity-70'
+                  : 'text-gray-300'
+              }`}
+            />
+          ))}
+        </div>
+        <span className={`text-sm font-medium ${
+          numericRating > 0 ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'
+        }`}>
+          {displayRating}
+        </span>
+      </div>
+    );
+  };
+
+  const getReviewCountText = (stats) => {
+    const totalReviews = stats?.totalReviews || 0;
+    if (totalReviews === 0) return 'No reviews yet';
+    if (totalReviews === 1) return '1 review';
+    return `${totalReviews} reviews`;
   };
 
   const getThemeStyles = () => {
@@ -114,9 +155,7 @@ const CategorySection = ({ category, products, index }) => {
     }
   };
 
-  // Get category image from products or use fallback
   const getCategoryImage = () => {
-    // Try to find a product image from this category
     const productWithImage = products.find(product => 
       product.images && product.images.length > 0
     );
@@ -125,29 +164,23 @@ const CategorySection = ({ category, products, index }) => {
       return productWithImage.images[0];
     }
     
-    // Fallback to category image if no product images
     return category.image;
   };
 
-  // Handle product click - navigate to shop page with category filter
   const handleProductClick = (product) => {
-    // Navigate to shop page with category filter applied
     navigate(`/shop?category=${encodeURIComponent(category.value)}`);
   };
 
-  // Handle "View All" click - navigate to shop with category filter
   const handleViewAllClick = () => {
     navigate(`/shop?category=${encodeURIComponent(category.value)}`);
   };
 
-  // Handle category showcase click - navigate to shop with category filter
   const handleCategoryShowcaseClick = () => {
     navigate(`/shop?category=${encodeURIComponent(category.value)}`);
   };
 
   return (
     <section className={`py-12 ${styles.background} relative overflow-hidden`}>
-      {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent"></div>
       </div>
@@ -160,7 +193,6 @@ const CategorySection = ({ category, products, index }) => {
           viewport={{ once: true, margin: "-100px" }}
           className="px-12"
         >
-          {/* Category Header */}
           <motion.div variants={itemVariants} className="text-center mb-20">
             <div className="inline-flex items-center gap-3 mb-6">
               <div className="w-12 h-px bg-gradient-to-r from-transparent to-orange-500"></div>
@@ -178,9 +210,24 @@ const CategorySection = ({ category, products, index }) => {
               {category.description}
             </p>
             
+            <div className="mt-6 flex items-center justify-center gap-6">
+              {reviewStats?.averageRating > 0 ? (
+                <div className="flex items-center gap-4">
+                  {renderDynamicStars(reviewStats.averageRating, 'md')}
+                  <span className={`${styles.subtitle} font-medium`}>
+                    {getReviewCountText(reviewStats)}
+                  </span>
+                </div>
+              ) : (
+                <span className={`${styles.subtitle} font-medium`}>
+                  Be the first to review our {category.label.toLowerCase()} collection
+                </span>
+              )}
+            </div>
+            
             <div className="mt-8 flex items-center justify-center gap-6 text-sm">
               <span className={`${styles.subtitle} font-medium`}>
-                {category.count} Exclusive Items
+                {reviewStats?.totalProducts || products.length} Exclusive Items
               </span>
               <div className="w-1 h-1 bg-orange-500 rounded-full"></div>
               <span className={`${styles.subtitle} font-medium`}>
@@ -189,19 +236,15 @@ const CategorySection = ({ category, products, index }) => {
             </div>
           </motion.div>
 
-          {/* Main Content Grid */}
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-12 items-start">
-            {/* Category Showcase - Left Side */}
             <motion.div
               variants={itemVariants}
               className="xl:col-span-5"
             >
               <div className="relative group">
                 <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-                  {/* Gradient Overlay */}
                   <div className={`absolute inset-0 bg-gradient-to-br ${category.gradient[theme]} opacity-80 z-10`}></div>
                   
-                  {/* Main Image */}
                   <motion.img
                     src={getCategoryImage()}
                     alt={category.label}
@@ -209,12 +252,10 @@ const CategorySection = ({ category, products, index }) => {
                     whileHover={{ scale: 1.05 }}
                     transition={{ duration: 1.2, ease: "easeOut" }}
                     onError={(e) => {
-                      // Fallback if image fails to load
                       e.target.src = fallbackcategory;
                     }}
                   />
                   
-                  {/* Content Overlay */}
                   <div className="absolute inset-0 z-20 flex flex-col justify-end p-12">
                     <motion.h3
                       className="text-white text-4xl font-light mb-4"
@@ -226,13 +267,27 @@ const CategorySection = ({ category, products, index }) => {
                     </motion.h3>
                     
                     <motion.p
-                      className="text-gray-200 text-lg mb-8 font-light leading-relaxed"
+                      className="text-gray-900 text-lg mb-4 font-light leading-relaxed"
                       initial={{ opacity: 0, y: 30 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.5 }}
                     >
-                      Discover {category.count} meticulously crafted pieces in our {category.label.toLowerCase()} collection
+                      Discover {reviewStats?.totalProducts || products.length} meticulously crafted pieces in our {category.label.toLowerCase()} collection
                     </motion.p>
+
+                    {reviewStats?.averageRating > 0 && (
+                      <motion.div
+                        className="flex items-center gap-3 mb-4"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6 }}
+                      >
+                        {renderDynamicStars(reviewStats.averageRating, 'md')}
+                        <span className="text-gray-200 text-sm">
+                          {getReviewCountText(reviewStats)}
+                        </span>
+                      </motion.div>
+                    )}
                     
                     <motion.div
                       initial={{ opacity: 0, y: 30 }}
@@ -241,7 +296,7 @@ const CategorySection = ({ category, products, index }) => {
                     >
                       <button
                         onClick={handleCategoryShowcaseClick}
-                        className="inline-flex items-center gap-3 bg-white/20 backdrop-blur-lg text-white px-8 py-4 rounded-2xl hover:bg-white/30 transition-all duration-500 group/btn border border-white/20"
+                        className="inline-flex items-center gap-3 bg-white/20 backdrop-blur-lg text-white px-8 py-4 rounded-2xl hover:bg-white/30 transition-all duration-500 group/btn border border-white/50"
                       >
                         <span className="font-medium">Explore Collection</span>
                         <ArrowRight className="w-5 h-5 transform group-hover/btn:translate-x-1 transition-transform duration-300" />
@@ -250,25 +305,25 @@ const CategorySection = ({ category, products, index }) => {
                   </div>
                 </div>
                 
-                {/* Floating Elements */}
                 <div className="absolute -top-4 -right-4 w-24 h-24 bg-orange-500/10 rounded-full blur-xl"></div>
                 <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-blue-500/10 rounded-full blur-xl"></div>
               </div>
             </motion.div>
 
-            {/* Products Grid - Right Side */}
             <motion.div
               variants={itemVariants}
               className="xl:col-span-7"
             >
               {products.length > 0 ? (
                 <div className="relative">
-                  {/* Products Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <AnimatePresence mode="popLayout">
                       {currentProducts.map((product) => {
                         const { formatted: currentPrice } = formatPrice(product.price);
                         const { formatted: originalPrice } = formatPrice(product.price * 1.2);
+                        
+                        const productRating = product.reviewStats?.averageRating || 0;
+                        const reviewCount = product.reviewStats?.totalReviews || 0;
                         
                         return (
                           <motion.div
@@ -281,7 +336,6 @@ const CategorySection = ({ category, products, index }) => {
                             className={`group relative ${styles.card} ${styles.border} rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm cursor-pointer`}
                             onClick={() => handleProductClick(product)}
                           >
-                            {/* Product Image */}
                             <div className="relative overflow-hidden">
                               <motion.img
                                 src={product.images?.[0] || getCategoryImage()}
@@ -290,15 +344,12 @@ const CategorySection = ({ category, products, index }) => {
                                 whileHover={{ scale: 1.1 }}
                                 transition={{ duration: 0.8 }}
                                 onError={(e) => {
-                                  // Fallback if product image fails to load
                                   e.target.src = getCategoryImage();
                                 }}
                               />
                               
-                              {/* Overlay Gradient */}
                               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                               
-                              {/* Stock Badge */}
                               {product.inStock && (
                                 <div className="absolute top-4 left-4">
                                   <span className="px-3 py-1.5 bg-green-500 text-white rounded-full text-xs font-semibold backdrop-blur-sm">
@@ -306,18 +357,29 @@ const CategorySection = ({ category, products, index }) => {
                                   </span>
                                 </div>
                               )}
+
+
                             </div>
                             
-                            {/* Product Info */}
                             <div className="p-6">
                               <div className="flex items-start justify-between mb-3">
                                 <h4 className={`${styles.text} font-semibold text-lg leading-tight line-clamp-2 flex-1 pr-4`}>
                                   {product.name}
                                 </h4>
-                                <div className="flex items-center gap-1">
-                                  <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                                  <span className={`${styles.subtitle} text-sm font-medium`}>4.8</span>
-                                </div>
+                                {productRating > 0 ? (
+                                  <div className="flex flex-col items-end gap-1">
+                                    {renderDynamicStars(productRating)}
+                                    <span className={`${styles.subtitle} text-xs`}>
+                                      {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="text-right">
+                                    <span className={`${styles.subtitle} text-xs`}>
+                                      No reviews yet
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                               
                               <p className={`${styles.subtitle} text-sm mb-4 line-clamp-2 font-light`}>
@@ -339,7 +401,6 @@ const CategorySection = ({ category, products, index }) => {
                               </div>
                             </div>
                             
-                            {/* Hover Effect Border */}
                             <div className="absolute inset-0 rounded-3xl border-2 border-transparent group-hover:border-orange-500/30 transition-all duration-500"></div>
                           </motion.div>
                         );
@@ -347,47 +408,6 @@ const CategorySection = ({ category, products, index }) => {
                     </AnimatePresence>
                   </div>
 
-                  {/* Pagination Controls */}
-                  {totalPages > 1 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.8 }}
-                      className="flex items-center justify-center gap-4 mt-12"
-                    >
-                      <button
-                        onClick={prevPage}
-                        disabled={currentPage === 0}
-                        className="p-3 rounded-2xl bg-white/10 backdrop-blur-lg border border-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/20 transition-all duration-300"
-                      >
-                        <ChevronLeft className="w-5 h-5" />
-                      </button>
-                      
-                      <div className="flex items-center gap-2">
-                        {Array.from({ length: totalPages }, (_, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setCurrentPage(i)}
-                            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                              i === currentPage 
-                                ? 'bg-orange-500 scale-125' 
-                                : 'bg-white/30 hover:bg-white/50'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      
-                      <button
-                        onClick={nextPage}
-                        disabled={currentPage === totalPages - 1}
-                        className="p-3 rounded-2xl bg-white/10 backdrop-blur-lg border border-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/20 transition-all duration-300"
-                      >
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
-                    </motion.div>
-                  )}
-
-                  {/* View All Button */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -398,7 +418,9 @@ const CategorySection = ({ category, products, index }) => {
                       onClick={handleViewAllClick}
                       className="inline-flex items-center gap-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-10 py-4 rounded-2xl hover:from-orange-600 hover:to-orange-700 transition-all duration-500 shadow-2xl hover:shadow-orange-500/25 group/viewall"
                     >
-                      <span className="font-semibold">View All {category.count} Products</span>
+                      <span className="font-semibold">
+                        View All {reviewStats?.totalProducts || products.length} Products
+                      </span>
                       <ArrowRight className="w-5 h-5 transform group-hover/viewall:translate-x-1 transition-transform duration-300" />
                     </button>
                   </motion.div>

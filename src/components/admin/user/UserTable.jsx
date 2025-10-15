@@ -204,7 +204,6 @@ const UserTable = ({
                   <td className="p-4">
                     <div className="space-y-2">
                       {getStatusBadge(user.isActive)}
-                      {getEmailVerifiedBadge(user.emailVerified)}
                     </div>
                   </td>
                   <td className="p-4">
@@ -270,10 +269,7 @@ const UserTable = ({
               </div>
               
               <div className="grid grid-cols-2 gap-4 text-sm mb-3">
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400">Email Status</div>
-                  {getEmailVerifiedBadge(user.emailVerified)}
-                </div>
+
                 <div>
                   <div className="text-gray-600 dark:text-gray-400">Orders</div>
                   <div className="font-medium flex items-center gap-1">

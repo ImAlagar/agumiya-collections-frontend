@@ -6,11 +6,13 @@ import { useOrders } from '../../contexts/OrdersContext';
 import { SEO } from '../../contexts/SEOContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useAuth } from '../../contexts/AuthProvider';
+import { CreateReviewModal } from '../../components/reviews/CreateReviewModal';
 
 const OrderDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  
   const { 
     currentOrder, 
     currentOrderTracking,
@@ -31,7 +33,12 @@ const OrderDetails = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
 
-  // Get coupon data from location state (passed from checkout)
+  // Review states
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+  const [alreadyReviewedProducts, setAlreadyReviewedProducts] = useState([]);
+
   const [couponData, setCouponData] = useState(() => {
     return location.state?.appliedCoupon || null;
   });
@@ -43,7 +50,6 @@ const OrderDetails = () => {
     }
   }, [id, fetchOrderById, fetchOrderTracking]);
 
-  // Use local state as fallback
   useEffect(() => {
     if (currentOrderTracking) {
       setLocalOrder(currentOrderTracking);
@@ -55,17 +61,146 @@ const OrderDetails = () => {
   // Safe order data access with proper fallbacks
   const order = localOrder || currentOrder;
 
+// ========== REVIEW FUNCTIONS ==========
+
+const fetchUserReviews = async () => {
+  try {
+    const result = await reviewService.getUserReviews();
+    if (result.success) {
+      const reviews = result.data?.reviews || result.reviews || [];
+      setUserReviews(reviews);
+      
+      // Extract product IDs that have been reviewed FROM THIS ORDER
+      const reviewedProductIds = reviews
+        .filter(review => review.orderId === (order?.id || order?._id))
+        .map(review => review.productId || review.product?.id)
+        .filter(Boolean);
+      
+      setAlreadyReviewedProducts(reviewedProductIds);
+    }
+  } catch (error) {
+    console.error('Failed to fetch user reviews:', error);
+  }
+};
+
+// FIXED: Properly identify the actual product ID from order items
+const getProductIdFromItem = (item) => {
+  // The actual product ID is in item.product.id, not item.id
+  return item.product?.id || item.productId || item._id;
+};
+
+const canReviewProduct = (productId) => {
+  const status = getOrderStatus().toUpperCase();
+
+  
+  if (status !== 'DELIVERED') {
+    return false;
+  }
+  
+  // Check if product exists in this order - use the correct product ID
+  const productInOrder = order?.items?.find(item => {
+    const actualProductId = getProductIdFromItem(item);
+    return actualProductId == productId; // Use loose equality for number/string comparison
+  });
+  
+  if (!productInOrder) {
+    return false;
+  }
+  
+  // Check if already reviewed this product from this order
+  const alreadyReviewed = alreadyReviewedProducts.includes(productId);
+  
+  if (alreadyReviewed) {
+    return false
+  }
+  
+  return !alreadyReviewed;
+};
+
+const handleOpenReviewModal = (item) => {
+  // FIXED: Use the actual product ID, not the order item ID
+  const productId = getProductIdFromItem(item);
+  const orderId = order.id || order._id;
+  
+  if (!productId || !orderId) {
+    console.error('Missing productId or orderId:', { productId, orderId, item });
+    alert('Cannot open review - missing product or order information');
+    return;
+  }
+
+  if (!canReviewProduct(productId)) {
+    if (alreadyReviewedProducts.includes(productId)) {
+      alert('You have already reviewed this product from this order.');
+    } else {
+      alert('You can only review delivered products from this order.');
+    }
+    return;
+  }
+
+  setSelectedProduct({
+    ...item,
+    productId: productId // Ensure we have the correct product ID
+  });
+  setShowReviewModal(true);
+};
+
+
+const handleReviewSuccess = () => {
+  setReviewSuccess(true);
+  setShowReviewModal(false);
+  
+  // Add product to already reviewed list
+  if (selectedProduct) {
+    const productId = selectedProduct.productId || selectedProduct._id || selectedProduct.id;
+    setAlreadyReviewedProducts(prev => [...prev, productId]);
+  }
+  
+  setSelectedProduct(null);
+  
+  // Show success message
+  setTimeout(() => {
+    alert('Review submitted successfully! It will be visible after admin approval.');
+  }, 100);
+  
+  // Reset success state after a delay
+  setTimeout(() => setReviewSuccess(false), 3000);
+};
+
+const handleCloseReviewModal = () => {
+  setShowReviewModal(false);
+  setSelectedProduct(null);
+};
+
+// Check if any product in order can be reviewed
+const hasReviewableProducts = () => {
+  if (!order?.items || getOrderStatus().toUpperCase() !== 'DELIVERED') return false;
+  
+  return order.items.some(item => {
+    const productId = item.productId || item._id || item.id;
+    return !alreadyReviewedProducts.includes(productId);
+  });
+};
+
+// Get reviewable products count
+const getReviewableProductsCount = () => {
+  if (!order?.items || getOrderStatus().toUpperCase() !== 'DELIVERED') return 0;
+  
+  return order.items.filter(item => {
+    const productId = item.productId || item._id || item.id;
+    return !alreadyReviewedProducts.includes(productId);
+  }).length;
+};
+  // ========== END REVIEW FUNCTIONS ==========
+
+
   // ENHANCED COUPON FUNCTIONS WITH FALLBACKS
   const getCouponInfo = () => {
-    // First try from order data
     if (order?.coupon || order?.appliedCoupon) {
       return order.coupon || order.appliedCoupon;
     }
-    // Then try from location state
     if (couponData) {
       return couponData;
     }
-    // Finally try from order fields
     return {
       code: order?.couponCode,
       discountType: order?.discountType,
@@ -75,7 +210,6 @@ const OrderDetails = () => {
   };
 
   const getDiscountAmount = () => {
-    // Try multiple sources for discount amount
     return order?.discountAmount || 
            order?.couponDiscount || 
            couponData?.discountAmount || 
@@ -101,16 +235,13 @@ const OrderDetails = () => {
     return discount > 0 && code;
   };
 
-  // Calculate discount from totals if not explicitly provided
   const calculateDiscountFromTotals = () => {
-    // If we have items but no explicit discount, check if there might be one
     if (order?.items?.length > 0) {
       const itemsTotal = order.items.reduce((sum, item) => 
         sum + (item.price * item.quantity), 0
       );
       const currentSubtotal = order.subtotalAmount || order.subtotal || 0;
       
-      // If items total is different from subtotal, there might be a discount
       if (itemsTotal > currentSubtotal) {
         return itemsTotal - currentSubtotal;
       }
@@ -118,13 +249,11 @@ const OrderDetails = () => {
     return 0;
   };
 
-  // Update the formatCurrency function to handle negative amounts (discounts)
   const formatCurrency = (amount) => {
     const { formatted } = formatPrice(Math.abs(amount) || 0);
     return amount < 0 ? `-${formatted}` : formatted;
   };
 
-  // Calculate original subtotal (before discount)
   const getOriginalSubtotal = () => {
     const discount = getDiscountAmount();
     const currentSubtotal = order?.subtotalAmount || order?.subtotal || 0;
@@ -209,48 +338,44 @@ const OrderDetails = () => {
   const discountAmount = getDiscountAmount();
   const totalAmount = order?.totalAmount || order?.finalAmount || (subtotal + shippingCost + taxAmount - discountAmount);
 
-
   const formatItemPrice = (price, quantity = 1) => {
     const { formatted } = formatPrice((price || 0) * quantity);
     return formatted;
   };
 
   // CANCELLATION LOGIC
-const canCancelOrder = () => {
-  const status = getOrderStatus().toUpperCase();
-  const cancellableStatuses = ['PENDING', 'PLACED', 'PROCESSING'];
-  return cancellableStatuses.includes(status);
-};
+  const canCancelOrder = () => {
+    const status = getOrderStatus().toUpperCase();
+    const cancellableStatuses = ['PENDING', 'PLACED', 'PROCESSING'];
+    return cancellableStatuses.includes(status);
+  };
 
-const handleCancelOrder = async () => {
-  if (!cancelReason.trim()) {
-    setCancelError('Please provide a reason for cancellation');
-    return;
-  }
-
-  setIsCancelling(true);
-  setCancelError('');
-
-  try {
-    // Use the cancelOrder function from context (user cancellation)
-    const result = await cancelOrder(order.id, cancelReason);
-
-    if (result.success) {
-      setShowCancelModal(false);
-      setCancelReason('');
-      // Refresh order data
-      fetchOrderById(id);
-      // Show success message
-      alert('Order cancelled successfully!');
-    } else {
-      setCancelError(result.error || 'Failed to cancel order. Please try again.');
+  const handleCancelOrder = async () => {
+    if (!cancelReason.trim()) {
+      setCancelError('Please provide a reason for cancellation');
+      return;
     }
-  } catch (error) {
-    setCancelError(error.message || 'Failed to cancel order');
-  } finally {
-    setIsCancelling(false);
-  }
-};
+
+    setIsCancelling(true);
+    setCancelError('');
+
+    try {
+      const result = await cancelOrder(order.id, cancelReason);
+
+      if (result.success) {
+        setShowCancelModal(false);
+        setCancelReason('');
+        fetchOrderById(id);
+        alert('Order cancelled successfully!');
+      } else {
+        setCancelError(result.error || 'Failed to cancel order. Please try again.');
+      }
+    } catch (error) {
+      setCancelError(error.message || 'Failed to cancel order');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   // TRACKING SPECIFIC FUNCTIONS
   const getTrackingInfo = () => {
@@ -266,28 +391,10 @@ const handleCancelOrder = async () => {
     return tracking?.number || tracking?.url || tracking?.carrier;
   };
 
-  const getPrintifyStatus = () => {
-    return order?.printifyStatus || order?.tracking?.printifyStatus || 'unknown';
-  };
-
-  const formatPrintifyStatus = (status) => {
-    const statusMap = {
-      'on-hold': 'On Hold',
-      'in-production': 'In Production',
-      'fulfilled': 'Fulfilled',
-      'shipped': 'Shipped',
-      'delivered': 'Delivered',
-      'canceled': 'Cancelled'
-    };
-    return statusMap[status] || status;
-  };
-
   // Check if we should show discount info (even if no explicit coupon data)
   const shouldShowDiscountInfo = () => {
-    // Show if we have explicit coupon data
     if (hasCouponDiscount()) return true;
     
-    // Show if we can detect a discount from item totals
     if (order?.items?.length > 0) {
       const itemsTotal = order.items.reduce((sum, item) => 
         sum + (item.price * item.quantity), 0
@@ -296,16 +403,6 @@ const handleCancelOrder = async () => {
     }
     
     return false;
-  };
-
-  const getDetectedDiscountAmount = () => {
-    if (order?.items?.length > 0) {
-      const itemsTotal = order.items.reduce((sum, item) => 
-        sum + (item.price * item.quantity), 0
-      );
-      return Math.max(0, itemsTotal - subtotal);
-    }
-    return 0;
   };
 
   if (isLoading) {
@@ -429,35 +526,62 @@ const handleCancelOrder = async () => {
         )}
       </AnimatePresence>
 
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    {/* Review Modal */}
+    <AnimatePresence>
+      {showReviewModal && selectedProduct && (
+        <CreateReviewModal
+          productId={selectedProduct.productId || selectedProduct._id || selectedProduct.id}
+          orderId={order.id || order._id}
+          onClose={handleCloseReviewModal}
+          onSuccess={handleReviewSuccess}
+          isOpen={showReviewModal}
+        />
+      )}
+    </AnimatePresence>
+
+      {/* Success Message */}
+      <AnimatePresence>
+        {reviewSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50"
+          >
+            ✅ Review submitted successfully!
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-4 sm:py-8">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-6 sm:mb-8"
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div className="mb-4 md:mb-0">
                 <Link
                   to="/profile?tab=orders"
-                  className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium mb-4"
+                  className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium mb-3 sm:mb-4 text-sm sm:text-base"
                 >
                   ← Back to Orders
                 </Link>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                   Order #{getOrderNumber()}
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-2">
+                <p className="text-gray-600 dark:text-gray-400 mt-1 sm:mt-2 text-sm sm:text-base">
                   Placed on {new Date(getOrderDate()).toLocaleDateString()}
                 </p>
               </div>
               <div className="text-left md:text-right">
-                <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border ${getStatusColor(getOrderStatus())}`}>
+                <span className={`inline-flex items-center px-3 sm:px-4 py-1 sm:py-2 rounded-full text-sm font-semibold border ${getStatusColor(getOrderStatus())}`}>
                   {formatStatusText(getOrderStatus())}
                 </span>
-                <div className="mt-2">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(getPaymentStatus())}`}>
+                <div className="mt-1 sm:mt-2">
+                  <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(getPaymentStatus())}`}>
                     Payment: {formatStatusText(getPaymentStatus())}
                   </span>
                 </div>
@@ -465,7 +589,38 @@ const handleCancelOrder = async () => {
             </div>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Review Banner for Delivered Orders */}
+          {hasReviewableProducts() && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-6 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-green-200 dark:border-green-800"
+            >
+              <div className="flex flex-col sm:flex-row items-center justify-between">
+                <div className="flex items-center space-x-3 mb-3 sm:mb-0">
+                  <div className="w-10 h-10 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
+                    <span className="text-green-600 dark:text-green-400 text-lg">⭐</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-green-800 dark:text-green-200 text-sm sm:text-base">
+                      Share Your Experience!
+                    </h4>
+                    <p className="text-green-700 dark:text-green-300 text-xs sm:text-sm">
+                      Review {getReviewableProductsCount()} product{getReviewableProductsCount() > 1 ? 's' : ''} from this order
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab('items')}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base"
+                >
+                  Write Reviews
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2">
               {/* Tabs */}
@@ -476,7 +631,7 @@ const handleCancelOrder = async () => {
                       <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`flex-shrink-0 py-4 px-6 font-medium text-sm border-b-2 transition-colors ${
+                        className={`flex-shrink-0 py-3 sm:py-4 px-4 sm:px-6 font-medium text-sm border-b-2 transition-colors ${
                           activeTab === tab
                             ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                             : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
@@ -489,7 +644,7 @@ const handleCancelOrder = async () => {
                 </div>
 
                 {/* Tab Content */}
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   <AnimatePresence mode="wait">
                     {/* TRACKING TAB */}
                     {activeTab === 'tracking' && (
@@ -497,26 +652,23 @@ const handleCancelOrder = async () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        className="space-y-6"
+                        className="space-y-4 sm:space-y-6"
                       >
                         {/* Order Status Overview */}
-                        <div className="bg-gradient-to-r from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 rounded-xl p-6 border border-primary-200 dark:border-primary-800">
-                          <div className="flex items-center justify-between">
-                            <div>
+                        <div className="bg-gradient-to-r from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 rounded-xl p-4 sm:p-6 border border-primary-200 dark:border-primary-800">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                            <div className="mb-3 sm:mb-0">
                               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                                 Order Status
                               </h3>
-                              <p className="text-gray-600 dark:text-gray-400">
+                              <p className="text-gray-600 dark:text-gray-400 text-sm">
                                 Current status of your order
                               </p>
                             </div>
-                            <div className="text-right">
+                            <div className="text-left sm:text-right">
                               <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(getOrderStatus())}`}>
                                 {formatStatusText(getOrderStatus())}
                               </div>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Printify: {formatPrintifyStatus(getPrintifyStatus())}
-                              </p>
                             </div>
                           </div>
                         </div>
@@ -635,32 +787,9 @@ const handleCancelOrder = async () => {
                           )}
                         </div>
 
-                        {/* Printify Information */}
-                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-6">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                            🏭 Printify Production
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                Printify Order ID
-                              </label>
-                              <p className="font-mono text-sm text-gray-900 dark:text-white">
-                                {order.printifyOrderId || 'Not assigned yet'}
-                              </p>
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                Production Status
-                              </label>
-                              <p className="font-semibold text-gray-900 dark:text-white">
-                                {formatPrintifyStatus(getPrintifyStatus())}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
                       </motion.div>
                     )}
+
 
                     {/* DETAILS TAB - UPDATED WITH BETTER COUPON HANDLING */}
                     {activeTab === 'details' && (
@@ -731,12 +860,6 @@ const handleCancelOrder = async () => {
                                 </span>
                               </div>
 
-                              <div className="flex justify-between">
-                                <span className="text-gray-600 dark:text-gray-400">Tax</span>
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {formatCurrency(taxAmount)}
-                                </span>
-                              </div>
 
                               {/* Total Savings Display */}
                               {shouldShowDiscountInfo() && (
@@ -825,80 +948,121 @@ const handleCancelOrder = async () => {
                         </div>
                       </motion.div>
                     )}
-
-                    {/* ITEMS TAB */}
+                    {/* ITEMS TAB - UPDATED WITH BETTER REVIEW INTEGRATION */}
                     {activeTab === 'items' && (
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                       >
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                          Order Items
-                        </h3>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+                          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2 sm:mb-0">
+                            Order Items
+                          </h3>
+                          
+                          {/* Review Stats */}
+                          {hasReviewableProducts() && (
+                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
+                              <p className="text-blue-700 dark:text-blue-300 text-sm">
+                                {getReviewableProductsCount()} product{getReviewableProductsCount() > 1 ? 's' : ''} available for review
+                              </p>
+                            </div>
+                          )}
+                        </div>
                         
                         {/* Coupon Summary Banner */}
                         {shouldShowDiscountInfo() && (
-                          <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800 mb-6">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
-                                  <span className="text-green-600 dark:text-green-400 text-lg">🎉</span>
-                                </div>
-                                <div>
-                                  <h4 className="font-semibold text-green-800 dark:text-green-200">
-                                    {getCouponCode() ? 'Coupon Applied Successfully!' : 'Special Discount Applied!'}
-                                  </h4>
-                                  <p className="text-green-700 dark:text-green-300 text-sm">
-                                    You saved {formatCurrency(getDiscountAmount())} 
-                                    {getCouponCode() && ` with code ${getCouponCode()}`}
-                                  </p>
-                                </div>
+                          <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-3 sm:p-4 border border-green-200 dark:border-green-800 mb-4 sm:mb-6">
+                            <div className="flex items-center space-x-2 sm:space-x-3">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-green-600 dark:text-green-400 text-sm sm:text-lg">🎉</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-green-800 dark:text-green-200 text-sm sm:text-base truncate">
+                                  {getCouponCode() ? 'Coupon Applied Successfully!' : 'Special Discount Applied!'}
+                                </h4>
+                                <p className="text-green-700 dark:text-green-300 text-xs sm:text-sm truncate">
+                                  You saved {formatCurrency(getDiscountAmount())} 
+                                  {getCouponCode() && ` with code ${getCouponCode()}`}
+                                </p>
                               </div>
                             </div>
                           </div>
                         )}
                         
-                        <div className="space-y-4">
-                          {order.items?.length > 0 ? (
-                            order.items.map((item, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
-                              >
-                                {item.image && (
-                                  <img
-                                    src={item.image}
-                                    alt={item.name}
-                                    className="w-16 h-16 object-cover rounded-lg"
-                                  />
-                                )}
-                                <div className="flex-1">
-                                  <h4 className="font-medium text-gray-900 dark:text-white">
-                                    {item.name || item.productName || 'Product'}
-                                  </h4>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Variant: {item.variant || item.size || 'Standard'}
-                                  </p>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Quantity: {item.quantity || 1}
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-semibold text-gray-900 dark:text-white">
-                                    {formatCurrency(item.price || 0)}
-                                  </p>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {formatItemPrice(item.price || 0, item.quantity || 1)}
-                                  </p>
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                              No items found for this order.
-                            </p>
-                          )}
+                        <div className="space-y-3 sm:space-y-4">
+                              {order.items?.length > 0 ? (
+                                order.items.map((item, index) => {
+                                  // FIXED: Use the actual product ID from the product object
+                                  const productId = getProductIdFromItem(item);
+                                  const canReview = canReviewProduct(productId);
+                                  const alreadyReviewed = alreadyReviewedProducts.includes(productId);
+                                  
+                                  return (
+                                    <div
+                                      key={index}
+                                      className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                                    >
+                                      {item.product?.images?.[0] && (
+                                        <img
+                                          src={item.product.images[0]}
+                                          alt={item.name}
+                                          className="w-16 h-16 object-cover rounded-lg flex-shrink-0 mx-auto sm:mx-0"
+                                        />
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                          {item.product?.name || item.name || 'Product'}
+                                        </h4>
+                                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                          Variant: {item.variant || item.size || 'Standard'}
+                                        </p>
+                                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                          Quantity: {item.quantity || 1}
+                                        </p>
+                                        
+                                        {/* Review Status */}
+                                        <div className="mt-2">
+                                          {canReview && (
+                                            <button
+                                              onClick={() => {
+                                                handleOpenReviewModal(item);
+                                              }}
+                                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs sm:text-sm font-medium transition-colors"
+                                            >
+                                              ✍️ Write Review
+                                            </button>
+                                          )}
+                                          
+                                          {alreadyReviewed && (
+                                            <span className="text-green-600 dark:text-green-400 text-xs sm:text-sm font-medium">
+                                              ✅ Review Submitted
+                                            </span>
+                                          )}
+                                          
+                                          {!canReview && !alreadyReviewed && getOrderStatus().toUpperCase() !== 'DELIVERED' && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                              Review available after delivery
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="text-right flex-shrink-0">
+                                        <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                                          {formatCurrency(item.price || 0)}
+                                        </p>
+                                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                          {formatItemPrice(item.price || 0, item.quantity || 1)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <p className="text-gray-500 dark:text-gray-400 text-center py-6 sm:py-8">
+                                  No items found for this order.
+                                </p>
+                              )}
                         </div>
                       </motion.div>
                     )}
@@ -973,25 +1137,26 @@ const handleCancelOrder = async () => {
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Order Actions */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">
                   Order Actions
                 </h3>
-                <div className="space-y-3">
-                  <button className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg font-medium transition-colors">
-                    Download Invoice
-                  </button>
-                  <button className="w-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 py-2 px-4 rounded-lg font-medium transition-colors">
-                    Contact Support
-                  </button>
+                <div className="space-y-2 sm:space-y-3">
+
+                 
+                  <Link to={'/contact'} className="block">
+                    <button className="w-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 py-2 px-4 rounded-lg font-medium transition-colors text-sm sm:text-base">
+                      Contact Support
+                    </button>
+                  </Link>
                   
-                  {/* Cancel Order Button - Only show if order can be cancelled */}
+                  {/* Cancel Order Button */}
                   {canCancelOrder() && (
                     <button 
                       onClick={() => setShowCancelModal(true)}
-                      className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                      className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium transition-colors text-sm sm:text-base"
                     >
                       Cancel Order
                     </button>
@@ -1000,7 +1165,7 @@ const handleCancelOrder = async () => {
                   {/* Show message if order is already cancelled */}
                   {getOrderStatus().toUpperCase() === 'CANCELLED' && (
                     <div className="text-center py-2">
-                      <span className="text-red-600 dark:text-red-400 font-medium">
+                      <span className="text-red-600 dark:text-red-400 font-medium text-sm sm:text-base">
                         Order Cancelled
                       </span>
                     </div>
@@ -1009,13 +1174,13 @@ const handleCancelOrder = async () => {
               </div>
 
               {/* Support Information */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">
                   Need Help?
                 </h3>
-                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                   <p>Our support team is here to help with your order.</p>
-                  <p>Email: contact@agumiyacollections.com</p>
+                  <p>Email: support@agumiyacollections.com</p>
                 </div>
               </div>
             </div>

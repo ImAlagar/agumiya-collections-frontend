@@ -53,6 +53,31 @@ export const API_ENDPOINTS = {
   PAYMENTS_CREATE_ORDER: '/payments/create-order',
   PAYMENTS_VERIFY: '/payments/verify',
   PAYMENTS_STATUS: '/payments/status',
+
+  REVIEWS: {
+    BASE: '/reviews',
+    CREATE: '/reviews',
+    USER_REVIEWS: '/reviews/my-reviews',
+    PRODUCT_REVIEWS: '/reviews/product',
+    ADMIN_PENDING: '/reviews/admin/pending',
+    ADMIN_ALL: '/reviews/admin/all', // New endpoint
+    ADMIN_STATS: '/reviews/admin/stats', // New endpoint
+    ADMIN_APPROVE: '/reviews/admin',  // This will be used as base for approval
+    ADMIN_REJECT: '/reviews/admin',    // This will be used as base for rejection
+    ADMIN_BULK_APPROVE: '/reviews/admin/bulk-approve', // New endpoint
+    ADMIN_BULK_DELETE: '/reviews/admin/bulk-delete' // New endpoint
+  },
+    TAX: {
+    BASE: '/tax',
+    CALCULATE: '/tax/calculate',
+    SETTINGS: '/tax/settings',
+    COUNTRIES: '/tax/countries',
+    COUNTRY: '/tax/country',
+    VALIDATE: '/tax/validate',
+    STATS: '/tax/stats',
+    BULK_UPDATE: '/tax/bulk-update',
+    RESET: '/tax/reset'
+  },
   // Common
   LOGOUT: '/logout'
 };
@@ -62,9 +87,6 @@ export const PRODUCT_CATEGORIES = [
   'All',
   'Accessories',
   'Unisex',
-  'Men',
-  'Women',
-  'Kids',
   'Home & Living',
   'Electronics'
 ];
@@ -160,4 +182,36 @@ export const PAGINATION_DEFAULTS = {
   LIMIT: 10,
   SORT_BY: 'name',
   SORT_ORDER: 'asc'
+};
+
+// Add tax-related constants
+export const TAX_TYPES = {
+  VAT: 'VAT',
+  GST: 'GST',
+  SALES_TAX: 'SALES_TAX',
+  CUSTOM: 'CUSTOM'
+};
+
+export const TAX_CALCULATION_TYPES = {
+  PERCENTAGE: 'PERCENTAGE',
+  FIXED_AMOUNT: 'FIXED_AMOUNT'
+};
+
+export const TAX_INCLUSION_TYPES = {
+  EXCLUSIVE: 'EXCLUSIVE',
+  INCLUSIVE: 'INCLUSIVE'
+};
+
+export const TAX_FILTERS = {
+  STATUS: {
+    ALL: 'all',
+    ACTIVE: 'active',
+    INACTIVE: 'inactive'
+  },
+  TAX_TYPE: {
+    ALL: 'all',
+    VAT: 'VAT',
+    GST: 'GST',
+    SALES_TAX: 'SALES_TAX'
+  }
 };

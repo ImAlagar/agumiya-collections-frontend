@@ -12,10 +12,10 @@ import homeLivingBanner from '../../assets/images/categories/home-living-banner.
 import generalBanner from '../../assets/images/categories/general-banner.jpg';
 import defaultBanner from '../../assets/images/categories/default-banner.jpg';
 
-
 const Home = () => {
   const [categories, setCategories] = useState([]);
   const [categoryProducts, setCategoryProducts] = useState({});
+  const [categoryReviewStats, setCategoryReviewStats] = useState({});
   const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
 
@@ -32,8 +32,7 @@ const Home = () => {
         const categoriesWithImages = await enhanceCategoriesWithImages(response.data.categories);
         setCategories(categoriesWithImages);
         
-        // Fetch products for each category
-        fetchCategoryProducts(categoriesWithImages);
+        await fetchCategoryProductsWithReviews(categoriesWithImages);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -42,7 +41,99 @@ const Home = () => {
     }
   };
 
-const enhanceCategoriesWithImages = async (categories) => {
+  const fetchCategoryProductsWithReviews = async (categories) => {
+    const productsMap = {};
+    const reviewStatsMap = {};
+    
+    for (const category of categories) {
+      try {
+        const productsResponse = await productService.getFilteredProducts({
+          categories: category.value,
+          limit: 8
+        });
+        
+        if (productsResponse.success && productsResponse.data.data) {
+          const products = productsResponse.data.data.slice(0, 8);
+          
+          const productsWithReviews = await Promise.all(
+            products.map(async (product) => {
+              try {
+                const reviewResponse = await productService.getProductReviewStats(product.id);
+                return {
+                  ...product,
+                  reviewStats: reviewResponse.data || {
+                    averageRating: 0,
+                    totalReviews: 0,
+                    ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+                  }
+                };
+              } catch (error) {
+                return {
+                  ...product,
+                  reviewStats: {
+                    averageRating: 0,
+                    totalReviews: 0,
+                    ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+                  }
+                };
+              }
+            })
+          );
+          
+          productsMap[category.value] = productsWithReviews;
+          
+          const categoryStats = calculateCategoryReviewStats(productsWithReviews);
+          reviewStatsMap[category.value] = categoryStats;
+        } else {
+          productsMap[category.value] = [];
+          reviewStatsMap[category.value] = {
+            averageRating: 0,
+            totalReviews: 0,
+            totalProducts: 0
+          };
+        }
+      } catch (error) {
+        console.error(`Error fetching products for category ${category.value}:`, error);
+        productsMap[category.value] = [];
+        reviewStatsMap[category.value] = {
+          averageRating: 0,
+          totalReviews: 0,
+          totalProducts: 0
+        };
+      }
+    }
+    
+    setCategoryProducts(productsMap);
+    setCategoryReviewStats(reviewStatsMap);
+  };
+
+  const calculateCategoryReviewStats = (products) => {
+    if (!products || products.length === 0) {
+      return {
+        averageRating: 0,
+        totalReviews: 0,
+        totalProducts: 0
+      };
+    }
+
+    const totalReviews = products.reduce((sum, product) => 
+      sum + (product.reviewStats?.totalReviews || 0), 0
+    );
+    
+    const totalRating = products.reduce((sum, product) => 
+      sum + (product.reviewStats?.averageRating || 0) * (product.reviewStats?.totalReviews || 0), 0
+    );
+    
+    const averageRating = totalReviews > 0 ? totalRating / totalReviews : 0;
+    
+    return {
+      averageRating: Math.round(averageRating * 10) / 10,
+      totalReviews,
+      totalProducts: products.length
+    };
+  };
+
+  const enhanceCategoriesWithImages = async (categories) => {
     const categoryImages = {
       "Accessories": accessoriesBanner,
       "Men's Clothing": mensClothingBanner, 
@@ -57,7 +148,7 @@ const enhanceCategoriesWithImages = async (categories) => {
       gradient: getCategoryGradient(category.value),
       description: getCategoryDescription(category.value)
     }));
-};
+  };
 
   const getCategoryDescription = (categoryValue) => {
     const descriptions = {
@@ -103,30 +194,6 @@ const enhanceCategoriesWithImages = async (categories) => {
     return gradients[categoryValue] || gradients["general"];
   };
 
-  const fetchCategoryProducts = async (categories) => {
-    const productsMap = {};
-    
-    for (const category of categories) {
-      try {
-        const response = await productService.getFilteredProducts({
-          categories: category.value
-        });
-        
-        if (response.success && response.data.data && response.data.data.length > 0) {
-          productsMap[category.value] = response.data.data.slice(0, 8); // Get first 8 products for pagination
-        } else {
-          productsMap[category.value] = [];
-        }
-      } catch (error) {
-        console.error(`Error fetching products for category ${category.value}:`, error);
-        productsMap[category.value] = [];
-      }
-    }
-    
-    setCategoryProducts(productsMap);
-  };
-
-  // Theme-based styles
   const getThemeStyles = () => {
     const baseStyles = {
       light: {
@@ -188,12 +255,12 @@ const enhanceCategoriesWithImages = async (categories) => {
       
       <ResponsiveHero />
       
-      {/* Render each category as a separate section */}
       {categories.map((category, index) => (
         <CategorySection
           key={category.value}
           category={category}
           products={categoryProducts[category.value] || []}
+          reviewStats={categoryReviewStats[category.value]}
           index={index}
         />
       ))}

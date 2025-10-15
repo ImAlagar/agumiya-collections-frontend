@@ -17,8 +17,16 @@ const ShippingStep = ({ orderData, formErrors, handleInputChange, themeStyles })
     zipCode: shippingAddress.zipCode || ''
   };
 
+  // Optimized handler that only triggers shipping calculation for relevant fields
   const handleFieldChange = (field, value) => {
     handleInputChange('shippingAddress', field, value);
+    
+    // Only trigger shipping calculation for country and region changes
+    // Other fields like name, email, etc. won't trigger shipping recalculation
+    if (field === 'country' || field === 'region') {
+      // This will be handled by the parent component's optimized useEffect
+      // that only recalculates when country/region actually change
+    }
   };
 
   return (
@@ -242,7 +250,7 @@ const ShippingStep = ({ orderData, formErrors, handleInputChange, themeStyles })
             </div>
           </div>
 
-          {/* Country */}
+          {/* Country - This is the main field that affects shipping */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Country *
@@ -290,6 +298,7 @@ const ShippingStep = ({ orderData, formErrors, handleInputChange, themeStyles })
           <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
             <strong>Note:</strong> All information is kept secure and encrypted. 
             Please ensure your shipping address is accurate to avoid delivery issues.
+            Shipping costs are calculated based on your country and region.
           </p>
         </div>
       </div>

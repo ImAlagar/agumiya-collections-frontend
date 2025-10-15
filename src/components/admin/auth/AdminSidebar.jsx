@@ -1,4 +1,3 @@
-// components/admin/AdminSidebar.jsx
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -15,6 +14,8 @@ import {
   UserPlus,
   ChevronDown,
    Ban,
+  Star, // ADD THIS IMPORT
+  MessageSquare // ADD THIS IMPORT
 } from 'lucide-react';
 import logo from '../../../assets/images/logo.png';
 
@@ -27,9 +28,10 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
     { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/admin/products', label: 'Products', icon: Package },
     { path: '/admin/orders', label: 'Orders', icon: ShoppingCart },
-    { path: '/admin/cancellations', label: 'Cancellations', icon: Ban }, // 👈 NEW ITEM
+    { path: '/admin/cancellations', label: 'Cancellations', icon: Ban },
     { path: '/admin/users', label: 'Users', icon: Users },
     { path: '/admin/contacts', label: 'Contacts', icon: Contact },
+    { path: '/admin/reviews', label: 'Reviews', icon: Star }, // NEW: Reviews menu item
   ];
 
   const settingsSubmenu = [
