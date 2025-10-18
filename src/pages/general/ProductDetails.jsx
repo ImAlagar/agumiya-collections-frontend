@@ -144,24 +144,32 @@ const ProductDetails = () => {
     return { savings, savingsPercentage };
   };
 
-  const handleAddToCart = () => {
-    if (product && selectedVariant) {
-      const cartItem = {
-        id: `${product.id}-${selectedVariant.id}`,
-        productId: product.id,
-        name: product.name,
-        price: selectedVariant.price,
-        image: product.images?.[0],
-        variant: selectedVariant,
-        quantity
-      };
-      
-      addToCart(cartItem);
-      
-      // Trigger flying animation
-      triggerFlyingAnimation();
+const handleAddToCart = () => {
+  if (product && selectedVariant) {
+    // Validate that selectedVariant has a valid ID
+    if (!selectedVariant.id || selectedVariant.id === 'default') {
+      alert('Please select a valid product option before adding to cart.');
+      return;
     }
-  };
+
+    const cartItem = {
+      id: `${product.id}-${selectedVariant.id}`,
+      productId: product.id,
+      name: product.name,
+      price: selectedVariant.price,
+      image: product.images?.[0],
+      variant: selectedVariant, // Make sure this includes the variant object
+      variantId: selectedVariant.id, // Ensure this is set correctly
+      quantity
+    };
+    
+    
+    addToCart(cartItem);
+    
+    // Trigger flying animation
+    triggerFlyingAnimation();
+  }
+};
 
   const triggerFlyingAnimation = () => {
     if (!addToCartRef.current || !product) return;
@@ -529,40 +537,50 @@ const ProductDetails = () => {
                   </div>
                   
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {displayVariants
-                      .filter((variant, index, self) => {
-                        const cleanTitle = variant.title.split('/')[0].trim();
-                        return self.findIndex(v => v.title.split('/')[0].trim() === cleanTitle) === index;
-                      })
-                      .map((variant) => {
-                        const { formatted: variantFormattedPrice } = formatPrice(variant.price, userCurrency);
-                        const { formatted: variantOriginalPrice } = formatPrice(variant.price, 'USD');
-                        
-                        // Clean the title by removing everything after first slash
-                        const cleanTitle = variant.title.split('/')[0].trim();
-                        
-                        return (
-                          <button
-                            key={variant.id}
-                            onClick={() => setSelectedVariant(variant)}
-                            className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 text-left transition-all ${
-                              selectedVariant?.id === variant.id
-                                ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
-                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                            }`}
-                          >
-                            <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
-                              {cleanTitle}
-                            </p>
+                    {displayVariants.map((variant) => {
+                      // Split the title into color and size
+                      const [color, size] = variant.title.split('/').map(part => part.trim());
+                      const { formatted: variantFormattedPrice } = formatPrice(variant.price, userCurrency);
+                      
+                      return (
+                        <button
+                          key={variant.id}
+                          onClick={() => setSelectedVariant(variant)}
+                          className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 text-left transition-all ${
+                            selectedVariant?.id === variant.id
+                              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                          }`}
+                        >
+                          {/* Color */}
+                          <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                            {color}
+                          </p>
+                          
+                          {/* Size */}
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            {size}
+                          </p>
 
-                            {variant.description && (
-                              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                {variant.description}
-                              </p>
-                            )}
-                          </button>
-                        );
-                      })}
+                          {/* Price */}
+                          <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 mt-2">
+                            {variantFormattedPrice}
+                          </p>
+
+                          {/* Availability Status */}
+                          <div className="flex items-center mt-2">
+                            <div className={`w-2 h-2 rounded-full mr-2 ${
+                              variant.isAvailable 
+                                ? 'bg-green-500' 
+                                : 'bg-red-500'
+                            }`} />
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {variant.isAvailable ? 'Available' : 'Unavailable'}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Show More/Less Button */}
@@ -585,7 +603,6 @@ const ProductDetails = () => {
                   )}
                 </div>
               )}
-
               {/* Quantity + Actions */}
               <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center space-x-3 sm:space-x-4">
@@ -662,17 +679,7 @@ const ProductDetails = () => {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <FiShield className="text-blue-600 flex-shrink-0" size={18} />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
-                      2-Year Warranty
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                      Guarantee
-                    </p>
-                  </div>
-                </div>
+
                 <div className="flex items-center space-x-3">
                   <FiGlobe className="text-purple-600 flex-shrink-0" size={18} />
                   <div>

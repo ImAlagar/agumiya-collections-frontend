@@ -34,18 +34,24 @@ const AdminOrderCancellations = () => {
     fetchCancellationStats,
     processRefund,
     retryRefund,
-    adminCancelOrder
+    adminCancelOrder,
+    pagination
   } = useOrders();
   
   const { formatPriceSimple } = useCurrency();
   const { theme } = useTheme();
   
-  const [filters, setFilters] = useState({
+   const [filters, setFilters] = useState({
     search: '',
     refundStatus: 'all',
-    page: 1,
-    limit: 10
+    limit: 10 // Make sure this matches what you want
   });
+
+    // Use the actual current page from context
+  const currentPage = pagination.currentPage || 1;
+  const totalPages = pagination.totalPages || 1;
+  const totalCount = pagination.totalCount || 0;
+  const limit = pagination.limit || 10;
   const [refreshing, setRefreshing] = useState(false);
 
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -56,13 +62,22 @@ const AdminOrderCancellations = () => {
   const [loadingAction, setLoadingAction] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(null);
 
-  useEffect(() => {
-    fetchCancelledOrders(filters.page, filters);
+
+
+    useEffect(() => {
+    fetchCancelledOrders(currentPage, filters);
     fetchCancellationStats();
-  }, [filters]);
+  }, [currentPage, filters]); // Add currentPage to dependencies
+
+  const handlePageChange = (newPage) => {
+    // This will trigger the useEffect and refetch with new page
+    fetchCancelledOrders(newPage, filters);
+  };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+    setFilters(prev => ({ ...prev, [key]: value }));
+    // Reset to page 1 when filters change
+    fetchCancelledOrders(1, { ...filters, [key]: value });
   };
 
   const handleCancelOrder = async (orderId) => {
@@ -703,12 +718,7 @@ const AdminOrderCancellations = () => {
                               </button>
                             )}
 
-                            <button
-                              onClick={() => {/* Navigate to order details */}}
-                              className="text-blue-600 hover:text-blue-900 transition-colors px-3 py-1 rounded-lg hover:bg-blue-50"
-                            >
-                              View
-                            </button>
+
                           </div>
                         </td>
                       </motion.tr>
@@ -736,12 +746,12 @@ const AdminOrderCancellations = () => {
               className={`flex flex-col sm:flex-row justify-between items-center p-4 border-t ${getBorderClass()} gap-4`}
             >
               <div className={`text-sm ${getMutedTextClass()}`}>
-                Showing {((filters.page - 1) * filters.limit) + 1} to {Math.min(filters.page * filters.limit, cancelledOrders.length)} of {cancelledOrders.length} orders
+                Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalCount)} of {totalCount} orders
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => handleFilterChange('page', filters.page - 1)}
-                  disabled={filters.page === 1}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
                   className={`flex items-center gap-1 px-3 py-2 rounded-lg border ${theme === 'light' ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-600 hover:bg-gray-700'} disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium ${getTextClass()}`}
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -749,26 +759,37 @@ const AdminOrderCancellations = () => {
                 </button>
                 
                 <div className="flex gap-1">
-                  {Array.from({ length: Math.ceil(cancelledOrders.length / filters.limit) }, (_, i) => i + 1)
-                    .slice(0, 5)
-                    .map((pageNum) => (
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
                       <button
                         key={pageNum}
-                        onClick={() => handleFilterChange('page', pageNum)}
+                        onClick={() => handlePageChange(pageNum)}
                         className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
-                          filters.page === pageNum
+                          currentPage === pageNum
                             ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
                             : `border ${theme === 'light' ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-600 hover:bg-gray-700'} ${getTextClass()}`
                         }`}
                       >
                         {pageNum}
                       </button>
-                    ))}
+                    );
+                  })}
                 </div>
 
                 <button
-                  onClick={() => handleFilterChange('page', filters.page + 1)}
-                  disabled={filters.page * filters.limit >= cancelledOrders.length}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage >= totalPages}
                   className={`flex items-center gap-1 px-3 py-2 rounded-lg border ${theme === 'light' ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-600 hover:bg-gray-700'} disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium ${getTextClass()}`}
                 >
                   Next

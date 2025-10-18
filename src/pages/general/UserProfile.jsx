@@ -1096,14 +1096,7 @@ const OrderHistory = ({ userData, isAdmin }) => {
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                           Order #{getOrderDisplayId(order)}
                         </h3>
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 sm:mt-0 ${getStatusColor(order.status)}`}
-                        >
-                          {order.status
-                            ? order.status.charAt(0).toUpperCase() +
-                              order.status.slice(1).toLowerCase()
-                            : "Unknown"}
-                        </span>
+
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -1123,14 +1116,7 @@ const OrderHistory = ({ userData, isAdmin }) => {
                             {order.items?.length || 0} items
                           </span>
                         </div>
-                        <div>
-                          <span className="text-gray-500 dark:text-gray-400">
-                            Total:
-                          </span>
-                          <span className="ml-2 font-semibold text-indigo-600 dark:text-indigo-400">
-                            {formatCurrency(order.totalAmount || order.grandTotal || 0)}
-                          </span>
-                        </div>
+
                       </div>
                     </div>
 

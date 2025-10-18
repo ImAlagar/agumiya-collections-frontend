@@ -474,39 +474,53 @@ const fetchOrders = useCallback(
     }
   }, []);
 
-  // ✅ Fetch Cancelled Orders
-  const fetchCancelledOrders = useCallback(async (page = 1, filters = {}) => {
-    try {
-      dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
-      
-      const params = {
-        page,
-        limit: 10,
-        ...filters
+// ✅ Fetch Cancelled Orders
+const fetchCancelledOrders = useCallback(async (page = 1, filters = {}) => {
+  try {
+    dispatch({ type: ORDER_ACTIONS.SET_LOADING, payload: true });
+    
+    const params = {
+      page,
+      limit: filters.limit || 10, // Use the filter limit or default to 10
+      ...filters
+    };
+
+    const response = await orderService.getCancelledOrders(params);
+    
+    if (response.success) {
+      // Extract orders and pagination data from the API response
+      const orders = response.data.data || [];
+      const pagination = response.data.meta || {
+        currentPage: page,
+        totalPages: 1,
+        totalCount: orders.length,
+        hasNext: false,
+        hasPrev: false,
+        limit: params.limit
       };
 
-      const response = await orderService.getCancelledOrders(params);
+      dispatch({
+        type: ORDER_ACTIONS.SET_CANCELLED_ORDERS,
+        payload: { 
+          orders, 
+          pagination: {
+            currentPage: pagination.page || pagination.currentPage || page,
+            totalPages: pagination.totalPages || 1,
+            totalCount: pagination.total || pagination.totalCount || orders.length,
+            hasNext: pagination.hasNext || false,
+            hasPrev: pagination.hasPrev || false,
+            limit: pagination.limit || params.limit
+          }
+        }
+      });
       
-      if (response.success) {
-        const orders = response.data.data || [];
-        const pagination = response.data.meta || {
-          currentPage: page,
-          totalPages: Math.ceil(orders.length / 10),
-          totalCount: orders.length
-        };
-
-        dispatch({
-          type: ORDER_ACTIONS.SET_CANCELLED_ORDERS,
-          payload: { orders, pagination }
-        });
-        
-      } else {
-        throw new Error(response.message);
-      }
-    } catch (error) {
-      dispatch({ type: ORDER_ACTIONS.SET_ERROR, payload: error.message });
+    } else {
+      throw new Error(response.message);
     }
-  }, []);
+  } catch (error) {
+    dispatch({ type: ORDER_ACTIONS.SET_ERROR, payload: error.message });
+  }
+}, []);
 
   // ✅ Fetch Cancellation Statistics
   const fetchCancellationStats = useCallback(async () => {

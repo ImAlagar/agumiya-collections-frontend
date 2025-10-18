@@ -104,37 +104,9 @@ const handleLogout = async () => {
           
         </div>
 
-        {/* Center Section - Search Bar (Desktop) */}
-        <div className="hidden md:flex flex-1 max-w-2xl mx-4 lg:mx-8">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search dashboard..."
-              className="w-full pl-4 pr-10 py-2.5 bg-white/80 dark:bg-gray-800/80 
-                                   border border-gray-300 dark:border-gray-600 rounded-full 
-                                   text-gray-700 dark:text-gray-200 placeholder-gray-500 
-                                   backdrop-blur-sm focus:outline-none focus:ring-2 
-                                   focus:ring-blue-500 focus:border-transparent 
-                                   shadow-lg transition-all duration-300"
-            />
-          </div>
-        </div>
-
         {/* Right Section */}
         <div className="flex items-center space-x-2 sm:space-x-3">
-          {/* Mobile Search Button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsMobileSearchOpen(true)}
-            className="md:hidden p-2.5 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 
-                        dark:from-gray-800 dark:to-gray-700 text-blue-600 dark:text-blue-400 
-                        shadow-lg hover:shadow-xl transition-all duration-300"
-            aria-label="Search"
-          >
-            <Search size={20} />
-          </motion.button>
+
 
 
           {/* Home Button */}
@@ -281,47 +253,7 @@ const handleLogout = async () => {
         </div>
       </div>
 
-      {/* Mobile Search Overlay */}
-      <AnimatePresence>
-        {isMobileSearchOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 md:hidden"
-          >
-            <motion.div
-              initial={{ y: -100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -100, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 p-4 shadow-lg"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="text"
-                    placeholder="Search dashboard..."
-                    className="w-full pl-4 pr-10 py-2.5 bg-white/80 dark:bg-gray-800/80 
-                                   border border-gray-300 dark:border-gray-600 rounded-full 
-                                   text-gray-700 dark:text-gray-200 placeholder-gray-500 
-                                   backdrop-blur-sm focus:outline-none focus:ring-2 
-                                   focus:ring-blue-500 focus:border-transparent 
-                                   shadow-lg transition-all duration-300"
-                    autoFocus
-                  />
-                </div>
-                <button
-                  onClick={() => setIsMobileSearchOpen(false)}
-                  className="px-4 py-3 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
 
       {/* Mobile Profile Menu */}
       <AnimatePresence>

@@ -1,523 +1,722 @@
-// src/pages/general/Cart.js
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useCart } from '../../contexts/CartContext';
+// src/components/cart/Cart.jsx
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCurrency } from '../../contexts/CurrencyContext';
-import { useAuth } from '../../contexts/AuthProvider';
+import { useCart } from '../../contexts/CartContext';
 import { useCoupon } from '../../contexts/CouponContext';
-import { shippingService } from '../../services/api/shippingService';
-import { 
-  FiShoppingBag,
-  FiTrash2, 
-  FiPlus,
-  FiMinus, 
-  FiShoppingCart, 
-} from 'react-icons/fi';
-import EnhancedOrderSummary from '../../components/user/checkout/EnhancedOrderSummary';
+import { useAuth } from '../../contexts/AuthProvider';
+import { calculationService } from '../../services/api/calculationService';
+import { couponService } from '../../services/api/couponService';
 
 const Cart = () => {
-  const { cartItems, updateQuantity, removeFromCart, clearCart, total, getCartTotal } = useCart();
-  const { formatPrice, userCurrency } = useCurrency();
-  const { user } = useAuth();
-  const { validateCoupon, isLoading: couponLoading } = useCoupon();
-  const navigate = useNavigate();
-  const [userCountry, setUserCountry] = useState('US'); // Default fallback
+  const { cartItems, updateQuantity, removeFromCart, total: cartTotal, totalItems, clearCart } = useCart();
+  const { isAuthenticated, user } = useAuth();
+  const { formatPriceSimple, userCurrency, userCountry } = useCurrency();
+  const { 
+    appliedCoupon, 
+    discountAmount, 
+    loading: couponLoading, 
+    applyCoupon, 
+    removeCoupon
+  } = useCoupon();
 
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [couponError, setCouponError] = useState('');
+  const [couponCode, setCouponCode] = useState('');
+  const [calculations, setCalculations] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [showAvailableCoupons, setShowAvailableCoupons] = useState(false);
+  const [couponsLoading, setCouponsLoading] = useState(false);
   
-  // Shipping state - same as checkout
-  const [shippingData, setShippingData] = useState({
-    cost: 0,
-    isFree: false,
-    loading: false,
-    message: '',
-    progress: 0,
-    estimatedDays: { min: 3, max: 7 },
-    hasFallback: false
-  });
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
-  // Calculate totals
-  const subtotal = getCartTotal?.() || total || cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const discountAmount = appliedCoupon?.discountAmount || 0;
-  const grandTotal = Math.max(0, subtotal + shippingData.cost - discountAmount);
+  // Refs to track previous values and prevent infinite loops
+  const previousCartHashRef = useRef('');
+  const calculationsLoadedRef = useRef(false);
+  const couponsLoadedRef = useRef(false);
 
-  // Get variant ID function - same as checkout
-  const getVariantId = useCallback((item) => {
-    if (item.variantId && item.variantId !== 'default') {
-      return item.variantId.toString();
-    }
-    if (item.variant?.id) {
-      return item.variant.id.toString();
-    }
-    if (item.selectedVariantId) {
-      return item.selectedVariantId.toString();
-    }
-    
-    console.warn('No variant ID found for item:', item);
-    return null;
+  // Generate cart hash for comparison
+  const getCartHash = useCallback((items) => {
+    return JSON.stringify(items.map(item => ({
+      id: item.id,
+      variantId: item.variantId,
+      quantity: item.quantity,
+      price: item.price
+    })).sort((a, b) => a.id.localeCompare(b.id)));
   }, []);
 
+  // Check for payment success
   useEffect(() => {
-  // Try to get country from user profile, geolocation, or use default
-  const getUserCountry = async () => {
-    if (user?.country) {
-      setUserCountry(user.country);
-    } else {
-      // You can add geolocation here or use a service
-      // For now, we'll use a default
-      setUserCountry('US');
+    const searchParams = new URLSearchParams(location.search);
+    const paymentSuccess = searchParams.get('payment') === 'success';
+    const locationPaymentSuccess = location.state?.paymentSuccess;
+    
+    if (paymentSuccess || locationPaymentSuccess) {
+      setShowSuccessMessage(true);
+      clearCart();
+      
+      if (paymentSuccess) {
+        navigate(location.pathname, { replace: true });
+      }
+      
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
     }
-  };
-  
-  getUserCountry();
-}, [user]);
+  }, [location, navigate, clearCart]);
 
-// Update the shipping calculation useEffect to use userCountry
-useEffect(() => {
-  let timeoutId;
-
-  const calculateShipping = async () => {
+  // Load calculations - ONLY when cart items actually change
+  const loadCalculations = useCallback(async () => {
     if (cartItems.length === 0) {
-      setShippingData({
-        cost: 0,
-        isFree: false,
-        loading: false,
-        message: 'Add items to calculate shipping',
-        progress: 0,
-        estimatedDays: { min: 3, max: 7 },
-        hasFallback: false
-      });
+      setCalculations(null);
+      setAvailableCoupons([]);
+      calculationsLoadedRef.current = false;
+      couponsLoadedRef.current = false;
       return;
     }
 
-    setShippingData(prev => ({ ...prev, loading: true }));
-    
+    // Prevent multiple simultaneous loads
+    if (loading) return;
+
+    setLoading(true);
     try {
-      const apiCartItems = cartItems.map(item => {
-        const variantId = getVariantId(item);
-        return {
+      const result = await calculationService.calculateCartTotals(
+        cartItems.map(item => ({
           productId: item.id,
-          variantId: variantId,
+          variantId: item.variantId,
           quantity: item.quantity,
-          price: item.price,
-          name: item.name
+          price: item.price
+        })),
+        { country: userCountry }
+      );
+
+
+      if (result && result.success) {
+        const baseCalculations = {
+          subtotal: result.amounts?.subtotalUSD || cartTotal,
+          shipping: result.amounts?.shippingUSD || 0,
+          tax: result.amounts?.taxUSD || 0,
+          taxRate: result.breakdown?.taxRate || 0,
+          currency: result.currency || 'USD'
         };
-      }).filter(item => item.variantId !== null);
-
-      // Use userCountry instead of hardcoded 'US'
-      const response = await shippingService.getShippingEstimates({
-        cartItems: apiCartItems,
-        subtotal: subtotal,
-        country: userCountry, // ✅ Use actual user country
-        region: null
-      });
-
-      if (response.success && response.data) {
-        setShippingData({
-          cost: response.data.totalShipping || 0,
-          isFree: response.data.isFree || false,
-          loading: false,
-          message: response.data.message || '',
-          progress: response.data.progress || 0,
-          estimatedDays: response.data.estimatedDays || { min: 3, max: 7 },
-          hasFallback: response.data.hasFallback || false
+        
+        const finalTotal = Math.max(0, baseCalculations.subtotal + baseCalculations.shipping + baseCalculations.tax - discountAmount);
+        
+        setCalculations({
+          ...baseCalculations,
+          discount: discountAmount,
+          finalTotal
         });
       } else {
-        throw new Error(response.message || 'Failed to calculate shipping');
+        // Fallback calculation
+        const finalTotal = Math.max(0, cartTotal - discountAmount);
+        setCalculations({
+          subtotal: cartTotal,
+          shipping: 0,
+          tax: 0,
+          taxRate: 0,
+          discount: discountAmount,
+          finalTotal,
+          currency: userCurrency
+        });
       }
-    } catch (error) {
-      console.error('Shipping API error in cart:', error);
-      // Fallback calculation
-      const FREE_SHIPPING_THRESHOLD = 50;
-      const isFree = subtotal >= FREE_SHIPPING_THRESHOLD;
-      const fallbackCost = isFree ? 0 : 5.99;
-      const amountNeeded = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
       
-      setShippingData({
-        cost: fallbackCost,
-        isFree: isFree,
-        loading: false,
-        message: isFree 
-          ? '🎉 You got free shipping!' 
-          : `Add $${amountNeeded.toFixed(2)} more for free shipping!`,
-        progress: Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100),
-        estimatedDays: { min: 3, max: 7 },
-        hasFallback: true
+      calculationsLoadedRef.current = true;
+    } catch (error) {
+      console.error('❌ CART - Failed to load calculations:', error);
+      // Fallback calculation
+      const finalTotal = Math.max(0, cartTotal - discountAmount);
+      setCalculations({
+        subtotal: cartTotal,
+        shipping: 0,
+        tax: 0,
+        taxRate: 0,
+        discount: discountAmount,
+        finalTotal,
+        currency: userCurrency
       });
+      calculationsLoadedRef.current = true;
+    } finally {
+      setLoading(false);
     }
+  }, [cartItems, userCountry, cartTotal, userCurrency, discountAmount, loading]);
+
+
+const loadAvailableCoupons = useCallback(async () => {
+  if (cartItems.length === 0 || !calculations || couponsLoading || couponsLoadedRef.current) {
+    return;
+  }
+
+  setCouponsLoading(true);
+  try {
+    
+    // Prepare the request data in the EXACT format that works in Postman
+    const requestData = {
+      subtotal: calculations.subtotal || cartTotal,
+      cartItems: cartItems.map(item => ({
+        productId: item.id, // Make sure this is the correct field name
+        quantity: item.quantity,
+        price: item.price,
+        // Add product object with category if your backend needs it
+        product: {
+          id: item.id,
+          name: item.name,
+          category: item.category || 'general' // Provide a default category
+        }
+      })),
+      userId: user?.id || null
+    };
+
+
+    const response = await couponService.getAvailableCoupons(requestData);
+    
+    
+    // Your backend returns response.data.available, not response.data.coupons
+    if (response && response.data) {
+      setAvailableCoupons(response.data.available || []);
+    } else {
+      setAvailableCoupons([]);
+    }
+    
+    couponsLoadedRef.current = true;
+    
+  } catch (error) {
+    console.error('❌ Failed to load available coupons:', error);
+    
+    // Log detailed error information
+    if (error.response) {
+      console.error('📋 Error response data:', error.response.data);
+      console.error('📋 Error status:', error.response.status);
+    } else if (error.request) {
+      console.error('📋 No response received:', error.request);
+    } else {
+      console.error('📋 Error message:', error.message);
+    }
+    
+    setAvailableCoupons([]);
+    couponsLoadedRef.current = true;
+  } finally {
+    setCouponsLoading(false);
+  }
+}, [cartItems, calculations, cartTotal, user, couponsLoading]);
+  // Main effect to control when to load calculations
+  useEffect(() => {
+    const currentCartHash = getCartHash(cartItems);
+    
+    // Only load calculations if cart actually changed
+    if (currentCartHash !== previousCartHashRef.current) {
+      previousCartHashRef.current = currentCartHash;
+      calculationsLoadedRef.current = false;
+      couponsLoadedRef.current = false;
+      loadCalculations();
+    }
+  }, [cartItems, getCartHash, loadCalculations]);
+
+  // Load coupons after calculations are ready
+  useEffect(() => {
+    if (calculations && calculationsLoadedRef.current && !couponsLoadedRef.current) {
+      loadAvailableCoupons();
+    }
+  }, [calculations, loadAvailableCoupons]);
+
+  // Update calculations when discount changes
+  useEffect(() => {
+    if (calculations) {
+      const newFinalTotal = Math.max(0, calculations.subtotal + calculations.shipping + calculations.tax - discountAmount);
+      
+      if (Math.abs(newFinalTotal - calculations.finalTotal) > 0.01) {
+        setCalculations(prev => ({
+          ...prev,
+          discount: discountAmount,
+          finalTotal: newFinalTotal
+        }));
+      }
+    }
+  }, [discountAmount, calculations]);
+
+  // Manual refresh of coupons
+  const handleRefreshCoupons = () => {
+    couponsLoadedRef.current = false;
+    loadAvailableCoupons();
   };
 
-  timeoutId = setTimeout(calculateShipping, 500);
-  return () => clearTimeout(timeoutId);
-}, [cartItems, subtotal, getVariantId, userCountry]); // ✅ Add userCountry to depende
-
-  const handleApplyCoupon = async (couponCode) => {
-    if (!couponCode.trim()) {
-      setCouponError('Please enter a coupon code');
-      return;
-    }
-
-    if (cartItems.length === 0) {
-      setCouponError('Add items to cart before applying coupon');
-      return;
-    }
-
-    setCouponError('');
-
-    try {
-      const validationData = {
-        code: couponCode.trim().toUpperCase(),
-        cartItems: cartItems.map(item => ({
-          id: item.id,
-          productId: item.productId || item.id,
-          price: item.price,
-          quantity: item.quantity,
-          category: item.category,
-          name: item.name,
-          variant: item.variant
-        })),
-        subtotal: subtotal,
-        userId: user?.id
-      };
-
-      const result = await validateCoupon(validationData);
-      
-      if (result.success && result.data.isValid) {
-        setAppliedCoupon(result.data.coupon);
-        setCouponError('');
-      } else {
-        setCouponError(result.error || 'Invalid coupon code');
-        setAppliedCoupon(null);
-      }
-    } catch (error) {
-      setCouponError(error.message || 'Failed to apply coupon');
-      setAppliedCoupon(null);
-    }
+  const handleApplyCoupon = async (code = couponCode) => {
+    if (!code.trim()) return;
+    
+    await applyCoupon({
+      code: code,
+      subtotal: calculations?.subtotal || cartTotal,
+      cartItems: cartItems.map(item => ({
+        productId: item.id,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      userId: user?.id
+    });
+    
+    setCouponCode('');
+    setShowAvailableCoupons(false);
   };
 
   const handleRemoveCoupon = () => {
-    setAppliedCoupon(null);
-    setCouponError('');
+    removeCoupon();
   };
 
-  const handleProceedToCheckout = () => {
-    const checkoutData = {
-      cartItems,
-      appliedCoupon,
-      totals: {
-        subtotal,
-        discount: discountAmount,
-        shipping: shippingData.cost,
-        grandTotal
-      }
-    };
-    
-    navigate('/checkout', { state: checkoutData });
+  const handleApplySuggestedCoupon = (coupon) => {
+    handleApplyCoupon(coupon.code);
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
+  const handleViewOrders = () => {
+    navigate('/profile?tab=orders');
+  };
+
+  const handleContinueShopping = () => {
+    setShowSuccessMessage(false);
+    navigate('/shop');
+  };
+
+  const getDiscountText = (coupon) => {
+    if (coupon.discountType === 'percentage') {
+      return `${coupon.discountValue}% OFF`;
+    } else {
+      return `${formatPriceSimple(coupon.discountValue)} OFF`;
     }
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: 20, transition: { duration: 0.3 } }
-  };
-
-  // Update cart totals when coupon changes
-  useEffect(() => {
-    // This ensures the totals are recalculated when coupon is applied/removed
-  }, [appliedCoupon, cartItems]);
-
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-900 py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center py-16"
-          >
-            <motion.div
-              animate={{ 
-                y: [0, -10, 0],
-                rotate: [0, 5, -5, 0]
-              }}
-              transition={{ 
-                duration: 3,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-              className="text-8xl mb-6"
-            >
-              🛒
-            </motion.div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-              Your cart is empty
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-8 text-lg max-w-md mx-auto">
-              Discover amazing products and add them to your cart. Start shopping to find items you'll love!
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                to="/shop"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
-              >
-                <FiShoppingBag size={20} />
-                <span>Continue Shopping</span>
-              </Link>
-              <Link
-                to="/"
-                className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-8 py-4 rounded-2xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2"
-              >
-                <span>Back to Home</span>
-              </Link>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full text-center">
+          {/* Success Message */}
+          {showSuccessMessage && (
+            <div className="mb-8 p-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl shadow-sm">
+              <div className="flex flex-col items-center">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-green-900 dark:text-green-100 mb-2">
+                  Order Confirmed!
+                </h3>
+                <p className="text-green-700 dark:text-green-300 mb-6">
+                  Thank you for your purchase. Your order has been successfully placed.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 w-full">
+                  <button
+                    onClick={handleViewOrders}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105"
+                  >
+                    View Orders
+                  </button>
+                  <button
+                    onClick={handleContinueShopping}
+                    className="flex-1 border-2 border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 px-6 py-3 rounded-lg font-semibold transition-all duration-200"
+                  >
+                    Continue Shopping
+                  </button>
+                </div>
+              </div>
             </div>
-          </motion.div>
+          )}
+          
+          {/* Empty Cart State */}
+          {!showSuccessMessage && (
+            <>
+              <div className="w-32 h-32 mx-auto mb-6 text-gray-300 dark:text-gray-600">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>
+                </svg>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                Your cart is empty
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-8 text-lg">
+                Discover amazing products and add them to your cart
+              </p>
+              <Link 
+                to="/shop" 
+                className="inline-flex items-center justify-center px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Start Shopping
+              </Link>
+            </>
+          )}
         </div>
       </div>
     );
   }
 
+  const displayCurrency = calculations?.currency || userCurrency;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-900 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8">
+      {/* Success Message Banner */}
+      {showSuccessMessage && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center">
+                <svg className="w-6 h-6 text-green-600 dark:text-green-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <span className="font-semibold text-green-900 dark:text-green-100">Payment Successful!</span>
+                  <p className="text-green-700 dark:text-green-300 text-sm mt-1">
+                    Your order has been placed successfully. Thank you for your purchase!
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3 w-full sm:w-auto">
+                <button
+                  onClick={handleViewOrders}
+                  className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200"
+                >
+                  View Orders
+                </button>
+                <button
+                  onClick={() => setShowSuccessMessage(false)}
+                  className="flex-1 sm:flex-none border border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 px-6 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
+          <div className="flex items-center mb-4 lg:mb-0">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
             <div>
-              <h1 className="text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                 Shopping Cart
               </h1>
-              <p className="text-gray-600 dark:text-gray-400 text-lg">
-                {cartItems.length} item{cartItems.length !== 1 ? 's' : ''} in your cart
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                {totalItems} {totalItems === 1 ? 'item' : 'items'} in your cart
               </p>
             </div>
-            
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={clearCart}
-                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              >
-                <FiTrash2 size={18} />
-                <span>Clear Cart</span>
-              </button>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl px-4 py-3 shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Prices in {displayCurrency} • Shipping to {userCountry}</span>
+              {loading && (
+                <span className="ml-2 flex items-center">
+                  <span className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></span>
+                  <span className="ml-1">Calculating...</span>
+                </span>
+              )}
             </div>
           </div>
-        </motion.div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
-          <div className="lg:col-span-2">
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
-            >
-              {/* Header */}
-              <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center">
-                  <FiShoppingCart className="mr-2 sm:mr-3 text-blue-600" size={22} />
-                  Cart Items
-                </h2>
+        </div>
+        
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Cart Items & Available Coupons */}
+          <div className="xl:col-span-2 space-y-6">
+            {/* Cart Items */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Cart Items</h2>
               </div>
-
-              {/* Cart Items */}
-              <AnimatePresence>
-                {cartItems.map((item, index) => {
-                  const { formatted: itemTotalFormatted } = formatPrice(item.price * item.quantity, userCurrency);
-                  const { formatted: singlePriceFormatted } = formatPrice(item.price, userCurrency);
-
-                  return (
-                    <motion.div
-                      key={`${item.id}-${item.variant?.id || ''}-${index}`}
-                      variants={itemVariants}
-                      layout
-                      initial="hidden"
-                      animate="visible"
-                      exit="exit"
-                      className="flex flex-col sm:flex-row items-start sm:items-center p-4 sm:p-6 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
-                    >
-                      {/* Product Image & Info */}
-                      <div className="flex items-start sm:items-center w-full sm:w-auto mb-4 sm:mb-0">
-                        {/* Image */}
-                        <motion.div whileHover={{ scale: 1.05 }} className="relative flex-shrink-0">
-                          <img
-                            src={item.image || '/api/placeholder/96/96'}
-                            alt={item.name}
-                            className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 object-cover rounded-xl shadow-md"
-                            onError={(e) => {
-                              e.target.src = '/api/placeholder/96/96';
-                            }}
-                          />
-                          <div className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-xs sm:text-sm font-bold shadow-md">
-                            {item.quantity}
-                          </div>
-                        </motion.div>
-
-                        {/* Mobile Info */}
-                        <div className="flex-1 ml-3 sm:ml-6 min-w-0 sm:hidden">
-                          <h3 className="font-semibold text-gray-900 dark:text-white text-base line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                            {item.name}
-                          </h3>
-
-                          {item.variant?.title && (
-                            <p className="text-blue-600 dark:text-blue-400 font-medium text-xs mt-1">{item.variant.title}</p>
-                          )}
-
-                          <div className="flex flex-wrap items-center gap-1 mt-2 text-sm">
-                            <p className="font-bold text-gray-900 dark:text-white">{singlePriceFormatted}</p>
-                            <span className="text-gray-400">×</span>
-                            <span className="text-gray-600 dark:text-gray-400">{item.quantity}</span>
-                            <span className="text-gray-400">=</span>
-                            <p className="font-bold text-blue-600 dark:text-blue-400">{itemTotalFormatted}</p>
-                          </div>
-
-                          {userCurrency !== 'USD' && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              ≈ {formatPrice(item.price * item.quantity, 'USD').formatted}
-                            </p>
-                          )}
-                        </div>
+              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                {cartItems.map((item) => (
+                  <div key={`${item.id}-${item.variantId}`} className="p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                      <img 
+                        src={item.image} 
+                        alt={item.name}
+                        className="w-full sm:w-24 h-24 object-cover rounded-xl flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">
+                          {item.name}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          Variant: {item.variantName || item.variantId}
+                        </p>
+                        <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-2">
+                          {formatPriceSimple(item.price)}
+                        </p>
                       </div>
-
-                      {/* Desktop Info */}
-                      <div className="hidden sm:flex flex-1 ml-6 min-w-0">
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-gray-900 dark:text-white text-lg lg:text-xl line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                            {item.name}
-                          </h3>
-
-                          {item.variant?.title && (
-                            <p className="text-blue-600 dark:text-blue-400 font-medium text-sm mt-1">{item.variant.title}</p>
-                          )}
-
-                          <div className="flex items-center space-x-2 mt-2">
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">{singlePriceFormatted}</p>
-                            <span className="text-gray-400">×</span>
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">{item.quantity}</span>
-                            <span className="text-gray-400">=</span>
-                            <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{itemTotalFormatted}</p>
-                          </div>
-
-                          {userCurrency !== 'USD' && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                              ≈ {formatPrice(item.price * item.quantity, 'USD').formatted}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Quantity Controls + Remove */}
-                      <div className="flex flex-col xs:flex-row items-center justify-between w-full sm:w-auto sm:justify-end sm:space-x-4 sm:ml-4 mt-4 sm:mt-0 gap-3">
-                        {/* Quantity Controls */}
-                        <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 shadow-sm">
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                            disabled={item.quantity <= 1}
-                            className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      <div className="flex items-center justify-between sm:justify-end gap-4">
+                        <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-xl">
+                          <button 
+                            onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1), item.variantId)}
+                            className="w-10 h-10 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-l-xl transition-all duration-200"
                           >
-                            <FiMinus size={14} />
-                          </motion.button>
-
-                          <span className="px-2 sm:px-3 py-2 text-gray-900 dark:text-white font-semibold min-w-[32px] sm:min-w-[40px] text-center border-l border-r border-gray-300 dark:border-gray-600 text-sm sm:text-base">
+                            <span className="text-lg">−</span>
+                          </button>
+                          <span className="w-12 text-center font-medium text-gray-900 dark:text-white">
                             {item.quantity}
                           </span>
-
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                          <button 
+                            onClick={() => updateQuantity(item.id, item.quantity + 1, item.variantId)}
+                            className="w-10 h-10 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-r-xl transition-all duration-200"
                           >
-                            <FiPlus size={14} />
-                          </motion.button>
+                            <span className="text-lg">+</span>
+                          </button>
                         </div>
-
-                        {/* Remove Button */}
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => removeFromCart(item.id)}
-                          className="p-2 sm:p-3 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors group/remove"
-                          title="Remove item"
+                        <button 
+                          onClick={() => removeFromCart(item.id, item.variantId)}
+                          className="w-10 h-10 flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-200"
                         >
-                          <FiTrash2 size={16} className="sm:w-5 group-hover/remove:scale-110 transition-transform" />
-                        </motion.button>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                          </svg>
+                        </button>
                       </div>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </motion.div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-gray-400">Item Total</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {formatPriceSimple(item.price * item.quantity)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-            {/* Continue Shopping */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="mt-4 sm:mt-6"
-            >
-              <Link
-                to="/shop"
-                className="flex items-center justify-center space-x-2 sm:space-x-3 border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-500 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-400 p-3 sm:p-5 rounded-2xl transition-all duration-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 group text-sm sm:text-base"
-              >
-                <FiPlus size={18} className="sm:w-6 group-hover:scale-110 transition-transform" />
-                <span className="font-semibold">Continue Shopping</span>
-              </Link>
-            </motion.div>
+            {/* Available Coupons Section */}
+            {availableCoupons.length > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        Available Coupons
+                      </h2>
+                      <button
+                        onClick={handleRefreshCoupons}
+                        disabled={couponsLoading}
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+                        title="Refresh coupons"
+                      >
+                        <svg className={`w-4 h-4 ${couponsLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setShowAvailableCoupons(!showAvailableCoupons)}
+                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-sm"
+                    >
+                      {showAvailableCoupons ? 'Hide' : 'Show'} ({availableCoupons.length})
+                    </button>
+                  </div>
+                </div>
+                
+                {showAvailableCoupons && (
+                  <div className="p-6">
+                    {couponsLoading ? (
+                      <div className="flex flex-col items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">Loading available coupons...</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {availableCoupons.map((coupon) => (
+                          <div
+                            key={coupon.id}
+                            className="border-2 border-dashed border-green-300 dark:border-green-600 rounded-xl p-4 hover:border-green-400 dark:hover:border-green-500 transition-all duration-200 bg-green-50 dark:bg-green-900/20"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <span className="inline-block bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 text-sm font-semibold px-3 py-1 rounded-full mb-2">
+                                  {getDiscountText(coupon)}
+                                </span>
+                                <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
+                                  {coupon.code}
+                                </h3>
+                                <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                                  {coupon.description}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {coupon.minOrderAmount && (
+                                  <div>Min. order: {formatPriceSimple(coupon.minOrderAmount)}</div>
+                                )}
+                                {coupon.validUntil && (
+                                  <div>Expires: {new Date(coupon.validUntil).toLocaleDateString()}</div>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => handleApplySuggestedCoupon(coupon)}
+                                disabled={couponLoading}
+                                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105"
+                              >
+                                {couponLoading ? 'Applying...' : 'Apply'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Enhanced Order Summary */}
-          <div className="lg:col-span-1">
-            <EnhancedOrderSummary
-              // Data
-              cartItems={cartItems}
-              appliedCoupon={appliedCoupon}
-              shippingCost={shippingData.cost}
-              isFreeShipping={shippingData.isFree}
-              freeShippingThreshold={50}
-              shippingProgress={shippingData.progress}
-              shippingMessage={shippingData.message}
-              estimatedDays={shippingData.estimatedDays}
-              shippingLoading={shippingData.loading}
-              currency={userCurrency}
+          {/* Order Summary */}
+          <div className="xl:col-span-1">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sticky top-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Order Summary</h3>
               
-              userCountry={userCountry}
-              // Functions
-              formatPrice={formatPrice}
-              onApplyCoupon={handleApplyCoupon}
-              onRemoveCoupon={handleRemoveCoupon}
-              onProceedToCheckout={handleProceedToCheckout}
+              {/* Coupon Section */}
+              <div className="mb-6">
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="Enter coupon code"
+                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base placeholder-gray-500"
+                    onKeyPress={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                  />
+                  <button
+                    onClick={() => handleApplyCoupon()}
+                    disabled={couponLoading || !couponCode.trim()}
+                    className="px-6 py-3 bg-gray-700 hover:bg-gray-800 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 disabled:scale-100"
+                  >
+                    {couponLoading ? (
+                      <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                    ) : (
+                      'Apply'
+                    )}
+                  </button>
+                </div>
+                
+                {availableCoupons.length > 0 && !showAvailableCoupons && (
+                  <button
+                    onClick={() => setShowAvailableCoupons(true)}
+                    className="w-full text-center text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium py-2"
+                  >
+                    View {availableCoupons.length} available coupons
+                  </button>
+                )}
+                
+                {appliedCoupon && (
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-green-800 dark:text-green-200 font-semibold">
+                          {appliedCoupon.code} applied
+                        </span>
+                        <p className="text-green-700 dark:text-green-300 text-sm">
+                          -{formatPriceSimple(discountAmount)} discount
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleRemoveCoupon}
+                        className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200 text-sm font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               
-              // Configuration
-              mode="cart"
-              showCouponSection={true}
-              showActionButtons={true}
-              showTrustBadges={true}
-              showItemsList={true}
-              isSticky={true}
+              {/* Pricing Breakdown */}
+              <div className="space-y-4 mb-6">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Subtotal ({totalItems} items)</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {formatPriceSimple(calculations?.subtotal || cartTotal)}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">Shipping</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {formatPriceSimple(calculations?.shipping || 0)}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Tax {calculations?.taxRate && `(${calculations.taxRate}%)`}
+                  </span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {formatPriceSimple(calculations?.tax || 0)}
+                  </span>
+                </div>
+                
+                {appliedCoupon && (
+                  <div className="flex justify-between items-center text-green-600 dark:text-green-400">
+                    <span className="font-medium">Discount</span>
+                    <span className="font-semibold">-{formatPriceSimple(discountAmount)}</span>
+                  </div>
+                )}
+                
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-bold text-gray-900 dark:text-white">Total</span>
+                    <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                      {formatPriceSimple(calculations?.finalTotal || cartTotal)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-right">
+                    All prices in {displayCurrency}
+                  </p>
+                </div>
+              </div>
               
-              // State
-              couponLoading={couponLoading}
-            />
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                {isAuthenticated ? (
+                  <Link 
+                    to="/checkout" 
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Proceed to Checkout
+                  </Link>
+                ) : (
+                  <Link 
+                    to="/login" 
+                    className="w-full bg-gray-700 hover:bg-gray-800 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    </svg>
+                    Login to Checkout
+                  </Link>
+                )}
+                
+                <Link 
+                  to="/shop" 
+                  className="w-full border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Continue Shopping
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>

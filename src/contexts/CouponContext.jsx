@@ -1,4 +1,4 @@
-// src/contexts/CouponContext.js
+// src/contexts/CouponContext.jsx
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { toast } from "react-toastify";
 import { couponService } from "../services/api/couponService";
@@ -73,12 +73,26 @@ export const CouponProvider = ({ children }) => {
     toast.info("Coupon removed");
   }, []);
 
-  // ✅ Get available coupons for user
+  // ✅ Get available coupons for user - FIXED
   const getAvailableCoupons = useCallback(async ({ subtotal, cartItems, userId }) => {
     try {
       const res = await couponService.getAvailableCoupons({ subtotal, cartItems, userId });
-      const available = Array.isArray(res?.data?.available) ? res.data.available : [];
-      return available;
+      
+      // Handle different response formats
+      if (res.success && res.data) {
+        // Format 1: { success: true, data: { available: [], suggestions: [] } }
+        const available = Array.isArray(res.data.available) ? res.data.available : [];
+        return available;
+      } else if (Array.isArray(res.data)) {
+        // Format 2: { data: [...] }
+        return res.data;
+      } else if (Array.isArray(res)) {
+        // Format 3: Direct array response
+        return res;
+      } else {
+        console.warn("Unexpected response format from getAvailableCoupons:", res);
+        return [];
+      }
     } catch (error) {
       console.error("Failed to fetch available coupons:", error);
       return [];
@@ -110,72 +124,106 @@ export const CouponProvider = ({ children }) => {
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState(null);
 
-// 👑 Fetch all coupons (for admin)
-const fetchAllCoupons = useCallback(async () => {
-  setAdminLoading(true);
-  setAdminError(null);
-  try {
-    const res = await couponService.getAllCoupons();
-    
-    // Handle multiple response formats
-    if (res.success && res.data?.coupons) {
-      // Format 1: { success: true, data: { coupons: [...] } }
-      setAdminCoupons(res.data.coupons);
-    } else if (res.success && Array.isArray(res.data)) {
-      // Format 2: { success: true, data: [...] }
-      setAdminCoupons(res.data);
-    } else if (Array.isArray(res.data)) {
-      // Format 3: { data: [...] }
-      setAdminCoupons(res.data);
-    } else if (Array.isArray(res)) {
-      // Format 4: Direct array response
-      setAdminCoupons(res);
-    } else {
+  // 👑 Fetch all coupons (for admin)
+  const fetchAllCoupons = useCallback(async () => {
+    setAdminLoading(true);
+    setAdminError(null);
+    try {
+      const res = await couponService.getAllCoupons();
+      
+      // Handle multiple response formats
+      if (res.success && res.data?.coupons) {
+        // Format 1: { success: true, data: { coupons: [...] } }
+        setAdminCoupons(res.data.coupons);
+      } else if (res.success && Array.isArray(res.data)) {
+        // Format 2: { success: true, data: [...] }
+        setAdminCoupons(res.data);
+      } else if (Array.isArray(res.data)) {
+        // Format 3: { data: [...] }
+        setAdminCoupons(res.data);
+      } else if (Array.isArray(res)) {
+        // Format 4: Direct array response
+        setAdminCoupons(res);
+      } else {
+        setAdminCoupons([]);
+        setAdminError("Failed to fetch coupons - invalid response format");
+      }
+    } catch (error) {
+      console.error("Failed to fetch coupons:", error);
       setAdminCoupons([]);
-      setAdminError("Failed to fetch coupons - invalid response format");
+      setAdminError("Failed to fetch coupons");
+    } finally {
+      setAdminLoading(false);
     }
-  } catch (error) {
-    console.error("Failed to fetch coupons:", error);
-    setAdminCoupons([]);
-    setAdminError("Failed to fetch coupons");
-  } finally {
-    setAdminLoading(false);
-  }
-}, []);
+  }, []);
 
-// 👑 Create new coupon (admin)
-const createCoupon = useCallback(async (couponData) => {
+  // 👑 Create new coupon (admin)
+  const createCoupon = useCallback(async (couponData) => {
+    setAdminError(null);
+    try {
+      const res = await couponService.createCoupon(couponData);
+      
+      // Fix: Handle different response structures
+      if (res.success) {
+        // Response format: { success: true, data: {...} }
+        toast.success("Coupon created successfully!");
+        await fetchAllCoupons();
+        return { success: true, data: res.data };
+      } else if (res.data?.success) {
+        // Response format: { data: { success: true, ... } }
+        toast.success("Coupon created successfully!");
+        await fetchAllCoupons();
+        return { success: true, data: res.data.data || res.data };
+      } else {
+        // Handle other response formats
+        const errorMessage = res.message || res.data?.message || "Failed to create coupon";
+        setAdminError(errorMessage);
+        toast.error(errorMessage);
+        return { success: false, error: errorMessage };
+      }
+    } catch (error) {
+      console.error('Create coupon error:', error);
+      const errorMessage = error.response?.data?.message || error.message || "Error creating coupon";
+      setAdminError(errorMessage);
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }, [fetchAllCoupons]);
+
+
+  // Add this in the admin section of your CouponContext.jsx
+
+// 👑 Update coupon (admin)
+const updateCoupon = useCallback(async (couponId, updateData) => {
   setAdminError(null);
   try {
-    const res = await couponService.createCoupon(couponData);
+    const res = await couponService.updateCoupon(couponId, updateData);
     
-    // Fix: Handle different response structures
+    // Handle different response formats
     if (res.success) {
       // Response format: { success: true, data: {...} }
-      toast.success("Coupon created successfully!");
+      toast.success("Coupon updated successfully!");
       await fetchAllCoupons();
       return { success: true, data: res.data };
     } else if (res.data?.success) {
       // Response format: { data: { success: true, ... } }
-      toast.success("Coupon created successfully!");
+      toast.success("Coupon updated successfully!");
       await fetchAllCoupons();
       return { success: true, data: res.data.data || res.data };
     } else {
-      // Handle other response formats
-      const errorMessage = res.message || res.data?.message || "Failed to create coupon";
+      const errorMessage = res.message || res.data?.message || "Failed to update coupon";
       setAdminError(errorMessage);
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
     }
   } catch (error) {
-    console.error('Create coupon error:', error);
-    const errorMessage = error.response?.data?.message || error.message || "Error creating coupon";
+    console.error('Update coupon error:', error);
+    const errorMessage = error.response?.data?.message || error.message || "Error updating coupon";
     setAdminError(errorMessage);
     toast.error(errorMessage);
     return { success: false, error: errorMessage };
   }
 }, [fetchAllCoupons]);
-
   // 👑 Delete coupon (admin)
   const deleteCoupon = useCallback(async (couponId) => {
     setAdminError(null);
@@ -215,7 +263,7 @@ const createCoupon = useCallback(async (couponData) => {
         error,
         applyCoupon,
         removeCoupon,
-        getAvailableCoupons, // This was missing in the return value
+        getAvailableCoupons,
         markCouponAsUsed,
         clearError,
 
@@ -225,6 +273,7 @@ const createCoupon = useCallback(async (couponData) => {
         adminError,
         fetchAllCoupons,
         createCoupon,
+        updateCoupon,
         deleteCoupon,
         clearAdminError,
       }}
@@ -234,4 +283,10 @@ const createCoupon = useCallback(async (couponData) => {
   );
 };
 
-export const useCoupon = () => useContext(CouponContext);
+export const useCoupon = () => {
+  const context = useContext(CouponContext);
+  if (!context) {
+    throw new Error("useCoupon must be used within a CouponProvider");
+  }
+  return context;
+};

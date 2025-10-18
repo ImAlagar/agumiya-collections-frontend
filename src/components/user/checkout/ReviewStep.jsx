@@ -1,7 +1,18 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const ReviewStep = ({ orderData, cartItems, subtotal, shipping, grandTotal, formatPrice }) => {
+const ReviewStep = ({ 
+  orderData, 
+  cartItems, 
+  subtotal, 
+  shipping, 
+  tax = 0, 
+  taxRate = 0, 
+  grandTotal, 
+  formatPrice,
+  appliedCoupon = null,
+  discountAmount = 0
+}) => {
   const shippingAddress = orderData?.shippingAddress || {};
 
   // Safe price formatting function
@@ -42,72 +53,70 @@ const ReviewStep = ({ orderData, cartItems, subtotal, shipping, grandTotal, form
 
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
-            <div className="space-y-6">
-              {/* Order Items Card */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8">
-                {/* Header */}
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-                  <h3 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 dark:text-white">
-                    Order Items
-                  </h3>
-                  <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs sm:text-sm font-medium px-3 py-1 rounded-full">
-                    {cartItems?.length || 0} {cartItems?.length === 1 ? 'item' : 'items'}
-                  </span>
-                </div>
-
-                {/* Items List */}
-                <div className="space-y-4">
-                  {cartItems?.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600"
-                    >
-                      {/* Product Info */}
-                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                        <img
-                          src={item.image || '/placeholder-image.jpg'}
-                          alt={item.name || 'Product image'}
-                          className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 object-cover rounded-lg flex-shrink-0"
-                          onError={(e) => {
-                            e.target.src =
-                              'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik04MCA3MEgxMjBWOTBIOThWNzBIOThaIiBmaWxsPSIjOEU5MEE2Ii8+CjxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgcj0iMjAiIGZpbGw9IiM4RTkwQTYiLz4KPC9zdmc+';
-                          }}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
-                            {item.name || 'Unnamed Product'}
-                          </h4>
-                          <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
-                            {getFormattedPrice(item.price)} × {item.quantity || 0}
-                          </p>
-                          {item.variant && (
-                            <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 mt-1">
-                              Variant: {item.variant.title || 'N/A'}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                    </div>
-                  ))}
-                </div>
+          {/* Order Items Card */}
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8">
+              {/* Header */}
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <h3 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 dark:text-white">
+                  Order Items
+                </h3>
+                <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs sm:text-sm font-medium px-3 py-1 rounded-full">
+                  {cartItems?.length || 0} {cartItems?.length === 1 ? 'item' : 'items'}
+                </span>
               </div>
 
-              {/* Order Notes */}
-              {orderData?.orderNotes && (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                    Order Notes
-                  </h3>
-                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200 break-words">
-                      {orderData.orderNotes}
-                    </p>
+              {/* Items List */}
+              <div className="space-y-4">
+                {cartItems?.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600"
+                  >
+                    {/* Product Info */}
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      <img
+                        src={item.image || '/placeholder-image.jpg'}
+                        alt={item.name || 'Product image'}
+                        className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 object-cover rounded-lg flex-shrink-0"
+                        onError={(e) => {
+                          e.target.src =
+                            'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik04MCA3MEgxMjBWOTBIOThWNzBIOThaIiBmaWxsPSIjOEU5MEE2Ii8+CjxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgcj0iMjAiIGZpbGw9IiM4RTkwQTYiLz4KPC9zdmc+';
+                        }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                          {item.name || 'Unnamed Product'}
+                        </h4>
+                        <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
+                          {getFormattedPrice(item.price)} × {item.quantity || 0}
+                        </p>
+                        {item.variant && (
+                          <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 mt-1">
+                            Variant: {item.variant.title || 'N/A'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
 
+            {/* Order Notes */}
+            {orderData?.orderNotes && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  Order Notes
+                </h3>
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200 break-words">
+                    {orderData.orderNotes}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Shipping & Summary - Right Column */}
           <div className="space-y-6">
@@ -187,7 +196,6 @@ const ReviewStep = ({ orderData, cartItems, subtotal, shipping, grandTotal, form
                 )}
               </div>
             </div>
-
 
           </div>
         </div>

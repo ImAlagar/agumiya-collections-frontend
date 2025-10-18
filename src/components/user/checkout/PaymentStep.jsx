@@ -1,7 +1,49 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const PaymentStep = ({ createdOrder, isProcessing, onPaymentInit }) => {
+const PaymentStep = ({ 
+  createdOrder, 
+  isProcessing, 
+  onPaymentInit,
+  finalAmount,
+  discountAmount,
+  taxAmount,
+  shippingCost,
+  subtotal,
+  formatPrice,
+  appliedCoupon 
+}) => {
+  
+  // ✅ FIXED: Calculate the display amount correctly
+  const getDisplayAmount = () => {
+    if (!createdOrder) return finalAmount;
+    
+    // If backend provides totalAmount in paise, convert to rupees for display
+    const amountInRupees = createdOrder.totalAmount / 100;
+    return amountInRupees;
+  };
+  
+  const displayAmount = getDisplayAmount();
+  const displayCurrency = createdOrder?.currency || 'INR';
+
+  // ✅ FIXED: Calculate USD equivalent for display
+  const getUSDAmount = () => {
+    if (!createdOrder) return subtotal + shippingCost + taxAmount - discountAmount;
+    
+    // Use originalAmount from backend if available, otherwise calculate
+    if (createdOrder.originalAmount) {
+      return createdOrder.originalAmount;
+    }
+    
+    // Fallback calculation
+    return createdOrder.subtotalAmount + 
+           (createdOrder.shipping?.[0]?.shippingCost || 0) + 
+           (createdOrder.taxAmount || 0) - 
+           (createdOrder.discountAmount || 0);
+  };
+
+  const usdAmount = getUSDAmount();
+
   return (
     <motion.div
       key="payment"
@@ -22,6 +64,18 @@ const PaymentStep = ({ createdOrder, isProcessing, onPaymentInit }) => {
               Order created successfully! Please complete your payment to confirm.
             </span>
           </div>
+          
+          {/* Order Details */}
+          <div className="mt-3 text-sm text-green-700 dark:text-green-300 space-y-1">
+            <div><strong>Order #:</strong> {createdOrder.id}</div>
+            <div><strong>Amount:</strong> {formatPrice(displayAmount, displayCurrency).formatted}</div>
+            <div><strong>Currency:</strong> {displayCurrency}</div>
+            <div className="text-xs opacity-75">
+              Subtotal: {formatPrice(createdOrder.subtotalAmount || subtotal, 'USD').formatted} • 
+              Shipping: {formatPrice(createdOrder.shipping?.[0]?.shippingCost || shippingCost, 'USD').formatted} • 
+              Discount: -{formatPrice(createdOrder.discountAmount || discountAmount, 'USD').formatted}
+            </div>
+          </div>
         </div>
       )}
 
@@ -39,11 +93,24 @@ const PaymentStep = ({ createdOrder, isProcessing, onPaymentInit }) => {
             Click the button below to complete your payment securely via Razorpay.
           </p>
 
+          {/* Payment Amount Display */}
+          <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl border border-green-200 dark:border-green-800">
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+              {formatPrice(displayAmount, displayCurrency).formatted}
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Total Amount to Pay
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              ≈ {formatPrice(usdAmount, 'USD').formatted}
+            </div>
+          </div>
+
           <button
             type="button"
             onClick={onPaymentInit}
             disabled={isProcessing}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all duration-200 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:cursor-not-allowed transform hover:scale-105 disabled:scale-100"
           >
             {isProcessing ? (
               <span className="flex items-center justify-center">
@@ -51,9 +118,14 @@ const PaymentStep = ({ createdOrder, isProcessing, onPaymentInit }) => {
                 Processing...
               </span>
             ) : (
-              'Pay Securely with Razorpay'
+              `Pay ${formatPrice(displayAmount, displayCurrency).formatted} Securely`
             )}
           </button>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+            🔒 Your payment is secured with Razorpay. We do not store your card details.
+          </p>
+
         </div>
       </div>
     </motion.div>

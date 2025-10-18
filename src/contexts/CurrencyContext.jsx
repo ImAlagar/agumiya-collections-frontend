@@ -30,7 +30,7 @@ const COUNTRY_CURRENCY_MAP = {
 };
 
 const FALLBACK_RATES = {
-  USD: 1, EUR: 0.92, GBP: 0.79, INR: 83.25, CAD: 1.36,
+  USD: 1, EUR: 0.92, GBP: 0.79, INR: 88, CAD: 1.36,
   AUD: 1.52, JPY: 149.50, CNY: 7.24, BRL: 4.92, MXN: 17.25,
   RUB: 92.50, TRY: 28.75, ZAR: 18.90, SGD: 1.34
 };
@@ -201,34 +201,35 @@ export function CurrencyProvider({ children }) {
   }, [state.userCurrency]);
 
   // ✅ Format price professionally (returns object with formatted and original)
-  const formatPrice = useCallback((price, currency = state.userCurrency, showOriginal = false) => {
-    const convertedPrice = convertPrice(price, 'USD', currency);
+const formatPrice = useCallback((price, currency = state.userCurrency, showOriginal = false) => {
+  // Round the converted price to nearest whole number
+  const convertedPrice = Math.round(convertPrice(price, 'USD', currency));
 
-    try {
-      const formatted = new Intl.NumberFormat('en-US', {
+  try {
+    const formatted = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(convertedPrice);
+
+    if (showOriginal && currency !== 'USD') {
+      const original = new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency,
+        currency: 'USD',
         minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(convertedPrice);
-
-      if (showOriginal && currency !== 'USD') {
-        const original = new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-          minimumFractionDigits: 2,
-        }).format(price);
-        return { formatted, original };
-      }
-
-      return { formatted, original: null };
-    } catch (error) {
-      console.warn('Fallback format used', { error });
-      const formatted = `${convertedPrice.toFixed(2)} ${currency}`;
-      const original = currency !== 'USD' ? `$${price.toFixed(2)}` : null;
+      }).format(price);
       return { formatted, original };
     }
-  }, [convertPrice, state.userCurrency]);
+
+    return { formatted, original: null };
+  } catch (error) {
+    console.warn('Fallback format used', { error });
+    const formatted = `${convertedPrice.toFixed(2)} ${currency}`;
+    const original = currency !== 'USD' ? `$${price.toFixed(2)}` : null;
+    return { formatted, original };
+  }
+}, [convertPrice, state.userCurrency]);
 
   // ✅ NEW: Simple format function that returns just the formatted string
   const formatPriceSimple = useCallback((price, currency = state.userCurrency) => {

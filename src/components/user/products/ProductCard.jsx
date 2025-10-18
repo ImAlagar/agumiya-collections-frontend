@@ -7,7 +7,12 @@ import { useCurrency } from '../../../contexts/CurrencyContext';
 const ProductCard = ({ product }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const { formatPrice, userCurrency, getCurrencySymbol } = useCurrency();
+  const { 
+    formatPrice, 
+    formatPriceRounded, 
+    userCurrency, 
+    getCurrencySymbol 
+  } = useCurrency();
   const firstImage = product.images?.[0];
   
   // Get price range for variants
@@ -17,10 +22,21 @@ const ProductCard = ({ product }) => {
   const hasMultiplePrices = minPrice !== maxPrice;
   const hasVariants = product.printifyVariants && product.printifyVariants.length > 0;
 
-  // Format prices with currency
-  const { formatted: formattedMinPrice, original: originalMinPrice } = formatPrice(minPrice, userCurrency, true);
-  const { formatted: formattedMaxPrice } = formatPrice(maxPrice, userCurrency);
-  const { formatted: formattedProductPrice } = formatPrice(product.price, userCurrency);
+  // ✅ FIX: Extract formatted prices properly
+  const getFormattedPrice = (price) => {
+    if (formatPriceRounded) {
+      return formatPriceRounded(price, userCurrency);
+    } else {
+      const result = formatPrice(price, userCurrency);
+      // Handle both object and string returns
+      return typeof result === 'object' ? result.formatted : result;
+    }
+  };
+
+  // ✅ FIX: Get formatted prices
+  const formattedMinPrice = getFormattedPrice(minPrice);
+  const formattedMaxPrice = getFormattedPrice(maxPrice);
+  const formattedProductPrice = getFormattedPrice(product.price);
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -118,7 +134,7 @@ const ProductCard = ({ product }) => {
             {product.name}
           </h3>
 
-          {/* Price Section */}
+          {/* ✅ FIXED: Price Section */}
           <div className="mb-3 min-h-[60px]">
             <div className="flex items-baseline justify-between mb-2">
               <div className="flex items-baseline space-x-2">
@@ -142,14 +158,6 @@ const ProductCard = ({ product }) => {
                 </div>
               )}
             </div>
-
-            {/* Show original USD price if different currency */}
-            {userCurrency !== 'USD' && originalMinPrice && (
-              <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400">
-                <span>≈ {originalMinPrice} USD</span>
-                <span className="text-green-600 font-medium">• Local pricing</span>
-              </div>
-            )}
 
             {/* Price range info for variants */}
             {hasMultiplePrices && (

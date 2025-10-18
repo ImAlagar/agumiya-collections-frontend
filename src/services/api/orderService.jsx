@@ -85,44 +85,26 @@ export const orderService = {
     }
   },
 
-  // Create order (for user)
   async createOrder(orderData) {
     try {
-
+      
       const response = await apiClient.post(API_ENDPOINTS.ORDERS, orderData);
       return response.data;
     } catch (error) {
-      console.error("❌ Order creation API error:", {
+      console.error('❌ Order creation API error:', {
         status: error.response?.status,
         data: error.response?.data,
-        message: error.message,
+        message: error.message
       });
-
-      // ✅ Enhanced error handling with validation details
-      if (error.response?.status === 422) {
-        const validationErrors =
-          error.response.data?.errors || error.response.data?.message;
-        const errorMsg =
-          typeof validationErrors === "string"
-            ? validationErrors
-            : "Validation failed. Please check your input.";
-        throw new Error(errorMsg);
+      
+      // Log the actual error response from backend
+      if (error.response?.data) {
+        console.error('🔍 Backend error details:', error.response.data);
       }
-
-      if (error.response?.status === 400) {
-        throw new Error(
-          error.response.data?.message || "Bad request. Please check your data."
-        );
-      }
-
-      throw new Error(
-        error.response?.data?.message ||
-          error.response?.data?.error ||
-          "Failed to create order. Please try again."
-      );
+      
+      throw new Error(error.response?.data?.message || 'Invalid order data. Please check your cart items and try again.');
     }
   },
-
 
   // In your orderService
   async getOrderStats() {
@@ -163,20 +145,63 @@ export const orderService = {
     }
   },
 
-  // User cancels their own order
-  async cancelOrder(orderId, reason = "Cancelled by customer") {
-    try {
-      const response = await apiClient.post(
-        `${API_ENDPOINTS.ORDERS}/${orderId}/cancel`,
-        { reason }
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error(
-        error.response?.data?.message || "Failed to cancel order"
-      );
+// In your frontend orderService.jsx
+async cancelOrder(orderId, reason = "Cancelled by customer") {
+  try {
+    const timeoutMs = 15000; // 15 seconds should be plenty
+    
+    
+    const response = await Promise.race([
+      apiClient.post(`${API_ENDPOINTS.ORDERS}/${orderId}/cancel`, { reason }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+      )
+    ]);
+    
+    
+    // Handle both response formats
+    if (response.data && (response.data.success || response.data.data)) {
+      return {
+        success: true,
+        data: response.data.data || response.data,
+        message: response.data.message || 'Order cancelled successfully'
+      };
+    } else {
+      return {
+        success: false,
+        error: response.data?.message || 'Cancellation failed',
+        message: response.data?.message || 'Cancellation failed'
+      };
     }
-  },
+    
+  } catch (error) {
+    console.error('❌ Frontend: Cancellation request failed:', {
+      message: error.message,
+      response: error.response?.data,
+      isTimeout: error.message.includes('timeout') || error.code === 'ECONNABORTED'
+    });
+    
+    // Handle timeout gracefully
+    if (error.message.includes('timeout') || error.code === 'ECONNABORTED') {
+      return {
+        success: true, // Assume success for timeout cases
+        message: 'Order cancellation is being processed. Please check back in a moment.',
+        isProcessing: true
+      };
+    }
+    
+    // Handle other errors
+    if (error.response?.status === 404) {
+      throw new Error('Order not found.');
+    } else if (error.response?.status === 403) {
+      throw new Error('You do not have permission to cancel this order.');
+    } else if (error.response?.status === 400) {
+      throw new Error(error.response.data?.message || 'Cannot cancel this order.');
+    }
+    
+    throw new Error(error.response?.data?.message || error.message || "Failed to cancel order");
+  }
+},
 
   // Admin cancels any order
   async adminCancelOrder(orderId, reason = "Cancelled by admin") {

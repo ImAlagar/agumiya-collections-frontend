@@ -6,7 +6,6 @@ export const paymentService = {
   // Create Razorpay order
   async createPaymentOrder(paymentData) {
     try {
-      
       if (!paymentData.orderId) {
         throw new Error('Order ID is required');
       }
@@ -15,14 +14,9 @@ export const paymentService = {
         orderId: paymentData.orderId.toString()
       };
 
-
       const response = await apiClient.post(API_ENDPOINTS.PAYMENTS_CREATE_ORDER, requestData);
       
-      
-      // Your backend returns: { success: true, data: { id: "order_xxx", ... } }
-      // So we need to return response.data.data (the inner data object)
       const paymentDataResponse = response.data.data;
-      
       
       if (!paymentDataResponse) {
         throw new Error('No payment data found in response');
@@ -30,8 +24,8 @@ export const paymentService = {
       
       return {
         success: true,
-        data: paymentDataResponse, // This should be the inner data object
-        rawResponse: response.data // Keep the full response for reference
+        data: paymentDataResponse,
+        rawResponse: response.data
       };
       
     } catch (error) {
@@ -40,7 +34,7 @@ export const paymentService = {
       const errorMessage = error.response?.data?.message || 
                           error.response?.data?.error || 
                           error.message || 
-                        'Failed to create payment order';
+                          'Failed to create payment order';
       
       return {
         success: false,
@@ -51,13 +45,42 @@ export const paymentService = {
     }
   },
 
+
   // Verify payment (client-side verification)
   async verifyPayment(verificationData) {
     try {
-      const response = await apiClient.post(API_ENDPOINTS.PAYMENTS_VERIFY, verificationData);
+      
+      // Validate required fields - INCLUDING ORDER ID
+      const requiredFields = ['razorpay_payment_id', 'razorpay_order_id', 'razorpay_signature', 'orderId'];
+      const missingFields = requiredFields.filter(field => !verificationData[field]);
+      
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required verification fields: ${missingFields.join(', ')}`);
+      }
+
+      // Ensure we're sending the correct data structure
+      const verificationPayload = {
+        razorpay_payment_id: verificationData.razorpay_payment_id,
+        razorpay_order_id: verificationData.razorpay_order_id,
+        razorpay_signature: verificationData.razorpay_signature,
+        orderId: verificationData.orderId // 🔥 Make sure this is included
+      };
+
+
+      const response = await apiClient.post(API_ENDPOINTS.PAYMENTS_VERIFY, verificationPayload);
+      
+      
       return response.data;
+      
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Payment verification failed');
+      console.error('❌ Payment verification error:', error);
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Payment verification failed';
+      
+      throw new Error(errorMessage);
     }
   },
 

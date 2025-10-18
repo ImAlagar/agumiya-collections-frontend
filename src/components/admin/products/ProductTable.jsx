@@ -173,7 +173,10 @@ const handleConfirmDelete = async () => {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
-                          {product.name}
+                          {product.name
+                            ? product.name.split(" ").slice(0, 4).join(" ") + (product.name.split(" ").length > 4 ? "..." : "")
+                            : "Untitled"}
+
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
                           SKU: {product.sku || 'N/A'}

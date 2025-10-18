@@ -99,7 +99,6 @@ const handleLogout = useCallback(async () => {
       await authService.logoutUser();
     }
   } catch (error) {
-    console.error('Logout error:', error);
     // Still clear storage even if API call fails
     storageManager.clearAllAuth();
   } finally {

@@ -36,7 +36,9 @@ const EnhancedOrderSummary = ({
   showFreeShippingProgress = true,
   shippingLoading = false,
   taxLoading = false, // ✅ New tax loading prop
-
+  backendOrder = null, // ✅ NEW: Backend order data
+  subtotal: propSubtotal, // ✅ Allow overriding subtotal
+  discountAmount: propDiscountAmount, // ✅ Allow overriding discount
   // Function props
   formatPrice,
   onApplyCoupon,
@@ -64,8 +66,7 @@ const EnhancedOrderSummary = ({
   couponLoading = false,
   isProcessing = false
 }) => {
-  const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
-  
+ const safeCartItems = Array.isArray(cartItems) ? cartItems : [];  
   // Professional coupon state
   const [couponCode, setCouponCode] = useState('');
   const [couponError, setCouponError] = useState('');
@@ -79,6 +80,12 @@ const EnhancedOrderSummary = ({
     sum + (item.price || 0) * (item.quantity || 1), 0
   );
   
+    const effectiveSubtotal = backendOrder?.subtotalAmount || propSubtotal || safeCartItems.reduce((sum, item) => 
+    sum + (item.price || 0) * (item.quantity || 1), 0
+  );
+    const effectiveDiscountAmount = backendOrder?.discountAmount || propDiscountAmount || (appliedCoupon?.discountAmount || 0);
+      // ✅ FIXED: Use backend grand total when available
+  const effectiveGrandTotal = backendOrder?.totalAmount || Math.max(0, effectiveSubtotal + shippingCost + taxAmount - effectiveDiscountAmount);
   const discountAmount = appliedCoupon?.discountAmount || 0;
   
   // ✅ Updated grand total calculation with tax
@@ -97,7 +104,6 @@ const EnhancedOrderSummary = ({
       }).format(amount)
     };
   };
-
   // Create shipping estimate object from props for consistent usage
   const shippingEstimate = {
     cost: shippingCost,
@@ -500,8 +506,7 @@ const EnhancedOrderSummary = ({
                                 )}
                               </div>
                             </div>
-                            
-
+                          
                           </div>
                         ))}
                       </div>
@@ -679,16 +684,13 @@ const EnhancedOrderSummary = ({
               {shippingLoading && (
                 <div className="ml-2 animate-spin rounded-full h-3 w-3 border-b-2 border-gray-400"></div>
               )}
-              {userCountry !== 'US' && (
-                <FiGlobe className="ml-1 text-blue-500" size={14} />
-              )}
               {isFreeShipping && (
                 <span className="text-green-600 dark:text-green-400 ml-1">(Free!)</span>
               )}
             </span>
             <span className="text-gray-900 dark:text-white font-semibold">
               {shippingLoading ? 'Calculating...' : 
-               isFreeShipping ? 'Free' : formatPriceInternal(shippingCost).formatted}
+              isFreeShipping ? 'Free' : formatPriceInternal(shippingCost).formatted}
             </span>
           </div>
 
@@ -700,23 +702,12 @@ const EnhancedOrderSummary = ({
               {taxLoading && (
                 <div className="ml-2 animate-spin rounded-full h-3 w-3 border-b-2 border-purple-400"></div>
               )}
-              {!taxLoading && taxAmount === 0 && taxRate === 0 && (
-                <span className="ml-1 text-xs text-gray-400">(Calculated at checkout)</span>
-              )}
             </span>
             <span className="text-gray-900 dark:text-white font-semibold">
               {taxLoading ? 'Calculating...' : 
               taxAmount > 0 ? formatPriceInternal(taxAmount).formatted : '—'}
             </span>
           </div>
-
-          {/* Delivery Estimate */}
-          {estimatedDays && !shippingLoading && (
-            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-              Estimated delivery: {estimatedDays.min}-{estimatedDays.max} days
-              {userCountry !== 'US' && ' (International)'}
-            </div>
-          )}
           
           {/* Total */}
           <div className="flex justify-between items-center pt-4 border-t-2 border-gray-200 dark:border-gray-700">
@@ -732,8 +723,6 @@ const EnhancedOrderSummary = ({
               )}
             </div>
           </div>
-
-
         </div>
 
         {/* Action Buttons */}

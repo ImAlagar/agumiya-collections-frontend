@@ -7,6 +7,7 @@ import { SEO } from '../../contexts/SEOContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useAuth } from '../../contexts/AuthProvider';
 import { CreateReviewModal } from '../../components/reviews/CreateReviewModal';
+import { calculationService } from '../../services/api/calculationService';
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -33,6 +34,10 @@ const OrderDetails = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
 
+  // Add state for calculated totals
+  const [calculatedTotals, setCalculatedTotals] = useState(null);
+  const [calculating, setCalculating] = useState(false);
+
   // Review states
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -43,157 +48,55 @@ const OrderDetails = () => {
     return location.state?.appliedCoupon || null;
   });
 
-  useEffect(() => {
-    if (id) {
-      fetchOrderById(id);
-      fetchOrderTracking(id);
+
+  // ========== HELPER FUNCTIONS - DEFINED FIRST ==========
+
+  // ENHANCED COUPON FUNCTIONS WITH BETTER CALCULATION
+  const getDiscountAmount = () => {
+    // If we have calculated discount, use it
+    if (calculatedTotals?.discount) {
+      return calculatedTotals.discount;
     }
-  }, [id, fetchOrderById, fetchOrderTracking]);
-
-  useEffect(() => {
-    if (currentOrderTracking) {
-      setLocalOrder(currentOrderTracking);
-    } else if (currentOrder) {
-      setLocalOrder(currentOrder);
+    
+    // Priority 1: Explicit discount amount from order
+    if (order?.discountAmount && order.discountAmount > 0) {
+      return order.discountAmount;
     }
-  }, [currentOrder, currentOrderTracking]);
+    
+    // Priority 2: Coupon discount from order
+    if (order?.couponDiscount && order.couponDiscount > 0) {
+      return order.couponDiscount;
+    }
+    
+    // Priority 3: Discount from location state (checkout)
+    if (couponData?.discountAmount && couponData.discountAmount > 0) {
+      return couponData.discountAmount;
+    }
+    
+    // Priority 4: Calculate from totals difference
+    const calculatedDiscount = calculateDiscountFromTotals();
+    if (calculatedDiscount > 0) {
+      return calculatedDiscount;
+    }
+    
+    return 0;
+  };
 
-  // Safe order data access with proper fallbacks
-  const order = localOrder || currentOrder;
-
-// ========== REVIEW FUNCTIONS ==========
-
-const fetchUserReviews = async () => {
-  try {
-    const result = await reviewService.getUserReviews();
-    if (result.success) {
-      const reviews = result.data?.reviews || result.reviews || [];
-      setUserReviews(reviews);
+  const calculateDiscountFromTotals = () => {
+    if (order?.items?.length > 0) {
+      const itemsTotal = order.items.reduce((sum, item) => 
+        sum + ((item.price || 0) * (item.quantity || 1)), 0
+      );
+      const currentSubtotal = order.subtotalAmount || order.subtotal || 0;
       
-      // Extract product IDs that have been reviewed FROM THIS ORDER
-      const reviewedProductIds = reviews
-        .filter(review => review.orderId === (order?.id || order?._id))
-        .map(review => review.productId || review.product?.id)
-        .filter(Boolean);
-      
-      setAlreadyReviewedProducts(reviewedProductIds);
+      // If items total is greater than subtotal, there's a discount
+      if (itemsTotal > currentSubtotal) {
+        return itemsTotal - currentSubtotal;
+      }
     }
-  } catch (error) {
-    console.error('Failed to fetch user reviews:', error);
-  }
-};
+    return 0;
+  };
 
-// FIXED: Properly identify the actual product ID from order items
-const getProductIdFromItem = (item) => {
-  // The actual product ID is in item.product.id, not item.id
-  return item.product?.id || item.productId || item._id;
-};
-
-const canReviewProduct = (productId) => {
-  const status = getOrderStatus().toUpperCase();
-
-  
-  if (status !== 'DELIVERED') {
-    return false;
-  }
-  
-  // Check if product exists in this order - use the correct product ID
-  const productInOrder = order?.items?.find(item => {
-    const actualProductId = getProductIdFromItem(item);
-    return actualProductId == productId; // Use loose equality for number/string comparison
-  });
-  
-  if (!productInOrder) {
-    return false;
-  }
-  
-  // Check if already reviewed this product from this order
-  const alreadyReviewed = alreadyReviewedProducts.includes(productId);
-  
-  if (alreadyReviewed) {
-    return false
-  }
-  
-  return !alreadyReviewed;
-};
-
-const handleOpenReviewModal = (item) => {
-  // FIXED: Use the actual product ID, not the order item ID
-  const productId = getProductIdFromItem(item);
-  const orderId = order.id || order._id;
-  
-  if (!productId || !orderId) {
-    console.error('Missing productId or orderId:', { productId, orderId, item });
-    alert('Cannot open review - missing product or order information');
-    return;
-  }
-
-  if (!canReviewProduct(productId)) {
-    if (alreadyReviewedProducts.includes(productId)) {
-      alert('You have already reviewed this product from this order.');
-    } else {
-      alert('You can only review delivered products from this order.');
-    }
-    return;
-  }
-
-  setSelectedProduct({
-    ...item,
-    productId: productId // Ensure we have the correct product ID
-  });
-  setShowReviewModal(true);
-};
-
-
-const handleReviewSuccess = () => {
-  setReviewSuccess(true);
-  setShowReviewModal(false);
-  
-  // Add product to already reviewed list
-  if (selectedProduct) {
-    const productId = selectedProduct.productId || selectedProduct._id || selectedProduct.id;
-    setAlreadyReviewedProducts(prev => [...prev, productId]);
-  }
-  
-  setSelectedProduct(null);
-  
-  // Show success message
-  setTimeout(() => {
-    alert('Review submitted successfully! It will be visible after admin approval.');
-  }, 100);
-  
-  // Reset success state after a delay
-  setTimeout(() => setReviewSuccess(false), 3000);
-};
-
-const handleCloseReviewModal = () => {
-  setShowReviewModal(false);
-  setSelectedProduct(null);
-};
-
-// Check if any product in order can be reviewed
-const hasReviewableProducts = () => {
-  if (!order?.items || getOrderStatus().toUpperCase() !== 'DELIVERED') return false;
-  
-  return order.items.some(item => {
-    const productId = item.productId || item._id || item.id;
-    return !alreadyReviewedProducts.includes(productId);
-  });
-};
-
-// Get reviewable products count
-const getReviewableProductsCount = () => {
-  if (!order?.items || getOrderStatus().toUpperCase() !== 'DELIVERED') return 0;
-  
-  return order.items.filter(item => {
-    const productId = item.productId || item._id || item.id;
-    return !alreadyReviewedProducts.includes(productId);
-  }).length;
-};
-  // ========== END REVIEW FUNCTIONS ==========
-
-
-  // ENHANCED COUPON FUNCTIONS WITH FALLBACKS
   const getCouponInfo = () => {
     if (order?.coupon || order?.appliedCoupon) {
       return order.coupon || order.appliedCoupon;
@@ -207,14 +110,6 @@ const getReviewableProductsCount = () => {
       discountValue: order?.discountValue,
       discountAmount: order?.discountAmount
     };
-  };
-
-  const getDiscountAmount = () => {
-    return order?.discountAmount || 
-           order?.couponDiscount || 
-           couponData?.discountAmount || 
-           calculateDiscountFromTotals() || 
-           0;
   };
 
   const getCouponCode = () => {
@@ -233,20 +128,6 @@ const getReviewableProductsCount = () => {
     const discount = getDiscountAmount();
     const code = getCouponCode();
     return discount > 0 && code;
-  };
-
-  const calculateDiscountFromTotals = () => {
-    if (order?.items?.length > 0) {
-      const itemsTotal = order.items.reduce((sum, item) => 
-        sum + (item.price * item.quantity), 0
-      );
-      const currentSubtotal = order.subtotalAmount || order.subtotal || 0;
-      
-      if (itemsTotal > currentSubtotal) {
-        return itemsTotal - currentSubtotal;
-      }
-    }
-    return 0;
   };
 
   const formatCurrency = (amount) => {
@@ -331,17 +212,272 @@ const getReviewableProductsCount = () => {
     return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
   };
 
-  // Calculate totals safely
-  const subtotal = order?.subtotalAmount || order?.subtotal || 0;
-  const shippingCost = order?.shippingCost || order?.shippingFee || 0;
-  const taxAmount = order?.taxAmount || order?.tax || 0;
-  const discountAmount = getDiscountAmount();
-  const totalAmount = order?.totalAmount || order?.finalAmount || (subtotal + shippingCost + taxAmount - discountAmount);
-
   const formatItemPrice = (price, quantity = 1) => {
     const { formatted } = formatPrice((price || 0) * quantity);
     return formatted;
   };
+
+  // Use calculated totals or fallback to stored values
+  const getDisplayTotals = () => {
+    if (calculatedTotals && !calculating) {
+      return {
+        subtotal: calculatedTotals.subtotal,
+        shipping: calculatedTotals.shipping,
+        tax: calculatedTotals.tax,
+        taxRate: calculatedTotals.taxRate,
+        discount: calculatedTotals.discount,
+        total: calculatedTotals.finalTotal,
+        currency: calculatedTotals.currency
+      };
+    }
+
+    // Fallback to stored values
+    return {
+      subtotal: order?.subtotalAmount || order?.subtotal || 0,
+      shipping: order?.shippingCost || order?.shippingFee || 0,
+      tax: order?.taxAmount || order?.tax || 0,
+      taxRate: order?.taxRate || 0,
+      discount: getDiscountAmount(),
+      total: order?.totalAmount || order?.finalAmount || 0,
+      currency: order?.currency || 'USD'
+    };
+  };
+
+  // Check if we should show discount info (even if no explicit coupon data)
+  const shouldShowDiscountInfo = () => {
+    if (hasCouponDiscount()) return true;
+    
+    if (order?.items?.length > 0) {
+      const itemsTotal = order.items.reduce((sum, item) => 
+        sum + (item.price * item.quantity), 0
+      );
+      return itemsTotal > (order?.subtotalAmount || order?.subtotal || 0);
+    }
+    
+    return false;
+  };
+
+  // Check for payment success
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const paymentSuccess = location.state?.paymentSuccess || searchParams.get('payment') === 'success';
+    
+    if (paymentSuccess) {
+      alert('Payment successful! Your order has been confirmed.');
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
+  useEffect(() => {
+    if (id) {
+      fetchOrderById(id);
+      fetchOrderTracking(id);
+    }
+  }, [id, fetchOrderById, fetchOrderTracking]);
+
+  useEffect(() => {
+    if (currentOrderTracking) {
+      setLocalOrder(currentOrderTracking);
+    } else if (currentOrder) {
+      setLocalOrder(currentOrder);
+    }
+  }, [currentOrder, currentOrderTracking]);
+
+  // Safe order data access with proper fallbacks
+  const order = localOrder || currentOrder;
+
+  // ✅ AUTO-CLOSE MODAL WHEN ORDER IS CANCELLED
+  useEffect(() => {
+    if (order?.status === 'CANCELLED' && showCancelModal) {
+      setShowCancelModal(false);
+      setCancelReason('');
+      setCancelError('');
+    }
+  }, [order?.status, showCancelModal]);
+
+  // Calculate totals using the API when order loads
+  useEffect(() => {
+    const calculateOrderTotals = async () => {
+      if (!order?.items || order.items.length === 0) {
+        setCalculatedTotals(null);
+        return;
+      }
+
+      setCalculating(true);
+      try {
+
+        const result = await calculationService.calculateCartTotals(
+          order.items.map(item => ({
+            productId: item.productId || item.id,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            price: item.price
+          })),
+          order.shippingAddress || {},
+          order.couponCode || ''
+        );
+
+
+        if (result && result.success) {
+          setCalculatedTotals({
+            subtotal: result.amounts?.subtotalUSD || 0,
+            shipping: result.amounts?.shippingUSD || 0,
+            tax: result.amounts?.taxUSD || 0,
+            taxRate: result.breakdown?.taxRate || 0,
+            discount: result.amounts?.discountUSD || 0,
+            finalTotal: result.amounts?.totalUSD || 0,
+            currency: result.currency || 'USD'
+          });
+        } else {
+          console.warn('❌ ORDER DETAILS - Using fallback calculation');
+          // Fallback to stored values
+          setCalculatedTotals(null);
+        }
+      } catch (error) {
+        console.error('❌ ORDER DETAILS - Calculation failed:', error);
+        // Fallback to stored values
+        setCalculatedTotals(null);
+      } finally {
+        setCalculating(false);
+      }
+    };
+
+    if (order) {
+      calculateOrderTotals();
+    }
+  }, [order]);
+
+  const displayTotals = getDisplayTotals();
+
+  // ========== REVIEW FUNCTIONS ==========
+
+  const fetchUserReviews = async () => {
+    try {
+      const result = await reviewService.getUserReviews();
+      if (result.success) {
+        const reviews = result.data?.reviews || result.reviews || [];
+        setUserReviews(reviews);
+        
+        // Extract product IDs that have been reviewed FROM THIS ORDER
+        const reviewedProductIds = reviews
+          .filter(review => review.orderId === (order?.id || order?._id))
+          .map(review => review.productId || review.product?.id)
+          .filter(Boolean);
+        
+        setAlreadyReviewedProducts(reviewedProductIds);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user reviews:', error);
+    }
+  };
+
+  // FIXED: Properly identify the actual product ID from order items
+  const getProductIdFromItem = (item) => {
+    // The actual product ID is in item.product.id, not item.id
+    return item.product?.id || item.productId || item._id;
+  };
+
+  const canReviewProduct = (productId) => {
+    const status = getOrderStatus().toUpperCase();
+
+    if (status !== 'DELIVERED') {
+      return false;
+    }
+    
+    // Check if product exists in this order - use the correct product ID
+    const productInOrder = order?.items?.find(item => {
+      const actualProductId = getProductIdFromItem(item);
+      return actualProductId == productId; // Use loose equality for number/string comparison
+    });
+    
+    if (!productInOrder) {
+      return false;
+    }
+    
+    // Check if already reviewed this product from this order
+    const alreadyReviewed = alreadyReviewedProducts.includes(productId);
+    
+    if (alreadyReviewed) {
+      return false
+    }
+    
+    return !alreadyReviewed;
+  };
+
+  const handleOpenReviewModal = (item) => {
+    // FIXED: Use the actual product ID, not the order item ID
+    const productId = getProductIdFromItem(item);
+    const orderId = order.id || order._id;
+    
+    if (!productId || !orderId) {
+      console.error('Missing productId or orderId:', { productId, orderId, item });
+      alert('Cannot open review - missing product or order information');
+      return;
+    }
+
+    if (!canReviewProduct(productId)) {
+      if (alreadyReviewedProducts.includes(productId)) {
+        alert('You have already reviewed this product from this order.');
+      } else {
+        alert('You can only review delivered products from this order.');
+      }
+      return;
+    }
+
+    setSelectedProduct({
+      ...item,
+      productId: productId // Ensure we have the correct product ID
+    });
+    setShowReviewModal(true);
+  };
+
+  const handleReviewSuccess = () => {
+    setReviewSuccess(true);
+    setShowReviewModal(false);
+    
+    // Add product to already reviewed list
+    if (selectedProduct) {
+      const productId = selectedProduct.productId || selectedProduct._id || selectedProduct.id;
+      setAlreadyReviewedProducts(prev => [...prev, productId]);
+    }
+    
+    setSelectedProduct(null);
+    
+    // Show success message
+    setTimeout(() => {
+      alert('Review submitted successfully! It will be visible after admin approval.');
+    }, 100);
+    
+    // Reset success state after a delay
+    setTimeout(() => setReviewSuccess(false), 3000);
+  };
+
+  const handleCloseReviewModal = () => {
+    setShowReviewModal(false);
+    setSelectedProduct(null);
+  };
+
+  // Check if any product in order can be reviewed
+  const hasReviewableProducts = () => {
+    if (!order?.items || getOrderStatus().toUpperCase() !== 'DELIVERED') return false;
+    
+    return order.items.some(item => {
+      const productId = item.productId || item._id || item.id;
+      return !alreadyReviewedProducts.includes(productId);
+    });
+  };
+
+  // Get reviewable products count
+  const getReviewableProductsCount = () => {
+    if (!order?.items || getOrderStatus().toUpperCase() !== 'DELIVERED') return 0;
+    
+    return order.items.filter(item => {
+      const productId = item.productId || item._id || item.id;
+      return !alreadyReviewedProducts.includes(productId);
+    }).length;
+  };
+
+  // ========== END REVIEW FUNCTIONS ==========
 
   // CANCELLATION LOGIC
   const canCancelOrder = () => {
@@ -389,20 +525,6 @@ const getReviewableProductsCount = () => {
   const hasTrackingInfo = () => {
     const tracking = getTrackingInfo();
     return tracking?.number || tracking?.url || tracking?.carrier;
-  };
-
-  // Check if we should show discount info (even if no explicit coupon data)
-  const shouldShowDiscountInfo = () => {
-    if (hasCouponDiscount()) return true;
-    
-    if (order?.items?.length > 0) {
-      const itemsTotal = order.items.reduce((sum, item) => 
-        sum + (item.price * item.quantity), 0
-      );
-      return itemsTotal > subtotal;
-    }
-    
-    return false;
   };
 
   if (isLoading) {
@@ -462,6 +584,20 @@ const getReviewableProductsCount = () => {
         description={`Order details for ${getOrderNumber()}`}
         canonical={`/orders/${order.id || order._id}`}
       />
+
+      {/* Loading indicator for calculations */}
+      <AnimatePresence>
+        {calculating && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50"
+          >
+            🔄 Calculating totals...
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Cancel Order Modal */}
       <AnimatePresence>
@@ -526,18 +662,18 @@ const getReviewableProductsCount = () => {
         )}
       </AnimatePresence>
 
-    {/* Review Modal */}
-    <AnimatePresence>
-      {showReviewModal && selectedProduct && (
-        <CreateReviewModal
-          productId={selectedProduct.productId || selectedProduct._id || selectedProduct.id}
-          orderId={order.id || order._id}
-          onClose={handleCloseReviewModal}
-          onSuccess={handleReviewSuccess}
-          isOpen={showReviewModal}
-        />
-      )}
-    </AnimatePresence>
+      {/* Review Modal */}
+      <AnimatePresence>
+        {showReviewModal && selectedProduct && (
+          <CreateReviewModal
+            productId={selectedProduct.productId || selectedProduct._id || selectedProduct.id}
+            orderId={order.id || order._id}
+            onClose={handleCloseReviewModal}
+            onSuccess={handleReviewSuccess}
+            isOpen={showReviewModal}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Success Message */}
       <AnimatePresence>
@@ -549,6 +685,20 @@ const getReviewableProductsCount = () => {
             className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50"
           >
             ✅ Review submitted successfully!
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Payment Success Message */}
+      <AnimatePresence>
+        {location.state?.paymentSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50"
+          >
+            ✅ Payment successful! Order confirmed.
           </motion.div>
         )}
       </AnimatePresence>
@@ -790,8 +940,7 @@ const getReviewableProductsCount = () => {
                       </motion.div>
                     )}
 
-
-                    {/* DETAILS TAB - UPDATED WITH BETTER COUPON HANDLING */}
+                    {/* DETAILS TAB - UPDATED WITH API CALCULATED TOTALS */}
                     {activeTab === 'details' && (
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -800,10 +949,10 @@ const getReviewableProductsCount = () => {
                         className="space-y-6"
                       >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {/* Enhanced Order Summary with Coupon */}
+                          {/* Enhanced Order Summary with API Calculated Totals */}
                           <div>
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                              Order Summary
+                              Order Summary {calculating && '(Calculating...)'}
                             </h3>
                             <div className="space-y-3">
                               {/* Show original subtotal if we detect a discount */}
@@ -822,11 +971,29 @@ const getReviewableProductsCount = () => {
                               <div className="flex justify-between">
                                 <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
                                 <span className="font-medium text-gray-900 dark:text-white">
-                                  {formatCurrency(subtotal)}
+                                  {formatCurrency(displayTotals.subtotal)}
                                 </span>
                               </div>
 
-                              {/* Coupon Discount Line - Show if we have any discount info */}
+                              {/* Shipping */}
+                              <div className="flex justify-between">
+                                <span className="text-gray-600 dark:text-gray-400">Shipping</span>
+                                <span className="font-medium text-gray-900 dark:text-white">
+                                  {displayTotals.shipping === 0 ? 'FREE' : formatCurrency(displayTotals.shipping)}
+                                </span>
+                              </div>
+
+                              {/* Tax */}
+                              <div className="flex justify-between">
+                                <span className="text-gray-600 dark:text-gray-400">
+                                  Tax ({displayTotals.taxRate ? `${displayTotals.taxRate}%` : 'Included'})
+                                </span>
+                                <span className="font-medium text-gray-900 dark:text-white">
+                                  {formatCurrency(displayTotals.tax)}
+                                </span>
+                              </div>
+
+                              {/* Coupon Discount Line */}
                               {shouldShowDiscountInfo() && (
                                 <div className="flex justify-between text-green-600 dark:text-green-400">
                                   <span className="flex items-center">
@@ -843,7 +1010,7 @@ const getReviewableProductsCount = () => {
                                     )}
                                   </span>
                                   <span className="font-medium">
-                                    -{formatCurrency(getDiscountAmount())}
+                                    -{formatCurrency(displayTotals.discount)}
                                     {getDiscountType() === 'PERCENTAGE' && (
                                       <span className="text-xs ml-1">
                                         ({getDiscountValue()}% off)
@@ -853,14 +1020,6 @@ const getReviewableProductsCount = () => {
                                 </div>
                               )}
 
-                              <div className="flex justify-between">
-                                <span className="text-gray-600 dark:text-gray-400">Shipping</span>
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {shippingCost === 0 ? 'FREE' : formatCurrency(shippingCost)}
-                                </span>
-                              </div>
-
-
                               {/* Total Savings Display */}
                               {shouldShowDiscountInfo() && (
                                 <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
@@ -869,7 +1028,7 @@ const getReviewableProductsCount = () => {
                                       You saved:
                                     </span>
                                     <span className="text-green-700 dark:text-green-300 font-bold">
-                                      {formatCurrency(getDiscountAmount())}
+                                      {formatCurrency(displayTotals.discount)}
                                     </span>
                                   </div>
                                   {getCouponCode() ? (
@@ -890,8 +1049,20 @@ const getReviewableProductsCount = () => {
                                   Total Paid
                                 </span>
                                 <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
-                                  {formatCurrency(totalAmount)}
+                                  {formatCurrency(displayTotals.total)}
                                 </span>
+                              </div>
+
+                              {/* Calculation Source Info */}
+                              <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                {calculatedTotals ? (
+                                  <span>✅ Calculated using current rates</span>
+                                ) : (
+                                  <span>ℹ️ Using stored order values</span>
+                                )}
+                                {displayTotals.currency && (
+                                  <span className="ml-2">• Currency: {displayTotals.currency}</span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -928,7 +1099,7 @@ const getReviewableProductsCount = () => {
                                         Code: <strong>{getCouponCode()}</strong>
                                       </p>
                                       <p className="text-blue-600 dark:text-blue-400 text-xs">
-                                        Saved {formatCurrency(getDiscountAmount())}
+                                        Saved {formatCurrency(displayTotals.discount)}
                                       </p>
                                     </>
                                   ) : (
@@ -936,7 +1107,6 @@ const getReviewableProductsCount = () => {
                                       <p className="text-blue-600 dark:text-blue-400 text-sm mt-1">
                                         Special discount applied
                                       </p>
-
                                     </>
                                   )}
                                 </div>
@@ -946,6 +1116,7 @@ const getReviewableProductsCount = () => {
                         </div>
                       </motion.div>
                     )}
+
                     {/* ITEMS TAB - UPDATED WITH BETTER REVIEW INTEGRATION */}
                     {activeTab === 'items' && (
                       <motion.div
@@ -980,7 +1151,7 @@ const getReviewableProductsCount = () => {
                                   {getCouponCode() ? 'Coupon Applied Successfully!' : 'Special Discount Applied!'}
                                 </h4>
                                 <p className="text-green-700 dark:text-green-300 text-xs sm:text-sm truncate">
-                                  You saved {formatCurrency(getDiscountAmount())} 
+                                  You saved {formatCurrency(displayTotals.discount)} 
                                   {getCouponCode() && ` with code ${getCouponCode()}`}
                                 </p>
                               </div>
