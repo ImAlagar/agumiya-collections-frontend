@@ -18,25 +18,55 @@ const CountryDropdown = ({
 
   const isDark = theme === 'dark' || theme === 'smokey';
 
-  // Process countries to ensure unique keys by combining name and dialing_code
-  const processedCountries = countriesData.map(country => ({
-    ...country,
-    // Create a unique key by combining name and dialing_code
-    uniqueKey: `${country.name}_${country.dialing_code}`
-  }));
+  // 🔥 ADD COUNTRY CODES TO YOUR COUNTRIES DATA
+  // First, let's add country codes to your existing data
+  const countriesWithCodes = countriesData.map(country => {
+    // Create a mapping for country codes
+    const countryCodeMap = {
+      'india': 'IN',
+      'united states': 'US',
+      'united kingdom': 'GB',
+      'canada': 'CA',
+      'australia': 'AU',
+      'germany': 'DE',
+      'france': 'FR',
+      'japan': 'JP',
+      'china': 'CN',
+      'brazil': 'BR',
+      'mexico': 'MX',
+      'spain': 'ES',
+      'italy': 'IT',
+      'russia': 'RU',
+      'south korea': 'KR',
+      'singapore': 'SG',
+      'uae': 'AE',
+      'united arab emirates': 'AE',
+      'saudi arabia': 'SA',
+      // Add more mappings as needed
+    };
+    
+    const code = countryCodeMap[country.name.toLowerCase()] || country.name.substring(0, 2).toUpperCase();
+    
+    return {
+      ...country,
+      code: code, // 🔥 ADD COUNTRY CODE
+      uniqueKey: `${country.name}_${country.dialing_code}`
+    };
+  });
 
   // Filter countries based on search term
-  const filteredCountries = processedCountries.filter(country =>
+  const filteredCountries = countriesWithCodes.filter(country =>
     country.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Get selected country
-  const selectedCountry = processedCountries.find(country => 
-    country.name === value
+  // 🔥 GET SELECTED COUNTRY BY CODE (NOT NAME)
+  const selectedCountry = countriesWithCodes.find(country => 
+    country.code === value // Now using code instead of name
   );
 
   const handleCountrySelect = (country) => {
-    onChange(country.name);
+    // 🔥 RETURN COUNTRY CODE INSTEAD OF NAME
+    onChange(country.code); // Return "IN", "US", etc
     setSearchTerm('');
     setIsOpen(false);
   };
@@ -109,25 +139,34 @@ const CountryDropdown = ({
         }}
       >
         <div className="flex items-center space-x-3">
-        {selectedCountry && (
-          <span className={`text-sm font-medium ${getSecondaryTextColor()}`}>
-            +{selectedCountry.dialing_code}
-          </span>
-        )}
+          {selectedCountry && (
+            <>
+              <span className={`text-sm font-medium ${getSecondaryTextColor()}`}>
+                +{selectedCountry.dialing_code}
+              </span>
+              <span className={getTextColor()}>
+                {selectedCountry.name}
+              </span>
+              {/* 🔥 SHOW COUNTRY CODE BADGE */}
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'
+              }`}>
+                {selectedCountry.code}
+              </span>
+            </>
+          )}
           
-          <span className={value ? getTextColor() : getSecondaryTextColor()}>
-            {selectedCountry ? selectedCountry.name : placeholder}
-          </span>
+          {!selectedCountry && (
+            <span className={getSecondaryTextColor()}>
+              {placeholder}
+            </span>
+          )}
         </div>
-        
 
-                
-        {!selectedCountry && (
-          <ChevronDown 
-            size={18} 
-            className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ${getSecondaryTextColor()}`}
-          />
-        )}
+        <ChevronDown 
+          size={18} 
+          className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ${getSecondaryTextColor()}`}
+        />
       </button>
 
       {/* Dropdown Menu */}
@@ -167,7 +206,7 @@ const CountryDropdown = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className={`px-4 py-3 cursor-pointer transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${getHoverBackground()} ${
-                      selectedCountry?.name === country.name 
+                      selectedCountry?.code === country.code 
                         ? (isDark ? 'bg-blue-900/30' : 'bg-blue-50') 
                         : ''
                     }`}
@@ -177,10 +216,18 @@ const CountryDropdown = ({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <span className={getTextColor()}>{country.name}</span>
+                        {/* 🔥 SHOW COUNTRY CODE IN LIST */}
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                        }`}>
+                          {country.code}
+                        </span>
                       </div>
-                      <span className={`text-sm font-medium ${getSecondaryTextColor()}`}>
-                        +{country.dialing_code}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className={`text-sm font-medium ${getSecondaryTextColor()}`}>
+                          +{country.dialing_code}
+                        </span>
+                      </div>
                     </div>
                   </motion.div>
                 ))

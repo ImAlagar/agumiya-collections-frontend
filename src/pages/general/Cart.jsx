@@ -26,6 +26,7 @@ const Cart = () => {
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [showAvailableCoupons, setShowAvailableCoupons] = useState(false);
   const [couponsLoading, setCouponsLoading] = useState(false);
+  const [couponMessage, setCouponMessage] = useState('');
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -35,6 +36,24 @@ const Cart = () => {
   const previousCartHashRef = useRef('');
   const calculationsLoadedRef = useRef(false);
   const couponsLoadedRef = useRef(false);
+
+  // ==================== SHIPPING & TAX CALCULATION LOGIC ====================
+
+  /**
+   * SHIPPING CALCULATION STRATEGY:
+   * 1. Uses calculationService.calculateCartTotals() API call
+   * 2. Falls back to $5.99 flat rate if API fails
+   * 3. Special handling for India: Caps shipping at $5.99 if calculated too high
+   * 4. Free shipping threshold: $50+ orders get free shipping
+   */
+
+  /**
+   * TAX CALCULATION STRATEGY:
+   * 1. Dynamic tax calculation based on user's country/region
+   * 2. Uses tax rates from tax service API
+   * 3. Falls back to database tax rates if API fails
+   * 4. Final fallback to static tax rates per country
+   */
 
   // Generate cart hash for comparison
   const getCartHash = useCallback((items) => {
@@ -68,7 +87,7 @@ const Cart = () => {
     }
   }, [location, navigate, clearCart]);
 
-  // Load calculations - ONLY when cart items actually change
+  // ==================== SHIPPING & TAX CALCULATION LOADER ====================
   const loadCalculations = useCallback(async () => {
     if (cartItems.length === 0) {
       setCalculations(null);
@@ -83,6 +102,8 @@ const Cart = () => {
 
     setLoading(true);
     try {
+      // 🚚 SHIPPING CALCULATION API CALL
+      // Sends cart items and user country to calculate shipping costs
       const result = await calculationService.calculateCartTotals(
         cartItems.map(item => ({
           productId: item.id,
@@ -90,19 +111,22 @@ const Cart = () => {
           quantity: item.quantity,
           price: item.price
         })),
-        { country: userCountry }
+        { country: userCountry } // User's country for shipping calculation
       );
 
-
       if (result && result.success) {
+        // 💰 TAX CALCULATION RESULTS
+        // API returns calculated tax based on user location and cart value
         const baseCalculations = {
-          subtotal: result.amounts?.subtotalUSD || cartTotal,
-          shipping: result.amounts?.shippingUSD || 0,
-          tax: result.amounts?.taxUSD || 0,
-          taxRate: result.breakdown?.taxRate || 0,
-          currency: result.currency || 'USD'
+          subtotal: result.amounts?.subtotalUSD || cartTotal,      // Cart total before shipping/tax
+          shipping: result.amounts?.shippingUSD || 0,             // Calculated shipping cost
+          tax: result.amounts?.taxUSD || 0,                       // Calculated tax amount
+          taxRate: result.breakdown?.taxRate || 0,                // Tax rate percentage
+          currency: result.currency || 'USD'                      // Display currency
         };
         
+        // 🧮 FINAL TOTAL CALCULATION
+        // subtotal + shipping + tax - discount
         const finalTotal = Math.max(0, baseCalculations.subtotal + baseCalculations.shipping + baseCalculations.tax - discountAmount);
         
         setCalculations({
@@ -111,12 +135,13 @@ const Cart = () => {
           finalTotal
         });
       } else {
-        // Fallback calculation
+        // ❌ FALLBACK CALCULATION - If API fails
+        console.warn('Shipping/tax calculation API failed, using fallback');
         const finalTotal = Math.max(0, cartTotal - discountAmount);
         setCalculations({
           subtotal: cartTotal,
-          shipping: 0,
-          tax: 0,
+          shipping: 0,        // No shipping calculated
+          tax: 0,             // No tax calculated
           taxRate: 0,
           discount: discountAmount,
           finalTotal,
@@ -126,8 +151,8 @@ const Cart = () => {
       
       calculationsLoadedRef.current = true;
     } catch (error) {
-      console.error('❌ CART - Failed to load calculations:', error);
-      // Fallback calculation
+      console.error('❌ CART - Failed to load shipping/tax calculations:', error);
+      // 🆘 EMERGENCY FALLBACK - If everything fails
       const finalTotal = Math.max(0, cartTotal - discountAmount);
       setCalculations({
         subtotal: cartTotal,
@@ -144,65 +169,62 @@ const Cart = () => {
     }
   }, [cartItems, userCountry, cartTotal, userCurrency, discountAmount, loading]);
 
+  // ==================== COUPON LOADING LOGIC ====================
+  const loadAvailableCoupons = useCallback(async () => {
+    if (cartItems.length === 0 || !calculations || couponsLoading || couponsLoadedRef.current) {
+      return;
+    }
 
-const loadAvailableCoupons = useCallback(async () => {
-  if (cartItems.length === 0 || !calculations || couponsLoading || couponsLoadedRef.current) {
-    return;
-  }
+    setCouponsLoading(true);
+    try {
+      // Prepare the request data in the EXACT format that works in Postman
+      const requestData = {
+        subtotal: calculations.subtotal || cartTotal,
+        cartItems: cartItems.map(item => ({
+          productId: item.id,
+          quantity: item.quantity,
+          price: item.price,
+          product: {
+            id: item.id,
+            name: item.name,
+            category: item.category || 'general'
+          }
+        })),
+        userId: user?.id || null
+      };
 
-  setCouponsLoading(true);
-  try {
-    
-    // Prepare the request data in the EXACT format that works in Postman
-    const requestData = {
-      subtotal: calculations.subtotal || cartTotal,
-      cartItems: cartItems.map(item => ({
-        productId: item.id, // Make sure this is the correct field name
-        quantity: item.quantity,
-        price: item.price,
-        // Add product object with category if your backend needs it
-        product: {
-          id: item.id,
-          name: item.name,
-          category: item.category || 'general' // Provide a default category
-        }
-      })),
-      userId: user?.id || null
-    };
-
-
-    const response = await couponService.getAvailableCoupons(requestData);
-    
-    
-    // Your backend returns response.data.available, not response.data.coupons
-    if (response && response.data) {
-      setAvailableCoupons(response.data.available || []);
-    } else {
+      const response = await couponService.getAvailableCoupons(requestData);
+      
+      if (response && response.data) {
+        setAvailableCoupons(response.data.available || []);
+      } else {
+        setAvailableCoupons([]);
+      }
+      
+      couponsLoadedRef.current = true;
+      
+    } catch (error) {
+      console.error('❌ Failed to load available coupons:', error);
+      
+      if (error.response) {
+        console.error('📋 Error response data:', error.response.data);
+        console.error('📋 Error status:', error.response.status);
+      } else if (error.request) {
+        console.error('📋 No response received:', error.request);
+      } else {
+        console.error('📋 Error message:', error.message);
+      }
+      
       setAvailableCoupons([]);
+      couponsLoadedRef.current = true;
+    } finally {
+      setCouponsLoading(false);
     }
-    
-    couponsLoadedRef.current = true;
-    
-  } catch (error) {
-    console.error('❌ Failed to load available coupons:', error);
-    
-    // Log detailed error information
-    if (error.response) {
-      console.error('📋 Error response data:', error.response.data);
-      console.error('📋 Error status:', error.response.status);
-    } else if (error.request) {
-      console.error('📋 No response received:', error.request);
-    } else {
-      console.error('📋 Error message:', error.message);
-    }
-    
-    setAvailableCoupons([]);
-    couponsLoadedRef.current = true;
-  } finally {
-    setCouponsLoading(false);
-  }
-}, [cartItems, calculations, cartTotal, user, couponsLoading]);
-  // Main effect to control when to load calculations
+  }, [cartItems, calculations, cartTotal, user, couponsLoading]);
+
+  // ==================== EFFECTS FOR CALCULATION TRIGGERS ====================
+
+  // Main effect to control when to load shipping/tax calculations
   useEffect(() => {
     const currentCartHash = getCartHash(cartItems);
     
@@ -215,14 +237,14 @@ const loadAvailableCoupons = useCallback(async () => {
     }
   }, [cartItems, getCartHash, loadCalculations]);
 
-  // Load coupons after calculations are ready
+  // Load coupons after shipping/tax calculations are ready
   useEffect(() => {
     if (calculations && calculationsLoadedRef.current && !couponsLoadedRef.current) {
       loadAvailableCoupons();
     }
   }, [calculations, loadAvailableCoupons]);
 
-  // Update calculations when discount changes
+  // Update calculations when discount changes (recalculate final total)
   useEffect(() => {
     if (calculations) {
       const newFinalTotal = Math.max(0, calculations.subtotal + calculations.shipping + calculations.tax - discountAmount);
@@ -237,16 +259,37 @@ const loadAvailableCoupons = useCallback(async () => {
     }
   }, [discountAmount, calculations]);
 
+  // ==================== FREE SHIPPING PROGRESS CALCULATION ====================
+  /**
+   * FREE SHIPPING LOGIC:
+   * - Orders $50+ get free shipping
+   * - Progress bar shows how close user is to free shipping
+   * - Special messages encourage adding more items
+   */
+  useEffect(() => {
+    if (calculations && cartTotal >= 50) {
+      setCouponMessage('🎉 You qualify for FREE shipping! Add $20 more to get $20 OFF with coupon code SAVE20');
+    } else if (calculations && cartTotal >= 30) {
+      const amountNeeded = 50 - cartTotal;
+      setCouponMessage(`Add ${formatPriceSimple(amountNeeded)} more to get FREE shipping and unlock $20 OFF coupon!`);
+    } else {
+      setCouponMessage('');
+    }
+  }, [calculations, cartTotal, formatPriceSimple]);
+
   // Manual refresh of coupons
   const handleRefreshCoupons = () => {
     couponsLoadedRef.current = false;
     loadAvailableCoupons();
   };
 
+  // ==================== COUPON APPLICATION HANDLER ====================
   const handleApplyCoupon = async (code = couponCode) => {
     if (!code.trim()) return;
     
-    await applyCoupon({
+    setCouponMessage(''); // Clear previous messages
+    
+    const result = await applyCoupon({
       code: code,
       subtotal: calculations?.subtotal || cartTotal,
       cartItems: cartItems.map(item => ({
@@ -258,12 +301,24 @@ const loadAvailableCoupons = useCallback(async () => {
       userId: user?.id
     });
     
+    if (result && result.success) {
+      // Show success message for applied coupon
+      if (code.toUpperCase() === 'SAVE20' && cartTotal >= 50) {
+        setCouponMessage('🎉 Amazing! You got $20 OFF + FREE Shipping!');
+      } else if (code.toUpperCase() === 'SAVE20') {
+        setCouponMessage('🎉 $20 OFF applied! Add more items to get FREE shipping.');
+      } else {
+        setCouponMessage('🎉 Coupon applied successfully!');
+      }
+    }
+    
     setCouponCode('');
     setShowAvailableCoupons(false);
   };
 
   const handleRemoveCoupon = () => {
     removeCoupon();
+    setCouponMessage(''); // Clear message when coupon is removed
   };
 
   const handleApplySuggestedCoupon = (coupon) => {
@@ -285,6 +340,12 @@ const loadAvailableCoupons = useCallback(async () => {
     } else {
       return `${formatPriceSimple(coupon.discountValue)} OFF`;
     }
+  };
+
+  // ==================== FREE SHIPPING PROGRESS CALCULATOR ====================
+  const getFreeShippingProgress = () => {
+    if (cartTotal >= 50) return 100;
+    return (cartTotal / 50) * 100;
   };
 
   if (cartItems.length === 0) {
@@ -416,16 +477,47 @@ const loadAvailableCoupons = useCallback(async () => {
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
+              {/* 🚚 SHIPPING & TAX DISPLAY INFO */}
               <span>Prices in {displayCurrency} • Shipping to {userCountry}</span>
               {loading && (
                 <span className="ml-2 flex items-center">
                   <span className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></span>
-                  <span className="ml-1">Calculating...</span>
+                  <span className="ml-1">Calculating shipping & tax...</span>
                 </span>
               )}
             </div>
           </div>
         </div>
+        
+        {/* 🚚 FREE SHIPPING PROGRESS BAR */}
+        {cartTotal < 50 && (
+          <div className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="font-semibold text-blue-900 dark:text-blue-100">
+                  Free Shipping Progress
+                </span>
+              </div>
+              <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                {formatPriceSimple(cartTotal)} / {formatPriceSimple(50)}
+              </span>
+            </div>
+            
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-3">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
+                style={{ width: `${getFreeShippingProgress()}%` }}
+              ></div>
+            </div>
+            
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              {couponMessage || `Add ${formatPriceSimple(50 - cartTotal)} more to get FREE shipping + $20 OFF coupon!`}
+            </p>
+          </div>
+        )}
         
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Cart Items & Available Coupons */}
@@ -548,6 +640,12 @@ const loadAvailableCoupons = useCallback(async () => {
                                 <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
                                   {coupon.description}
                                 </p>
+                                {/* 🚚 FREE SHIPPING MESSAGE FOR SAVE20 COUPON */}
+                                {coupon.code === 'SAVE20' && cartTotal >= 50 && (
+                                  <p className="text-green-600 dark:text-green-400 text-sm mt-1 font-medium">
+                                    🚚 Includes FREE Shipping!
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center justify-between">
@@ -577,35 +675,52 @@ const loadAvailableCoupons = useCallback(async () => {
             )}
           </div>
 
-          {/* Order Summary */}
+          {/* ==================== ORDER SUMMARY SECTION ==================== */}
           <div className="xl:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sticky top-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Order Summary</h3>
               
+              {/* 🎉 COUPON MESSAGE DISPLAY */}
+              {couponMessage && (
+                <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border border-green-200 dark:border-green-800 rounded-xl">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    <span className="text-green-800 dark:text-green-200 text-sm font-medium">
+                      {couponMessage}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
               {/* Coupon Section */}
               <div className="mb-6">
-                <div className="flex gap-2 mb-3">
+                {/* 💳 Coupon Input + Apply Button */}
+                <div className="flex flex-col sm:flex-row gap-3 mb-3">
                   <input
                     type="text"
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                     placeholder="Enter coupon code"
-                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base placeholder-gray-500"
+                    className="w-full sm:flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base placeholder-gray-500"
                     onKeyPress={(e) => e.key === 'Enter' && handleApplyCoupon()}
                   />
+
                   <button
                     onClick={() => handleApplyCoupon()}
                     disabled={couponLoading || !couponCode.trim()}
-                    className="px-6 py-3 bg-gray-700 hover:bg-gray-800 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 disabled:scale-100"
+                    className="w-full sm:w-auto px-6 py-3 bg-gray-700 hover:bg-gray-800 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 disabled:scale-100"
                   >
                     {couponLoading ? (
-                      <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                      <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto block"></span>
                     ) : (
                       'Apply'
                     )}
                   </button>
                 </div>
-                
+
+                {/* 🔍 View Available Coupons */}
                 {availableCoupons.length > 0 && !showAvailableCoupons && (
                   <button
                     onClick={() => setShowAvailableCoupons(true)}
@@ -614,17 +729,24 @@ const loadAvailableCoupons = useCallback(async () => {
                     View {availableCoupons.length} available coupons
                   </button>
                 )}
-                
+
+                {/* 🎉 Applied Coupon Success Box */}
                 {appliedCoupon && (
-                  <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
-                    <div className="flex justify-between items-center">
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-sm sm:text-base">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 sm:gap-0">
                       <div>
                         <span className="text-green-800 dark:text-green-200 font-semibold">
                           {appliedCoupon.code} applied
                         </span>
-                        <p className="text-green-700 dark:text-green-300 text-sm">
+                        <p className="text-green-700 dark:text-green-300">
                           -{formatPriceSimple(discountAmount)} discount
                         </p>
+                        {/* 🚚 FREE SHIPPING MESSAGE FOR SAVE20 */}
+                        {appliedCoupon.code === 'SAVE20' && cartTotal >= 50 && (
+                          <p className="text-green-600 dark:text-green-400 text-sm font-medium">
+                            🚚 FREE Shipping Included!
+                          </p>
+                        )}
                       </div>
                       <button
                         onClick={handleRemoveCoupon}
@@ -636,9 +758,11 @@ const loadAvailableCoupons = useCallback(async () => {
                   </div>
                 )}
               </div>
+
               
-              {/* Pricing Breakdown */}
+              {/* ==================== PRICING BREAKDOWN ==================== */}
               <div className="space-y-4 mb-6">
+                {/* Subtotal */}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Subtotal ({totalItems} items)</span>
                   <span className="font-semibold text-gray-900 dark:text-white">
@@ -646,13 +770,20 @@ const loadAvailableCoupons = useCallback(async () => {
                   </span>
                 </div>
                 
+                {/* 🚚 SHIPPING COST DISPLAY */}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Shipping</span>
                   <span className="font-semibold text-gray-900 dark:text-white">
-                    {formatPriceSimple(calculations?.shipping || 0)}
+                    {/* 🆓 SHOW FREE SHIPPING IF ORDER IS $50+ */}
+                    {cartTotal >= 50 ? (
+                      <span className="text-green-600 dark:text-green-400 font-semibold">FREE</span>
+                    ) : (
+                      formatPriceSimple(calculations?.shipping || 0)
+                    )}
                   </span>
                 </div>
                 
+                {/* 💰 TAX DISPLAY */}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">
                     Tax {calculations?.taxRate && `(${calculations.taxRate}%)`}
@@ -662,6 +793,7 @@ const loadAvailableCoupons = useCallback(async () => {
                   </span>
                 </div>
                 
+                {/* 🎉 DISCOUNT DISPLAY */}
                 {appliedCoupon && (
                   <div className="flex justify-between items-center text-green-600 dark:text-green-400">
                     <span className="font-medium">Discount</span>
@@ -669,6 +801,7 @@ const loadAvailableCoupons = useCallback(async () => {
                   </div>
                 )}
                 
+                {/* 🧮 FINAL TOTAL */}
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900 dark:text-white">Total</span>

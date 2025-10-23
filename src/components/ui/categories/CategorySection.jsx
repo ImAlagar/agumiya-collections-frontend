@@ -376,7 +376,7 @@ const CategorySection = ({ category, products, reviewStats, index }) => {
                                 ) : (
                                   <div className="text-right">
                                     <span className={`${styles.subtitle} text-xs`}>
-                                      No reviews yet
+                                      
                                     </span>
                                   </div>
                                 )}

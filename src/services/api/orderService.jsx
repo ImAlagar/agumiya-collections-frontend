@@ -204,48 +204,79 @@ async cancelOrder(orderId, reason = "Cancelled by customer") {
 },
 
   // Admin cancels any order
-  async adminCancelOrder(orderId, reason = "Cancelled by admin") {
-    try {
-      const response = await apiClient.post(
-        `${API_ENDPOINTS.ORDERS}/${orderId}/admin-cancel`,
-        { reason }
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error(
-        error.response?.data?.message || "Failed to cancel order"
-      );
-    }
-  },
+// orderService.jsx
+async adminCancelOrder(orderId, reason = "Cancelled by admin") {
+  try {
+    const response = await apiClient.post(
+      `${API_ENDPOINTS.ORDERS}/${orderId}/admin-cancel`,
+      { 
+        cancelReason: reason, // Try different property names
+        reason: reason,
+        cancellation_reason: reason
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Admin cancel order error:', error.response?.data);
+    throw new Error(
+      error.response?.data?.message || "Failed to cancel order"
+    );
+  }
+},
 
-  // Process refund for cancelled order
-  async processRefund(orderId, reason = "Order cancellation") {
-    try {
-      const response = await apiClient.post(
-        `${API_ENDPOINTS.ORDERS}/${orderId}/process-refund`,
-        { reason }
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error(
-        error.response?.data?.message || "Failed to process refund"
-      );
+// In your frontend orderService.js
+async processRefund(orderId, reason = "Order cancellation") {
+  try {
+    const response = await apiClient.post(
+      `${API_ENDPOINTS.ORDERS}/${orderId}/process-refund`,
+      { reason }
+    );
+    return response.data;
+  } catch (error) {
+    const errorMessage = error.response?.data?.message || "Failed to process refund";
+    console.error('❌ Refund processing failed:', errorMessage);
+    
+    // Show more specific error messages to the user
+    if (errorMessage.includes('Payment not found in Razorpay')) {
+      throw new Error('Payment not found. This payment may have been refunded already or the payment ID is invalid.');
+    } else if (errorMessage.includes('no payment ID') || errorMessage.includes('payment ID')) {
+      throw new Error('This order has no payment information. Refund cannot be processed automatically.');
+    } else if (errorMessage.includes('not paid') || errorMessage.includes('No refund required')) {
+      throw new Error('This order was not successfully paid. No refund is required.');
+    } else if (errorMessage.includes('Invalid refund status')) {
+      throw new Error('Refund cannot be processed in the current order status.');
+    } else {
+      throw new Error(errorMessage);
     }
-  },
+  }
+},
 
-  // Retry failed refund
-  async retryRefund(orderId) {
-    try {
-      const response = await apiClient.post(
-        `${API_ENDPOINTS.ORDERS}/${orderId}/retry-refund`
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error(
-        error.response?.data?.message || "Failed to retry refund"
-      );
-    }
-  },
+// Add this method to fix order status
+async fixOrderRefundStatus(orderId) {
+  try {
+    const response = await apiClient.patch(
+      `${API_ENDPOINTS.ORDERS}/${orderId}/fix-refund-status`
+    );
+    return response.data;
+  } catch (error) {
+    const errorMessage = error.response?.data?.message || "Failed to fix order status";
+    throw new Error(errorMessage);
+  }
+},
+
+// Retry failed refund
+async retryRefund(orderId) {
+  try {
+    const response = await apiClient.post(
+      `${API_ENDPOINTS.ORDERS}/${orderId}/retry-refund`
+    );
+    return response.data;
+  } catch (error) {
+    const errorMessage = error.response?.data?.message || "Failed to retry refund";
+    console.error('❌ Refund retry failed:', errorMessage);
+    throw new Error(errorMessage);
+  }
+},
 
   // Reset refund status
   async resetRefundStatus(orderId) {

@@ -8,6 +8,7 @@ import { orderService } from '../../services/api/orderService';
 import { paymentService } from '../../services/api/paymentService';
 import { calculationService } from '../../services/api/calculationService';
 import { couponService } from '../../services/api/couponService';
+import CountryDropdown from '../../components/common/CountryDropdown'; // 🔥 IMPORT COUNTRY DROPDOWN
 
 const Checkout = () => {
   const { cartItems, total: cartTotal, clearCart } = useCart();
@@ -33,7 +34,7 @@ const Checkout = () => {
   const [currentOrder, setCurrentOrder] = useState(null);
   const [calculating, setCalculating] = useState(false);
   
-  // Payment flow state management
+  // ==================== PAYMENT FLOW STATE MANAGEMENT ====================
   const [paymentStatus, setPaymentStatus] = useState('idle'); // 'idle', 'processing', 'success', 'failed', 'cancelled'
   const [paymentError, setPaymentError] = useState('');
   
@@ -43,14 +44,14 @@ const Checkout = () => {
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [hasLoadedCoupons, setHasLoadedCoupons] = useState(false);
   
-  // Refs for cleanup and state management
+  // ==================== REFS FOR CLEANUP AND STATE MANAGEMENT ====================
   const calculationsRef = useRef();
   const couponsLoadedRef = useRef(false);
   const paymentInProgressRef = useRef(false);
   const orderIdRef = useRef(null);
   const razorpayInstanceRef = useRef(null);
 
-  // Shipping address form state
+  // ==================== SHIPPING ADDRESS FORM STATE ====================
   const [shippingAddress, setShippingAddress] = useState({
     firstName: user?.name?.split(' ')[0] || '',
     lastName: user?.name?.split(' ')[1] || '',
@@ -60,7 +61,7 @@ const Checkout = () => {
     address2: '',
     city: '',
     region: '',
-    country: userCountry || 'US',
+    country: userCountry || '', // 🔥 CHANGED - Now empty by default
     zipCode: ''
   });
 
@@ -83,9 +84,7 @@ const Checkout = () => {
     };
   }, []);
 
-
-
-  // Redirect if not authenticated or cart empty
+  // ==================== REDIRECT IF NOT AUTHENTICATED OR CART EMPTY ====================
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { replace: true });
@@ -98,7 +97,7 @@ const Checkout = () => {
     }
   }, [isAuthenticated, cartItems, navigate]);
 
-  // Load available coupons
+  // ==================== LOAD AVAILABLE COUPONS ====================
   const loadAvailableCoupons = useCallback(async () => {
     if (cartItems.length === 0 || !calculations || couponsLoading || couponsLoadedRef.current) {
       return;
@@ -151,14 +150,22 @@ const Checkout = () => {
     }
   }, [cartItems, calculations, cartTotal, user, couponsLoading]);
 
-  // Calculate totals when cart items, shipping address, or coupon changes
+  // ==================== SHIPPING & TAX CALCULATION ====================
+  /**
+   * CALCULATION STRATEGY:
+   * 1. Uses calculationService API with cart items and shipping address
+   * 2. Calculates shipping costs based on destination country
+   * 3. Calculates tax based on shipping address location
+   * 4. Applies coupon discounts to final total
+   * 5. Falls back to basic calculation if API fails
+   */
   useEffect(() => {
     const calculateTotals = async () => {
       if (cartItems.length === 0) return;
       
       setCalculating(true);
       try {
-   
+        // 🚚 SHIPPING & TAX API CALL
         const result = await calculationService.calculateCartTotals(
           cartItems.map(item => ({
             productId: item.id,
@@ -166,24 +173,25 @@ const Checkout = () => {
             quantity: item.quantity,
             price: item.price
           })),
-          shippingAddress,
+          shippingAddress, // Includes country for shipping calculation
           appliedCoupon?.code || ''
         );
 
 
         if (result && result.success) {
+          // 💰 CALCULATED TOTALS FROM API
           setCalculations({
-            subtotal: result.amounts?.subtotalUSD || cartTotal,
-            shipping: result.amounts?.shippingUSD || 0,
-            tax: result.amounts?.taxUSD || 0,
-            finalTotal: result.amounts?.totalUSD || cartTotal,
-            taxRate: result.breakdown?.taxRate || 0,
-            discount: discountAmount,
-            currency: result.currency || 'USD'
+            subtotal: result.amounts?.subtotalUSD || cartTotal,      // Cart total before shipping/tax
+            shipping: result.amounts?.shippingUSD || 0,             // Calculated shipping cost
+            tax: result.amounts?.taxUSD || 0,                       // Calculated tax amount
+            finalTotal: result.amounts?.totalUSD || cartTotal,      // Final total after all calculations
+            taxRate: result.breakdown?.taxRate || 0,                // Tax rate percentage
+            discount: discountAmount,                               // Applied discount
+            currency: result.currency || 'USD'                      // Display currency
           });
         } else {
           console.error('❌ CHECKOUT - Invalid response structure:', result);
-          // Fallback calculation
+          // 🆘 FALLBACK CALCULATION - If API fails
           setCalculations({
             subtotal: cartTotal,
             shipping: 0,
@@ -196,7 +204,7 @@ const Checkout = () => {
         }
       } catch (error) {
         console.error('❌ CHECKOUT - Calculation error:', error);
-        // Fallback calculation
+        // 🆘 EMERGENCY FALLBACK - If everything fails
         setCalculations({
           subtotal: cartTotal,
           shipping: 0,
@@ -221,6 +229,7 @@ const Checkout = () => {
     }
   }, [calculations, loadAvailableCoupons]);
 
+  // ==================== ADDRESS FORM HANDLERS ====================
   const handleAddressChange = (field, value) => {
     const newAddress = {
       ...shippingAddress,
@@ -230,6 +239,7 @@ const Checkout = () => {
     setShippingAddress(newAddress);
   };
 
+  // ==================== COUPON HANDLERS ====================
   const handleApplyCoupon = async (code = couponCode) => {
     if (!code.trim()) return;
     
@@ -271,8 +281,9 @@ const Checkout = () => {
     }
   };
 
+  // ==================== FORM VALIDATION ====================
   const validateForm = () => {
-    const required = ['firstName', 'lastName', 'email', 'phone', 'address1', 'city', 'country', 'zipCode'];
+    const required = ['firstName', 'email', 'phone', 'address1', 'city', 'country', 'zipCode']; // 🔥 COUNTRY ADDED TO REQUIRED
     const missing = required.filter(field => !shippingAddress[field]);
     
     if (missing.length > 0) {
@@ -293,6 +304,7 @@ const Checkout = () => {
     return true;
   };
 
+  // ==================== ORDER CREATION & PAYMENT FLOW ====================
   const createOrder = async () => {
     if (!validateForm()) return;
     
@@ -394,6 +406,7 @@ const Checkout = () => {
     }
   };
 
+  // ==================== PAYMENT INITIATION ====================
   const initiatePayment = async (orderId) => {
     try {
       
@@ -415,6 +428,7 @@ const Checkout = () => {
     }
   };
 
+  // ==================== RAZORPAY CHECKOUT INTEGRATION ====================
   const openRazorpayCheckout = (paymentData, orderId) => {
     // Prevent multiple payment instances
     if (paymentInProgressRef.current) {
@@ -543,6 +557,7 @@ const Checkout = () => {
     }
   };
 
+  // ==================== UI HELPER FUNCTIONS ====================
   const getPaymentButtonText = () => {
     if (loading || paymentStatus === 'processing') {
       return 'Processing...';
@@ -599,7 +614,7 @@ const Checkout = () => {
             </div>
           </div>
           
-          {/* Payment Status Indicator */}
+          {/* ==================== PAYMENT STATUS INDICATOR ==================== */}
           {paymentStatus !== 'idle' && (
             <div className={`px-4 py-3 rounded-xl shadow-sm border ${
               paymentStatus === 'processing' ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' :
@@ -647,7 +662,7 @@ const Checkout = () => {
         </div>
         
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* Left Column - Shipping, Coupons & Order Notes */}
+          {/* ==================== LEFT COLUMN - SHIPPING, COUPONS & ORDER NOTES ==================== */}
           <div className="xl:col-span-2 space-y-6">
             {/* Shipping Address */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -670,7 +685,7 @@ const Checkout = () => {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Last Name *
+                    Last Name
                   </label>
                   <input
                     type="text"
@@ -782,24 +797,17 @@ const Checkout = () => {
                 </div>
               </div>
 
+              {/* 🔥 COUNTRY DROPDOWN FOR SHIPPING CALCULATION */}
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Country *
                 </label>
-                <select
+                <CountryDropdown
                   value={shippingAddress.country}
-                  onChange={(e) => handleAddressChange('country', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onChange={(value) => handleAddressChange('country', value)}
                   disabled={paymentStatus === 'processing'}
-                >
-                  <option value="US">United States</option>
-                  <option value="IN">India</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="CA">Canada</option>
-                  <option value="AU">Australia</option>
-                  <option value="DE">Germany</option>
-                  <option value="FR">France</option>
-                </select>
+                  placeholder="Select your country"
+                />
               </div>
             </div>
 
@@ -908,7 +916,7 @@ const Checkout = () => {
             </div>
           </div>
 
-          {/* Right Column - Order Summary */}
+          {/* ==================== RIGHT COLUMN - ORDER SUMMARY ==================== */}
           <div className="xl:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sticky top-6">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Order Summary</h2>
@@ -939,8 +947,9 @@ const Checkout = () => {
                 ))}
               </div>
 
-              {/* Price Breakdown */}
+              {/* ==================== PRICE BREAKDOWN ==================== */}
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
+                {/* Subtotal */}
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
                   <span className="text-gray-900 dark:text-white">
@@ -948,6 +957,7 @@ const Checkout = () => {
                   </span>
                 </div>
                 
+                {/* 🚚 Shipping Cost */}
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Shipping</span>
                   <span className="text-gray-900 dark:text-white">
@@ -955,6 +965,7 @@ const Checkout = () => {
                   </span>
                 </div>
                 
+                {/* 💰 Tax Amount */}
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">
                     Tax {calculations?.taxRate && `(${calculations.taxRate}%)`}
@@ -964,6 +975,7 @@ const Checkout = () => {
                   </span>
                 </div>
                 
+                {/* 🎉 Discount */}
                 {appliedCoupon && (
                   <div className="flex justify-between text-green-600 dark:text-green-400">
                     <span className="font-medium">Discount</span>
@@ -971,6 +983,7 @@ const Checkout = () => {
                   </div>
                 )}
                 
+                {/* 🧮 Final Total */}
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900 dark:text-white">Total</span>
@@ -984,7 +997,7 @@ const Checkout = () => {
                 </div>
               </div>
 
-              {/* Place Order Button */}
+              {/* ==================== PLACE ORDER BUTTON ==================== */}
               <button
                 onClick={createOrder}
                 disabled={loading || calculating || !calculations || paymentStatus === 'processing'}

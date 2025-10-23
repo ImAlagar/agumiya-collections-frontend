@@ -92,8 +92,9 @@ const AdminOrderCancellations = () => {
     }
   };
 
-  const handleProcessRefund = async (orderId) => {
-    setLoadingAction(`refund-${orderId}`);
+const handleProcessRefund = async (orderId) => {
+  setLoadingAction(`refund-${orderId}`);
+  try {
     const result = await processRefund(orderId, refundReason);
     setLoadingAction(null);
     
@@ -101,8 +102,31 @@ const AdminOrderCancellations = () => {
       setShowRefundModal(false);
       setRefundReason('');
       fetchCancelledOrders(filters.page, filters);
+      toast.success('Refund processed successfully!');
     }
-  };
+  } catch (error) {
+    setLoadingAction(null);
+    
+    // Check if this is the "not paid" scenario and offer to fix it
+    if (error.message.includes('not paid') || error.message.includes('No refund required')) {
+      const shouldFix = window.confirm(
+        `${error.message}\n\nWould you like to automatically fix the order status to reflect that no refund is required?`
+      );
+      
+      if (shouldFix) {
+        try {
+          await fixOrderRefundStatus(orderId);
+          toast.success('Order status fixed successfully!');
+          fetchCancelledOrders(filters.page, filters);
+        } catch (fixError) {
+          toast.error('Failed to fix order status: ' + fixError.message);
+        }
+      }
+    } else {
+      toast.error(error.message);
+    }
+  }
+};
 
   const handleRetryRefund = async (orderId) => {
     setLoadingAction(`retry-${orderId}`);

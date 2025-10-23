@@ -34,6 +34,7 @@ const AdminProduct = () => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (JSON.stringify(localFilters) !== JSON.stringify(filters)) {
+        console.log('🔄 Applying filters:', localFilters);
         updateFilters(localFilters);
       }
     }, 500);
@@ -50,7 +51,12 @@ const AdminProduct = () => {
   };
 
   const handleFilterChange = (newFilters) => {
-    setLocalFilters(prev => ({ ...prev, ...newFilters }));
+    console.log('🔧 Filter change:', newFilters);
+    setLocalFilters(prev => ({ 
+      ...prev, 
+      ...newFilters,
+      page: 1 // Reset to page 1 when filters change
+    }));
   };
 
   const handleRefresh = () => {

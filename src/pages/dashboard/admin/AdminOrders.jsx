@@ -101,35 +101,48 @@ const AdminOrders = () => {
     setShowDetails(true);
   };
 
-  // Cancel order handler
-  const handleCancelOrder = async (orderId, reason) => {
-    try {
-      setActionLoading(`cancel-${orderId}`);
-      const result = await adminCancelOrder(orderId, reason);
+  
+const handleCancelOrder = async (orderId, reason) => {
+  try {
+    setActionLoading(`cancel-${orderId}`);
+    const result = await adminCancelOrder(orderId, reason);
+    
+    if (result && result.success) {
+      setSuccessMessage(`Order #${orderId} cancelled successfully`);
       
-      if (result.success) {
-        setSuccessMessage(`Order #${orderId} cancelled successfully`);
-        
-        // Refresh orders and stats
-        await fetchOrders(pagination?.currentPage || 1);
-        
-        if (fetchOrderStats) {
-          const statsResult = await fetchOrderStats();
-          if (statsResult && statsResult.success) {
-            setStats(statsResult.stats);
-          }
+      // Refresh orders and stats
+      await fetchOrders(pagination?.currentPage || 1);
+      
+      if (fetchOrderStats && typeof fetchOrderStats === 'function') {
+        const statsResult = await fetchOrderStats();
+        if (statsResult && statsResult.success) {
+          setStats(statsResult.stats);
         }
-        
-        setTimeout(() => setSuccessMessage(''), 3000);
-      } else {
-        throw new Error(result.error || 'Failed to cancel order');
       }
-    } catch (error) {
-      console.error('Cancel order error:', error);
-    } finally {
-      setActionLoading(null);
+      
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } else {
+      throw new Error(result?.error || 'Failed to cancel order');
     }
-  };
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    
+    // FIXED: Use the context's error handling instead of undefined setError
+    if (typeof clearError === 'function') {
+      // Set error message in your context
+      // This depends on how your useOrders context handles errors
+      // If you have a setError function in context, use it:
+      // setError(error.message || 'Failed to cancel order');
+      
+      // Or display the error in success message area for now:
+      setSuccessMessage(`Error: ${error.message}`);
+      setTimeout(() => setSuccessMessage(''), 5000);
+    }
+  } finally {
+    setActionLoading(null);
+  }
+};
+
 
   const handleFilterChange = (newFilters) => {
     setLocalFilters(prev => ({ ...prev, ...newFilters }));

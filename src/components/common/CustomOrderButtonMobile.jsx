@@ -30,7 +30,7 @@ const CustomOrderButtonMobile = () => {
                      backdrop-blur-md"
         >
           <Instagram size={12} className="text-pink-600" />
-          <span>Custom Order • Instagram DM</span>
+          <span>Custom Order DMS</span>
         </motion.div>
 
         {/* Mobile Custom Order Button */}

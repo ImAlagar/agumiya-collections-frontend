@@ -173,12 +173,6 @@ export const EditReviewModal = ({ review, onClose, onSave }) => {
 
 
 
-            {/* Note about re-approval */}
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-              <p className="text-yellow-700 dark:text-yellow-300 text-sm">
-                ⚠️ After editing, your review will need to be re-approved by an admin before it appears publicly.
-              </p>
-            </div>
 
             {/* Submit Button */}
             <div className="flex space-x-3 pt-4">

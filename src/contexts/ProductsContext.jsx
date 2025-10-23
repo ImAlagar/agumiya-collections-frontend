@@ -137,93 +137,99 @@ export const ProductsProvider = ({ children }) => {
     filtersRef.current = state.filters;
   }, [state.filters]);
 
-  // ========================
-  // 🔸 Fetch Products - FIXED VERSION
-  // ========================
-  const fetchProducts = useCallback(async (page = 1, filters = {}) => {
-    try {
-      dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
+// ========================
+// 🔸 Fetch Products - FIXED VERSION
+// ========================
+const fetchProducts = useCallback(async (page = 1, filters = {}) => {
+  try {
+    dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
 
-      const currentFilters = { ...filtersRef.current, ...filters, page };
-      
-      // Prepare API parameters
-      const apiFilters = {
-        page: currentFilters.page || 1,
-        limit: currentFilters.limit || 12,
+    // Merge current filters with new filters and page
+    const currentFilters = { 
+      ...filtersRef.current, 
+      ...filters, 
+      page: page || 1 // Ensure page is always set
+    };
+    
+    console.log('🔄 Fetching products - Page:', page, 'Filters:', currentFilters);
+
+    // Prepare API parameters
+    const apiFilters = {
+      page: currentFilters.page,
+      limit: currentFilters.limit || 12,
+    };
+
+    if (currentFilters.categories && currentFilters.categories.length > 0) {
+      apiFilters.categories = currentFilters.categories[0];
+    }
+
+    // Add price filters
+    if (currentFilters.minPrice !== null && currentFilters.minPrice !== undefined) {
+      apiFilters.minPrice = currentFilters.minPrice;
+    }
+
+    if (currentFilters.maxPrice !== null && currentFilters.maxPrice !== undefined) {
+      apiFilters.maxPrice = currentFilters.maxPrice;
+    }
+
+    // Add stock filter
+    if (currentFilters.inStock && currentFilters.inStock !== 'all') {
+      apiFilters.inStock = currentFilters.inStock === 'true';
+    }
+
+    const response = await productService.getFilteredProducts(apiFilters);
+    
+    if (response.success) {
+      const products = response.data?.data || [];
+      const paginationData = response.data?.pagination || {};
+
+      console.log('📦 API Response - Current Page:', paginationData.currentPage);
+      console.log('📦 API Response - Total Pages:', paginationData.totalPages);
+
+      const mappedPagination = {
+        currentPage: paginationData.currentPage || page,
+        totalPages: paginationData.totalPages || 1,
+        totalCount: paginationData.totalCount || products.length,
+        limit: paginationData.limit || currentFilters.limit || 12,
+        hasNext: paginationData.hasNext !== undefined
+          ? paginationData.hasNext
+          : (paginationData.currentPage || page) < (paginationData.totalPages || 1),
+        hasPrev: paginationData.hasPrev !== undefined
+          ? paginationData.hasPrev
+          : (paginationData.currentPage || page) > 1,
       };
 
-      if (currentFilters.categories && currentFilters.categories.length > 0) {
-        apiFilters.categories = currentFilters.categories[0]; // ✅ send single selected category
-      }
-
-      // Add price filters
-      if (currentFilters.minPrice !== null && currentFilters.minPrice !== undefined) {
-        apiFilters.minPrice = currentFilters.minPrice;
-      }
-
-      if (currentFilters.maxPrice !== null && currentFilters.maxPrice !== undefined) {
-        apiFilters.maxPrice = currentFilters.maxPrice;
-      }
-
-      // Add stock filter
-      if (currentFilters.inStock && currentFilters.inStock !== 'all') {
-        apiFilters.inStock = currentFilters.inStock === 'true'; // ✅ correct comparison
-      }
-
-
-      // Use the filter endpoint
-      const response = await productService.getFilteredProducts(apiFilters);
-      
-      if (response.success) {
-        const products = response.data?.data || [];
-        const paginationData = response.data?.pagination || {};
-
-        const mappedPagination = {
-          currentPage: paginationData.currentPage || page,
-          totalPages: paginationData.totalPages || 1,
-          totalCount: paginationData.totalCount || products.length,
-          limit: paginationData.limit || currentFilters.limit || 12,
-          hasNext: paginationData.hasNext !== undefined
-            ? paginationData.hasNext
-            : (paginationData.currentPage || page) < (paginationData.totalPages || 1),
-          hasPrev: paginationData.hasPrev !== undefined
-            ? paginationData.hasPrev
-            : (paginationData.currentPage || page) > 1,
-        };
-
-        dispatch({
-          type: PRODUCT_ACTIONS.SET_PRODUCTS,
-          payload: { products, pagination: mappedPagination },
-        });
-
-        // Update filters in state
-        dispatch({
-          type: PRODUCT_ACTIONS.SET_FILTERS,
-          payload: currentFilters
-        });
-      } else {
-        throw new Error(response.message || "Failed to fetch products");
-      }
-    } catch (error) {
-      console.error("💥 Fetch products error:", error);
-      console.error("💥 Error details:", error.response?.data);
-      
       dispatch({
-        type: PRODUCT_ACTIONS.SET_ERROR,
-        payload: error.response?.data?.message || error.message || "Failed to load products. Please try again.",
+        type: PRODUCT_ACTIONS.SET_PRODUCTS,
+        payload: { products, pagination: mappedPagination },
       });
-    }
-  }, []);
 
+      // Update filters in state to reflect current page
+      dispatch({
+        type: PRODUCT_ACTIONS.SET_FILTERS,
+        payload: { ...currentFilters, page: mappedPagination.currentPage }
+      });
+    } else {
+      throw new Error(response.message || "Failed to fetch products");
+    }
+  } catch (error) {
+    console.error("💥 Fetch products error:", error);
+    dispatch({
+      type: PRODUCT_ACTIONS.SET_ERROR,
+      payload: error.response?.data?.message || error.message || "Failed to load products. Please try again.",
+    });
+  }
+}, []); // Keep empty dependencies since we're using ref for filters
   // ========================
   // 🔸 Update Page Size
   // ========================
-  const updatePageSize = useCallback(
-    async (newLimit) => {
-      await fetchProducts(1, { limit: newLimit });
-    },
-    [fetchProducts]
-  );
+const updatePageSize = useCallback(
+  async (newLimit) => {
+    // Reset to page 1 when changing page size
+    await fetchProducts(1, { limit: newLimit, page: 1 });
+  },
+  [fetchProducts]
+);
 
   // ========================
   // 🔸 Get Product by ID

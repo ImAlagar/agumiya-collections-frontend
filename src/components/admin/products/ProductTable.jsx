@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Loader from '../../common/Loader';
 import ProductDetails from './ProductDetails';
@@ -12,8 +12,7 @@ import {
   MoreVertical,
   Globe
 } from 'lucide-react';
-import { useCurrency } from '../../../contexts/CurrencyContext'; // Adjust path as needed
-
+import { useCurrency } from '../../../contexts/CurrencyContext';
 
 const ProductTable = ({ 
   products, 
@@ -23,12 +22,18 @@ const ProductTable = ({
   onPageSizeChange, 
   onDeletePrintify 
 }) => {
-   const { formatPriceSimple, getCurrencySymbol } = useCurrency();
+  const { formatPriceSimple } = useCurrency();
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionMenu, setActionMenu] = useState(null);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('📊 ProductTable - Pagination:', pagination);
+    console.log('📊 ProductTable - Products count:', products?.length);
+  }, [pagination, products]);
 
   const handleRowClick = (product) => {
     setSelectedProduct(product);
@@ -45,23 +50,23 @@ const ProductTable = ({
     setDeleteConfirm(product);
   };
 
-const handleConfirmDelete = async () => {
-  if (!deleteConfirm || !onDeletePrintify) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm || !onDeletePrintify) return;
     
-  try {
-    setIsDeleting(true);
-    // Delete from Printify and local database
-    const result = await onDeletePrintify('24454051', deleteConfirm.printifyProductId);
-    
-    setDeleteConfirm(null);
-    setActionMenu(null);
-  } catch (error) {
-    // Show error message to user
-    alert(`Delete failed: ${error.message}`);
-  } finally {
-    setIsDeleting(false);
-  }
-};
+    try {
+      setIsDeleting(true);
+      // Delete from Printify and local database
+      await onDeletePrintify('24454051', deleteConfirm.printifyProductId);
+      
+      setDeleteConfirm(null);
+      setActionMenu(null);
+    } catch (error) {
+      // Show error message to user
+      alert(`Delete failed: ${error.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleCancelDelete = () => {
     setDeleteConfirm(null);
@@ -72,8 +77,26 @@ const handleConfirmDelete = async () => {
     setActionMenu(actionMenu === productId ? null : productId);
   };
 
+  const handlePageChangeClick = (page) => {
+    console.log('📄 Table: Page change requested to:', page);
+    if (onPageChange) {
+      onPageChange(page);
+    } else {
+      console.warn('❌ Table: onPageChange prop is undefined');
+    }
+  };
+
+  const handlePageSizeChangeClick = (newSize) => {
+    console.log('📊 Table: Page size change requested to:', newSize);
+    if (onPageSizeChange) {
+      onPageSizeChange(newSize);
+    } else {
+      console.warn('❌ Table: onPageSizeChange prop is undefined');
+    }
+  };
+
   // Close action menu when clicking outside
-  React.useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = () => setActionMenu(null);
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
@@ -87,7 +110,7 @@ const handleConfirmDelete = async () => {
     );
   }
 
-  if (products.length === 0) {
+  if (!products || products.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-400 dark:text-gray-500 mb-4">
@@ -121,7 +144,9 @@ const handleConfirmDelete = async () => {
             <select 
               value={pagination?.limit || 12}
               onChange={(e) => {
-                onPageSizeChange && onPageSizeChange(Number(e.target.value));
+                const newSize = Number(e.target.value);
+                console.log('🎯 Page size select change:', newSize);
+                handlePageSizeChangeClick(newSize);
               }}
               className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -149,7 +174,7 @@ const handleConfirmDelete = async () => {
               </tr>
             </thead>
             <tbody>
-              {products.map((product, index) => (
+              {products.map((product) => (
                 <motion.tr
                   key={product.id}
                   variants={itemVariants}
@@ -176,7 +201,6 @@ const handleConfirmDelete = async () => {
                           {product.name
                             ? product.name.split(" ").slice(0, 4).join(" ") + (product.name.split(" ").length > 4 ? "..." : "")
                             : "Untitled"}
-
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
                           SKU: {product.sku || 'N/A'}
@@ -194,7 +218,7 @@ const handleConfirmDelete = async () => {
                   </td>
                   <td className="p-4">
                     <div className="font-semibold text-gray-900 dark:text-white">
-                       {formatPriceSimple(product.price)}
+                      {formatPriceSimple(product.price)}
                     </div>
                   </td>
                   <td className="p-4">
@@ -302,7 +326,7 @@ const handleConfirmDelete = async () => {
               <div className="grid grid-cols-2 gap-4 text-sm mb-3">
                 <div>
                   <div className="text-gray-600 dark:text-gray-400">Price</div>
-    <div className="font-semibold">{formatPriceSimple(product.price)}</div>
+                  <div className="font-semibold">{formatPriceSimple(product.price)}</div>
                 </div>
                 <div>
                   <div className="text-gray-600 dark:text-gray-400">Inventory</div>
@@ -337,8 +361,8 @@ const handleConfirmDelete = async () => {
           ))}
         </div>
 
-        {/* Pagination - Keep existing pagination code */}
-        {pagination && pagination.totalPages > 0 && (
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -351,101 +375,104 @@ const handleConfirmDelete = async () => {
               {pagination.totalCount} products
             </div>
             
-            {pagination.totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onPageChange && onPageChange(pagination.currentPage - 1)}
-                  disabled={!pagination.hasPrev}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </button>
-                
-                <div className="flex gap-1">
-                  {(() => {
-                    const pages = [];
-                    const totalPages = pagination.totalPages;
-                    const currentPage = pagination.currentPage;
-                    
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChangeClick(pagination.currentPage - 1)}
+                disabled={!pagination.hasPrev}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </button>
+              
+              <div className="flex gap-1">
+                {(() => {
+                  const pages = [];
+                  const totalPages = pagination.totalPages;
+                  const currentPage = pagination.currentPage;
+                  
+                  // Always show first page
+                  pages.push(
+                    <button
+                      key={1}
+                      onClick={() => handlePageChangeClick(1)}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
+                        currentPage === 1
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                          : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      1
+                    </button>
+                  );
+
+                  // Show ellipsis if needed
+                  if (currentPage > 3) {
                     pages.push(
-                      <button
-                        key={1}
-                        onClick={() => onPageChange && onPageChange(1)}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
-                          currentPage === 1
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                            : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        1
-                      </button>
+                      <span key="ellipsis1" className="px-2 text-gray-500">
+                        ...
+                      </span>
                     );
+                  }
 
-                    if (currentPage > 3) {
-                      pages.push(
-                        <span key="ellipsis1" className="px-2 text-gray-500">
-                          ...
-                        </span>
-                      );
-                    }
-
-                    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
-                      if (i !== 1 && i !== totalPages) {
-                        pages.push(
-                          <button
-                            key={i}
-                            onClick={() => onPageChange && onPageChange(i)}
-                            className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
-                              currentPage === i
-                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                                : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                            }`}
-                          >
-                            {i}
-                          </button>
-                        );
-                      }
-                    }
-
-                    if (currentPage < totalPages - 2) {
-                      pages.push(
-                        <span key="ellipsis2" className="px-2 text-gray-500">
-                          ...
-                        </span>
-                      );
-                    }
-
-                    if (totalPages > 1) {
+                  // Show pages around current page
+                  for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                    if (i !== 1 && i !== totalPages) {
                       pages.push(
                         <button
-                          key={totalPages}
-                          onClick={() => onPageChange && onPageChange(totalPages)}
+                          key={i}
+                          onClick={() => handlePageChangeClick(i)}
                           className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
-                            currentPage === totalPages
+                            currentPage === i
                               ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
                               : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                           }`}
                         >
-                          {totalPages}
+                          {i}
                         </button>
                       );
                     }
+                  }
 
-                    return pages;
-                  })()}
-                </div>
+                  // Show ellipsis if needed
+                  if (currentPage < totalPages - 2) {
+                    pages.push(
+                      <span key="ellipsis2" className="px-2 text-gray-500">
+                        ...
+                      </span>
+                    );
+                  }
 
-                <button
-                  onClick={() => onPageChange && onPageChange(pagination.currentPage + 1)}
-                  disabled={!pagination.hasNext}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+                  // Always show last page if there is more than one page
+                  if (totalPages > 1) {
+                    pages.push(
+                      <button
+                        key={totalPages}
+                        onClick={() => handlePageChangeClick(totalPages)}
+                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
+                          currentPage === totalPages
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                            : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {totalPages}
+                      </button>
+                    );
+                  }
+
+                  return pages;
+                })()}
               </div>
-            )}
+
+              <button
+                onClick={() => handlePageChangeClick(pagination.currentPage + 1)}
+                disabled={!pagination.hasNext}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </motion.div>
         )}
       </motion.div>

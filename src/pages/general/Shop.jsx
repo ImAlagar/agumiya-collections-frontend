@@ -162,19 +162,25 @@ const Shop = () => {
   }, [localFilters, filterOptions]);
 
   // ✅ Fetch products when filters change - DEBOUNCED
-  useEffect(() => {
-    setIsFiltering(true);
-    const timeoutId = setTimeout(() => {
-      fetchProducts(1, localFilters);
-      setIsFiltering(false);
-    }, 500);
-    
-    return () => {
-      clearTimeout(timeoutId);
-      setIsFiltering(false);
-    };
-  }, [localFilters.categories, localFilters.minPrice, localFilters.maxPrice, localFilters.inStock, localFilters.limit]);
-
+useEffect(() => {
+  setIsFiltering(true);
+  const timeoutId = setTimeout(() => {
+    fetchProducts(localFilters.page, localFilters); // Pass the current page
+    setIsFiltering(false);
+  }, 500);
+  
+  return () => {
+    clearTimeout(timeoutId);
+    setIsFiltering(false);
+  };
+}, [
+  localFilters.categories, 
+  localFilters.minPrice, 
+  localFilters.maxPrice, 
+  localFilters.inStock, 
+  localFilters.limit,
+  localFilters.page // Add page to dependencies
+]);
   // ✅ Enhanced auto-scroll for home page navigation
   useEffect(() => {
     const urlCategory = searchParams.get('category');
@@ -217,30 +223,39 @@ const Shop = () => {
     }
   }, [searchParams.get('category')]);
 
-  // ✅ Handle filter change
-  const handleFilterChange = useCallback((newFilters) => {
-    const updated = { ...localFilters, ...newFilters, page: 1 };
-    setLocalFilters(updated);
-    
-    // Update URL when category changes
-    if (newFilters.categories !== undefined) {
-      const params = new URLSearchParams();
-      if (newFilters.categories.length > 0) {
-        params.set('category', encodeURIComponent(newFilters.categories[0]));
-      }
-      
-      const newUrl = newFilters.categories.length > 0 
-        ? `${window.location.pathname}?${params.toString()}`
-        : window.location.pathname;
-      
-      window.history.replaceState(null, '', newUrl);
+const handleFilterChange = useCallback((newFilters) => {
+  const updated = {
+    ...localFilters,
+    ...newFilters,
+    page: newFilters.page !== undefined ? newFilters.page : 
+          (newFilters.categories !== undefined || 
+           newFilters.minPrice !== undefined || 
+           newFilters.maxPrice !== undefined || 
+           newFilters.inStock !== undefined || 
+           newFilters.limit !== undefined) ? 1 : localFilters.page
+  };
+  
+  setLocalFilters(updated);
+  
+  // Update URL when category changes
+  if (newFilters.categories !== undefined) {
+    const params = new URLSearchParams();
+    if (newFilters.categories.length > 0) {
+      params.set('category', encodeURIComponent(newFilters.categories[0]));
     }
     
-    // Auto-close mobile sidebar on any filter change
-    if (mobileFiltersOpen) {
-      setMobileFiltersOpen(false);
-    }
-  }, [localFilters, mobileFiltersOpen]);
+    const newUrl = newFilters.categories.length > 0 
+      ? `${window.location.pathname}?${params.toString()}`
+      : window.location.pathname;
+    
+    window.history.replaceState(null, '', newUrl);
+  }
+  
+  // Auto-close mobile sidebar on any filter change
+  if (mobileFiltersOpen && newFilters.page === undefined) {
+    setMobileFiltersOpen(false);
+  }
+}, [localFilters, mobileFiltersOpen]);
 
   // ✅ Handle category change
   const handleCategoryChange = useCallback((selectedCategory) => {
@@ -323,6 +338,8 @@ const Shop = () => {
 
   // ✅ Handle pagination
   const handlePageChange = useCallback((page) => {
+      console.log('🔄 Changing to page:', page); // Debug log
+
     handleFilterChange({ page });
   }, [handleFilterChange]);
 
@@ -759,16 +776,16 @@ const Shop = () => {
                   animate={{ opacity: 1, y: 0 }}
                   className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 mt-8 sm:mt-12"
                 >
-                  <button
-                    disabled={!safePagination.hasPrev}
-                    onClick={() => handlePageChange(safePagination.currentPage - 1)}
-                    className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl sm:rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm sm:text-base w-full sm:w-auto justify-center"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                    Previous
-                  </button>
+                <button
+                  disabled={!safePagination.hasPrev}
+                  onClick={() => handlePageChange(safePagination.currentPage - 1)}
+                  className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl sm:rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm sm:text-base w-full sm:w-auto justify-center"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Previous
+                </button>
                   
                   <div className="flex items-center gap-1 sm:gap-2 order-first sm:order-none">
                     {Array.from({ length: safePagination.totalPages }, (_, i) => i + 1)
