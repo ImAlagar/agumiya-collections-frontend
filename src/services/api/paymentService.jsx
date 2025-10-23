@@ -4,18 +4,18 @@ import { API_ENDPOINTS } from '../../config/constants.jsx';
 
 export const paymentService = {
   // Create Razorpay order
-  async createPaymentOrder(paymentData) {
+  async createPaymentOrder(orderData) {
     try {
-      if (!paymentData.orderId) {
-        throw new Error('Order ID is required');
+      // Validate order data
+      if (!orderData || !orderData.items || !orderData.shippingAddress) {
+        throw new Error('Order data is required');
       }
 
-      const requestData = {
-        orderId: paymentData.orderId.toString()
-      };
-
-      const response = await apiClient.post(API_ENDPOINTS.PAYMENTS_CREATE_ORDER, requestData);
       
+      // Send complete order data to payment API
+      const response = await apiClient.post(API_ENDPOINTS.PAYMENTS_CREATE_ORDER, orderData);
+      
+
       const paymentDataResponse = response.data.data;
       
       if (!paymentDataResponse) {
@@ -45,25 +45,23 @@ export const paymentService = {
     }
   },
 
-
   // Verify payment (client-side verification)
   async verifyPayment(verificationData) {
     try {
       
-      // Validate required fields - INCLUDING ORDER ID
-      const requiredFields = ['razorpay_payment_id', 'razorpay_order_id', 'razorpay_signature', 'orderId'];
+      // Validate required fields - NO ORDER ID NEEDED
+      const requiredFields = ['razorpay_payment_id', 'razorpay_order_id', 'razorpay_signature'];
       const missingFields = requiredFields.filter(field => !verificationData[field]);
       
       if (missingFields.length > 0) {
         throw new Error(`Missing required verification fields: ${missingFields.join(', ')}`);
       }
 
-      // Ensure we're sending the correct data structure
+      // Send only payment verification data
       const verificationPayload = {
         razorpay_payment_id: verificationData.razorpay_payment_id,
         razorpay_order_id: verificationData.razorpay_order_id,
-        razorpay_signature: verificationData.razorpay_signature,
-        orderId: verificationData.orderId // 🔥 Make sure this is included
+        razorpay_signature: verificationData.razorpay_signature
       };
 
 

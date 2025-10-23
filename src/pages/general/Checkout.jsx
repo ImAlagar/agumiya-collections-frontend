@@ -305,106 +305,95 @@ const Checkout = () => {
   };
 
   // ==================== ORDER CREATION & PAYMENT FLOW ====================
-  const createOrder = async () => {
-    if (!validateForm()) return;
-    
-    if (paymentInProgressRef.current) {
-      alert('A payment is already in progress. Please wait...');
-      return;
-    }
+const createOrder = async () => {
+  if (!validateForm()) return;
+  
+  if (paymentInProgressRef.current) {
+    alert('A payment is already in progress. Please wait...');
+    return;
+  }
 
-    setLoading(true);
-    setPaymentStatus('processing');
-    setPaymentError('');
-    
-    try {
-      const orderData = {
-        shippingAddress,
-        items: cartItems.map(item => {
-          
-          // Extract productId - ensure it's a number
-          let productId = item.productId || item.id;
-          if (typeof productId === 'string') {
-            if (productId.includes('-')) {
-              productId = parseInt(productId.split('-')[0]);
-            } else {
-              productId = parseInt(productId);
-            }
-          }
-          
-          // Handle variantId
-          let variantId = item.variant?.id || item.variantId;
-          
-          // If variantId is "default" or invalid, try to get from product data
-          if (!variantId || variantId === 'default') {
-            console.warn('⚠️ Invalid variant ID, attempting to find valid variant');
-            
-            // Try to get the first available variant from the product
-            if (item.variants && item.variants.length > 0) {
-              variantId = item.variants[0].id;
-            } else if (product?.printifyVariants && product.printifyVariants.length > 0) {
-              variantId = product.printifyVariants[0].id;
-            } else {
-              throw new Error(`No valid variants found for product: ${item.name}. Please reselect this item.`);
-            }
-          }
-          
-          // Ensure variantId is a number
-          if (typeof variantId === 'string') {
-            variantId = parseInt(variantId);
-          }
-          
-          // Final validation
-          if (isNaN(productId)) {
-            throw new Error(`Invalid productId: ${item.productId || item.id}`);
-          }
-          
-          if (isNaN(variantId)) {
-            throw new Error(`Invalid variantId: ${item.variantId}. Please select a valid product variant.`);
-          }
-          
-          return {
-            productId: productId,
-            quantity: item.quantity,
-            variantId: variantId,
-            price: item.price
-          };
-        }),
-        orderNotes,
-        couponCode: appliedCoupon?.code || ''
-      };
-
-      
-      const orderResult = await orderService.createOrder(orderData);
-      
-      if (orderResult.success) {
-        setCurrentOrder(orderResult.data);
-        orderIdRef.current = orderResult.data.id;
+  setLoading(true);
+  setPaymentStatus('processing');
+  setPaymentError('');
+  
+  try {
+    const orderData = {
+      shippingAddress,
+      items: cartItems.map(item => {
         
-        // Mark coupon as used if applied
-        if (appliedCoupon) {
-          await markCouponAsUsed({
-            couponId: appliedCoupon.id,
-            userId: user.id,
-            orderId: orderResult.data.id,
-            discountAmount: discountAmount,
-            couponCode: appliedCoupon.code
-          });
+        // Extract productId - ensure it's a number
+        let productId = item.productId || item.id;
+        if (typeof productId === 'string') {
+          if (productId.includes('-')) {
+            productId = parseInt(productId.split('-')[0]);
+          } else {
+            productId = parseInt(productId);
+          }
         }
         
-        // Proceed to payment
-        await initiatePayment(orderResult.data.id);
-      } else {
-        throw new Error(orderResult.message || 'Failed to create order');
-      }
-    } catch (error) {
-      console.error('❌ Order creation failed:', error);
-      setPaymentStatus('failed');
-      setPaymentError(error.message);
-      alert(`Order failed: ${error.message}`);
-      setLoading(false);
+        // Handle variantId
+        let variantId = item.variant?.id || item.variantId;
+        
+        // If variantId is "default" or invalid, try to get from product data
+        if (!variantId || variantId === 'default') {
+          console.warn('⚠️ Invalid variant ID, attempting to find valid variant');
+          
+          // Try to get the first available variant from the product
+          if (item.variants && item.variants.length > 0) {
+            variantId = item.variants[0].id;
+          } else if (product?.printifyVariants && product.printifyVariants.length > 0) {
+            variantId = product.printifyVariants[0].id;
+          } else {
+            throw new Error(`No valid variants found for product: ${item.name}. Please reselect this item.`);
+          }
+        }
+        
+        // Ensure variantId is a number
+        if (typeof variantId === 'string') {
+          variantId = parseInt(variantId);
+        }
+        
+        // Final validation
+        if (isNaN(productId)) {
+          throw new Error(`Invalid productId: ${item.productId || item.id}`);
+        }
+        
+        if (isNaN(variantId)) {
+          throw new Error(`Invalid variantId: ${item.variantId}. Please select a valid product variant.`);
+        }
+        
+        return {
+          productId: productId,
+          quantity: item.quantity,
+          variantId: variantId,
+          price: item.price,
+          size: item.size || '',
+          color: item.color || ''
+        };
+      }),
+      orderNotes,
+      couponCode: appliedCoupon?.code || ''
+    };
+
+    
+    // 🔥 STEP 1: Create Razorpay order directly (NO database order yet)
+    const paymentResult = await paymentService.createPaymentOrder(orderData);
+
+    if (paymentResult.success) {
+      // 🔥 STEP 2: Open Razorpay checkout with the payment data
+      await openRazorpayCheckout(paymentResult.data);
+    } else {
+      throw new Error(paymentResult.error || 'Payment initialization failed');
     }
-  };
+  } catch (error) {
+    console.error('❌ Order creation failed:', error);
+    setPaymentStatus('failed');
+    setPaymentError(error.message);
+    alert(`Order failed: ${error.message}`);
+    setLoading(false);
+  }
+};
 
   // ==================== PAYMENT INITIATION ====================
   const initiatePayment = async (orderId) => {
@@ -429,133 +418,144 @@ const Checkout = () => {
   };
 
   // ==================== RAZORPAY CHECKOUT INTEGRATION ====================
-  const openRazorpayCheckout = (paymentData, orderId) => {
-    // Prevent multiple payment instances
-    if (paymentInProgressRef.current) {
-      return;
-    }
+const openRazorpayCheckout = async (paymentData) => {
+  // Prevent multiple payment instances
+  if (paymentInProgressRef.current) {
+    return;
+  }
 
-    paymentInProgressRef.current = true;
-    
-    const options = {
-      key: import.meta.env.VITE_APP_RAZORPAY_KEY_ID,
-      amount: paymentData.amount,
-      currency: paymentData.currency,
-      name: "Agumiya Collections",
-      description: "Order Payment",
-      order_id: paymentData.id,
-      handler: async function (response) {
-        setPaymentStatus('success');
-        
-        try {
-          // Validate Razorpay response
-          if (!response.razorpay_payment_id || !response.razorpay_order_id || !response.razorpay_signature) {
-            throw new Error('Incomplete payment response from Razorpay');
-          }
-
-
-          // Verify payment on your server - INCLUDE ORDER ID
-          const verificationResult = await paymentService.verifyPayment({
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_signature: response.razorpay_signature,
-            orderId: orderId.toString()
-          });
-
-
-          if (verificationResult.success) {
-            
-            // Clear the cart
-            clearCart();
-            
-            // Reset payment state
-            paymentInProgressRef.current = false;
-            razorpayInstanceRef.current = null;
-            
-            // Redirect to order details page
-            navigate(`/orders/${orderId}`, {
-              state: {
-                paymentSuccess: true,
-                paymentId: response.razorpay_payment_id,
-                orderId: orderId
-              },
-              replace: true
-            });
-          } else {
-            throw new Error(verificationResult.message || 'Payment verification failed');
-          }
-        } catch (error) {
-          console.error('❌ Payment verification failed:', error);
-          setPaymentStatus('failed');
-          paymentInProgressRef.current = false;
-          
-          let errorMessage = 'Payment verification failed. ';
-          
-          if (error.message.includes('Missing required verification fields')) {
-            errorMessage += 'Technical issue with payment data. Please contact support.';
-          } else if (error.message.includes('signature')) {
-            errorMessage += 'Security verification failed. Please contact support with your payment ID.';
-          } else {
-            errorMessage += error.message || 'Please contact support.';
-          }
-          
-          setPaymentError(errorMessage);
-          alert(errorMessage);
-          
+  paymentInProgressRef.current = true;
+  
+  const options = {
+    key: import.meta.env.VITE_APP_RAZORPAY_KEY_ID,
+    amount: paymentData.amount,
+    currency: paymentData.currency,
+    name: "Agumiya Collections",
+    description: "Order Payment",
+    order_id: paymentData.id,
+    handler: async function (response) {
+      setPaymentStatus('success');
+      
+      try {
+        // Validate Razorpay response
+        if (!response.razorpay_payment_id || !response.razorpay_order_id || !response.razorpay_signature) {
+          throw new Error('Incomplete payment response from Razorpay');
         }
-      },
-      prefill: {
-        name: `${shippingAddress.firstName} ${shippingAddress.lastName}`,
-        email: shippingAddress.email,
-        contact: shippingAddress.phone
-      },
-      theme: {
-        color: "#3B82F6"
-      },
-      modal: {
-        ondismiss: function() {
-          setPaymentStatus('cancelled');
+
+
+        // 🔥 STEP 3: Verify payment and create order in database
+        const verificationResult = await paymentService.verifyPayment({
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_signature: response.razorpay_signature
+          // 🔥 NO ORDER ID NEEDED - backend handles order creation
+        });
+
+
+        if (verificationResult.success) {
+          const orderId = verificationResult.order?.id;
+          
+          // Mark coupon as used if applied
+          if (appliedCoupon && orderId) {
+            await markCouponAsUsed({
+              couponId: appliedCoupon.id,
+              userId: user.id,
+              orderId: orderId,
+              discountAmount: discountAmount,
+              couponCode: appliedCoupon.code
+            });
+          }
+          
+          // Clear the cart
+          clearCart();
+          
+          // Reset payment state
           paymentInProgressRef.current = false;
           razorpayInstanceRef.current = null;
           
-          // Show cancellation message but don't block the user
-          setTimeout(() => {
-            if (window.confirm('Payment was cancelled. You can try again from your orders page. Would you like to view your orders?')) {
-              navigate('/shop');
-            }
-          }, 500);
+          // Redirect to order details page
+          navigate(`/orders/${orderId}`, {
+            state: {
+              paymentSuccess: true,
+              paymentId: response.razorpay_payment_id,
+              orderId: orderId
+            },
+            replace: true
+          });
+        } else {
+          throw new Error(verificationResult.message || 'Payment verification failed');
         }
-      },
-      notes: {
-        orderId: orderId.toString(),
-        customerEmail: shippingAddress.email
-      }
-    };
-
-    try {
-      const rzp = new window.Razorpay(options);
-      razorpayInstanceRef.current = rzp;
-      
-      rzp.on('payment.failed', function (response) {
-        console.error('❌ Payment failed:', response.error);
+      } catch (error) {
+        console.error('❌ Payment verification failed:', error);
         setPaymentStatus('failed');
-        setPaymentError(response.error.description || 'Payment failed');
+        paymentInProgressRef.current = false;
+        
+        let errorMessage = 'Payment verification failed. ';
+        
+        if (error.message.includes('Missing required verification fields')) {
+          errorMessage += 'Technical issue with payment data. Please contact support.';
+        } else if (error.message.includes('signature')) {
+          errorMessage += 'Security verification failed. Please contact support with your payment ID.';
+        } else {
+          errorMessage += error.message || 'Please contact support.';
+        }
+        
+        setPaymentError(errorMessage);
+        alert(errorMessage);
+        
+      }
+    },
+    prefill: {
+      name: `${shippingAddress.firstName} ${shippingAddress.lastName}`,
+      email: shippingAddress.email,
+      contact: shippingAddress.phone
+    },
+    theme: {
+      color: "#3B82F6"
+    },
+    modal: {
+      ondismiss: function() {
+        setPaymentStatus('cancelled');
         paymentInProgressRef.current = false;
         razorpayInstanceRef.current = null;
         
-        alert(`Payment failed: ${response.error.description}. Please try again.`);
-      });
-
-      rzp.open();
-    } catch (error) {
-      console.error('❌ Failed to open Razorpay checkout:', error);
-      setPaymentStatus('failed');
-      setPaymentError('Failed to initialize payment gateway');
-      paymentInProgressRef.current = false;
-      razorpayInstanceRef.current = null;
-      setLoading(false);
+        // Show cancellation message but don't block the user
+        setTimeout(() => {
+          if (window.confirm('Payment was cancelled. You can try again from your orders page. Would you like to view your orders?')) {
+            navigate('/shop');
+          }
+        }, 500);
+      }
+    },
+    notes: {
+      customerEmail: shippingAddress.email
     }
   };
+
+  try {
+    const rzp = new window.Razorpay(options);
+    razorpayInstanceRef.current = rzp;
+    
+    rzp.on('payment.failed', function (response) {
+      console.error('❌ Payment failed:', response.error);
+      setPaymentStatus('failed');
+      setPaymentError(response.error.description || 'Payment failed');
+      paymentInProgressRef.current = false;
+      razorpayInstanceRef.current = null;
+      
+      alert(`Payment failed: ${response.error.description}. Please try again.`);
+    });
+
+    rzp.open();
+  } catch (error) {
+    console.error('❌ Failed to open Razorpay checkout:', error);
+    setPaymentStatus('failed');
+    setPaymentError('Failed to initialize payment gateway');
+    paymentInProgressRef.current = false;
+    razorpayInstanceRef.current = null;
+    setLoading(false);
+  }
+};
 
   // ==================== UI HELPER FUNCTIONS ====================
   const getPaymentButtonText = () => {
