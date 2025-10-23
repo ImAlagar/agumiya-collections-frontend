@@ -8,7 +8,7 @@ import { orderService } from '../../services/api/orderService';
 import { paymentService } from '../../services/api/paymentService';
 import { calculationService } from '../../services/api/calculationService';
 import { couponService } from '../../services/api/couponService';
-import CountryDropdown from '../../components/common/CountryDropdown'; // 🔥 IMPORT COUNTRY DROPDOWN
+import CountryDropdown from '../../components/common/CountryDropdown';
 
 const Checkout = () => {
   const { cartItems, total: cartTotal, clearCart } = useCart();
@@ -31,11 +31,10 @@ const Checkout = () => {
   
   const [loading, setLoading] = useState(false);
   const [calculations, setCalculations] = useState(null);
-  const [currentOrder, setCurrentOrder] = useState(null);
   const [calculating, setCalculating] = useState(false);
   
   // ==================== PAYMENT FLOW STATE MANAGEMENT ====================
-  const [paymentStatus, setPaymentStatus] = useState('idle'); // 'idle', 'processing', 'success', 'failed', 'cancelled'
+  const [paymentStatus, setPaymentStatus] = useState('idle');
   const [paymentError, setPaymentError] = useState('');
   
   // Available coupons state
@@ -48,8 +47,8 @@ const Checkout = () => {
   const calculationsRef = useRef();
   const couponsLoadedRef = useRef(false);
   const paymentInProgressRef = useRef(false);
-  const orderIdRef = useRef(null);
   const razorpayInstanceRef = useRef(null);
+  const paymentVerificationTimeoutRef = useRef(null);
 
   // ==================== SHIPPING ADDRESS FORM STATE ====================
   const [shippingAddress, setShippingAddress] = useState({
@@ -61,7 +60,7 @@ const Checkout = () => {
     address2: '',
     city: '',
     region: '',
-    country: userCountry || '', // 🔥 CHANGED - Now empty by default
+    country: userCountry || '',
     zipCode: ''
   });
 
@@ -76,9 +75,11 @@ const Checkout = () => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      // Clean up any pending payment instances
       if (razorpayInstanceRef.current) {
         razorpayInstanceRef.current.close();
+      }
+      if (paymentVerificationTimeoutRef.current) {
+        clearTimeout(paymentVerificationTimeoutRef.current);
       }
       paymentInProgressRef.current = false;
     };
@@ -105,7 +106,6 @@ const Checkout = () => {
 
     setCouponsLoading(true);
     try {
-      
       const requestData = {
         subtotal: calculations.subtotal || cartTotal,
         cartItems: cartItems.map(item => ({
@@ -121,9 +121,7 @@ const Checkout = () => {
         userId: user?.id || null
       };
 
-
       const response = await couponService.getAvailableCoupons(requestData);
-      
       
       if (response && response.data) {
         setAvailableCoupons(response.data.available || []);
@@ -136,12 +134,6 @@ const Checkout = () => {
       
     } catch (error) {
       console.error('❌ Failed to load available coupons:', error);
-      
-      if (error.response) {
-        console.error('📋 Error response data:', error.response.data);
-        console.error('📋 Error status:', error.response.status);
-      }
-      
       setAvailableCoupons([]);
       couponsLoadedRef.current = true;
       setHasLoadedCoupons(true);
@@ -151,21 +143,12 @@ const Checkout = () => {
   }, [cartItems, calculations, cartTotal, user, couponsLoading]);
 
   // ==================== SHIPPING & TAX CALCULATION ====================
-  /**
-   * CALCULATION STRATEGY:
-   * 1. Uses calculationService API with cart items and shipping address
-   * 2. Calculates shipping costs based on destination country
-   * 3. Calculates tax based on shipping address location
-   * 4. Applies coupon discounts to final total
-   * 5. Falls back to basic calculation if API fails
-   */
   useEffect(() => {
     const calculateTotals = async () => {
       if (cartItems.length === 0) return;
       
       setCalculating(true);
       try {
-        // 🚚 SHIPPING & TAX API CALL
         const result = await calculationService.calculateCartTotals(
           cartItems.map(item => ({
             productId: item.id,
@@ -173,25 +156,22 @@ const Checkout = () => {
             quantity: item.quantity,
             price: item.price
           })),
-          shippingAddress, // Includes country for shipping calculation
+          shippingAddress,
           appliedCoupon?.code || ''
         );
 
-
         if (result && result.success) {
-          // 💰 CALCULATED TOTALS FROM API
           setCalculations({
-            subtotal: result.amounts?.subtotalUSD || cartTotal,      // Cart total before shipping/tax
-            shipping: result.amounts?.shippingUSD || 0,             // Calculated shipping cost
-            tax: result.amounts?.taxUSD || 0,                       // Calculated tax amount
-            finalTotal: result.amounts?.totalUSD || cartTotal,      // Final total after all calculations
-            taxRate: result.breakdown?.taxRate || 0,                // Tax rate percentage
-            discount: discountAmount,                               // Applied discount
-            currency: result.currency || 'USD'                      // Display currency
+            subtotal: result.amounts?.subtotalUSD || cartTotal,
+            shipping: result.amounts?.shippingUSD || 0,
+            tax: result.amounts?.taxUSD || 0,
+            finalTotal: result.amounts?.totalUSD || cartTotal,
+            taxRate: result.breakdown?.taxRate || 0,
+            discount: discountAmount,
+            currency: result.currency || 'USD'
           });
         } else {
           console.error('❌ CHECKOUT - Invalid response structure:', result);
-          // 🆘 FALLBACK CALCULATION - If API fails
           setCalculations({
             subtotal: cartTotal,
             shipping: 0,
@@ -204,7 +184,6 @@ const Checkout = () => {
         }
       } catch (error) {
         console.error('❌ CHECKOUT - Calculation error:', error);
-        // 🆘 EMERGENCY FALLBACK - If everything fails
         setCalculations({
           subtotal: cartTotal,
           shipping: 0,
@@ -283,7 +262,7 @@ const Checkout = () => {
 
   // ==================== FORM VALIDATION ====================
   const validateForm = () => {
-    const required = ['firstName', 'email', 'phone', 'address1', 'city', 'country', 'zipCode']; // 🔥 COUNTRY ADDED TO REQUIRED
+    const required = ['firstName', 'email', 'phone', 'address1', 'city', 'country', 'zipCode'];
     const missing = required.filter(field => !shippingAddress[field]);
     
     if (missing.length > 0) {
@@ -305,262 +284,255 @@ const Checkout = () => {
   };
 
   // ==================== ORDER CREATION & PAYMENT FLOW ====================
-const createOrder = async () => {
-  if (!validateForm()) return;
-  
-  if (paymentInProgressRef.current) {
-    alert('A payment is already in progress. Please wait...');
-    return;
-  }
-
-  setLoading(true);
-  setPaymentStatus('processing');
-  setPaymentError('');
-  
-  try {
-    const orderData = {
-      shippingAddress,
-      items: cartItems.map(item => {
-        
-        // Extract productId - ensure it's a number
-        let productId = item.productId || item.id;
-        if (typeof productId === 'string') {
-          if (productId.includes('-')) {
-            productId = parseInt(productId.split('-')[0]);
-          } else {
-            productId = parseInt(productId);
-          }
-        }
-        
-        // Handle variantId
-        let variantId = item.variant?.id || item.variantId;
-        
-        // If variantId is "default" or invalid, try to get from product data
-        if (!variantId || variantId === 'default') {
-          console.warn('⚠️ Invalid variant ID, attempting to find valid variant');
-          
-          // Try to get the first available variant from the product
-          if (item.variants && item.variants.length > 0) {
-            variantId = item.variants[0].id;
-          } else if (product?.printifyVariants && product.printifyVariants.length > 0) {
-            variantId = product.printifyVariants[0].id;
-          } else {
-            throw new Error(`No valid variants found for product: ${item.name}. Please reselect this item.`);
-          }
-        }
-        
-        // Ensure variantId is a number
-        if (typeof variantId === 'string') {
-          variantId = parseInt(variantId);
-        }
-        
-        // Final validation
-        if (isNaN(productId)) {
-          throw new Error(`Invalid productId: ${item.productId || item.id}`);
-        }
-        
-        if (isNaN(variantId)) {
-          throw new Error(`Invalid variantId: ${item.variantId}. Please select a valid product variant.`);
-        }
-        
-        return {
-          productId: productId,
-          quantity: item.quantity,
-          variantId: variantId,
-          price: item.price,
-          size: item.size || '',
-          color: item.color || ''
-        };
-      }),
-      orderNotes,
-      couponCode: appliedCoupon?.code || ''
-    };
-
+  const createOrder = async () => {
+    if (!validateForm()) return;
     
-    // 🔥 STEP 1: Create Razorpay order directly (NO database order yet)
-    const paymentResult = await paymentService.createPaymentOrder(orderData);
-
-    if (paymentResult.success) {
-      // 🔥 STEP 2: Open Razorpay checkout with the payment data
-      await openRazorpayCheckout(paymentResult.data);
-    } else {
-      throw new Error(paymentResult.error || 'Payment initialization failed');
+    if (paymentInProgressRef.current) {
+      alert('A payment is already in progress. Please wait...');
+      return;
     }
-  } catch (error) {
-    console.error('❌ Order creation failed:', error);
-    setPaymentStatus('failed');
-    setPaymentError(error.message);
-    alert(`Order failed: ${error.message}`);
-    setLoading(false);
-  }
-};
 
-  // ==================== PAYMENT INITIATION ====================
-  const initiatePayment = async (orderId) => {
+    setLoading(true);
+    setPaymentStatus('processing');
+    setPaymentError('');
+    
     try {
-      
-      const paymentResult = await paymentService.createPaymentOrder({
-        orderId: orderId
-      });
+      const orderData = {
+        shippingAddress,
+        items: cartItems.map(item => {
+          let productId = item.productId || item.id;
+          if (typeof productId === 'string') {
+            if (productId.includes('-')) {
+              productId = parseInt(productId.split('-')[0]);
+            } else {
+              productId = parseInt(productId);
+            }
+          }
+          
+          let variantId = item.variant?.id || item.variantId;
+          
+          if (!variantId || variantId === 'default') {
+            console.warn('⚠️ Invalid variant ID, attempting to find valid variant');
+            
+            if (item.variants && item.variants.length > 0) {
+              variantId = item.variants[0].id;
+            } else if (item.product?.printifyVariants && item.product.printifyVariants.length > 0) {
+              variantId = item.product.printifyVariants[0].id;
+            } else {
+              throw new Error(`No valid variants found for product: ${item.name}. Please reselect this item.`);
+            }
+          }
+          
+          if (typeof variantId === 'string') {
+            variantId = parseInt(variantId);
+          }
+          
+          if (isNaN(productId)) {
+            throw new Error(`Invalid productId: ${item.productId || item.id}`);
+          }
+          
+          if (isNaN(variantId)) {
+            throw new Error(`Invalid variantId: ${item.variantId}. Please select a valid product variant.`);
+          }
+          
+          return {
+            productId: productId,
+            quantity: item.quantity,
+            variantId: variantId,
+            price: item.price,
+            size: item.size || '',
+            color: item.color || ''
+          };
+        }),
+        orderNotes,
+        couponCode: appliedCoupon?.code || ''
+      };
+
+      // 🔥 STEP 1: Create Razorpay order directly
+      const paymentResult = await paymentService.createPaymentOrder(orderData);
 
       if (paymentResult.success) {
-        openRazorpayCheckout(paymentResult.data, orderId);
+        // 🔥 STEP 2: Open Razorpay checkout
+        await openRazorpayCheckout(paymentResult.data);
       } else {
         throw new Error(paymentResult.error || 'Payment initialization failed');
       }
     } catch (error) {
-      console.error('❌ Payment initiation failed:', error);
+      console.error('❌ Order creation failed:', error);
       setPaymentStatus('failed');
       setPaymentError(error.message);
-      alert(`Payment failed: ${error.message}`);
+      alert(`Order failed: ${error.message}`);
       setLoading(false);
     }
   };
 
-  // ==================== RAZORPAY CHECKOUT INTEGRATION ====================
-const openRazorpayCheckout = async (paymentData) => {
-  // Prevent multiple payment instances
-  if (paymentInProgressRef.current) {
-    return;
-  }
+  // ==================== OPTIMIZED RAZORPAY CHECKOUT INTEGRATION ====================
+  const openRazorpayCheckout = async (paymentData) => {
+    if (paymentInProgressRef.current) {
+      return;
+    }
 
-  paymentInProgressRef.current = true;
-  
-  const options = {
-    key: import.meta.env.VITE_APP_RAZORPAY_KEY_ID,
-    amount: paymentData.amount,
-    currency: paymentData.currency,
-    name: "Agumiya Collections",
-    description: "Order Payment",
-    order_id: paymentData.id,
-    handler: async function (response) {
-      setPaymentStatus('success');
-      
-      try {
-        // Validate Razorpay response
-        if (!response.razorpay_payment_id || !response.razorpay_order_id || !response.razorpay_signature) {
-          throw new Error('Incomplete payment response from Razorpay');
-        }
+    paymentInProgressRef.current = true;
+    
+    const options = {
+      key: import.meta.env.VITE_APP_RAZORPAY_KEY_ID,
+      amount: paymentData.amount,
+      currency: paymentData.currency,
+      name: "Agumiya Collections",
+      description: "Order Payment",
+      order_id: paymentData.id,
+      handler: async function (response) {
+        setPaymentStatus('verifying');
+        
+        try {
+          // Validate Razorpay response
+          if (!response.razorpay_payment_id || !response.razorpay_order_id || !response.razorpay_signature) {
+            throw new Error('Incomplete payment response from Razorpay');
+          }
 
+          // 🔥 OPTIMIZED: Handle payment verification with better UX
+          const verificationResult = await paymentService.verifyPayment({
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature
+          });
 
-        // 🔥 STEP 3: Verify payment and create order in database
-        const verificationResult = await paymentService.verifyPayment({
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_signature: response.razorpay_signature
-          // 🔥 NO ORDER ID NEEDED - backend handles order creation
-        });
-
-
-        if (verificationResult.success) {
-          const orderId = verificationResult.order?.id;
-          
-          // Mark coupon as used if applied
-          if (appliedCoupon && orderId) {
-            await markCouponAsUsed({
-              couponId: appliedCoupon.id,
-              userId: user.id,
-              orderId: orderId,
-              discountAmount: discountAmount,
-              couponCode: appliedCoupon.code
+          if (verificationResult.success) {
+            const orderId = verificationResult.order?.id;
+            
+            // Mark coupon as used if applied
+            if (appliedCoupon && orderId) {
+              try {
+                await markCouponAsUsed({
+                  couponId: appliedCoupon.id,
+                  userId: user.id,
+                  orderId: orderId,
+                  discountAmount: discountAmount,
+                  couponCode: appliedCoupon.code
+                });
+              } catch (couponError) {
+                console.warn('⚠️ Failed to mark coupon as used:', couponError);
+                // Don't fail the entire order if coupon marking fails
+              }
+            }
+            
+            // Clear the cart
+            clearCart();
+            
+            // Reset payment state
+            paymentInProgressRef.current = false;
+            razorpayInstanceRef.current = null;
+            
+            // Redirect to order details page
+            navigate(`/orders/${orderId}`, {
+              state: {
+                paymentSuccess: true,
+                paymentId: response.razorpay_payment_id,
+                orderId: orderId
+              },
+              replace: true
             });
+          } else {
+            throw new Error(verificationResult.message || 'Payment verification failed');
+          }
+        } catch (error) {
+          console.error('❌ Payment verification failed:', error);
+          setPaymentStatus('failed');
+          paymentInProgressRef.current = false;
+          
+          let errorMessage = error.message || 'Payment verification failed';
+          
+          // Handle timeout gracefully
+          if (error.message.includes('longer than expected') || error.message.includes('timeout')) {
+            errorMessage = '✅ Payment successful! Order is being processed. Please check your orders page in a few minutes.';
+            setPaymentStatus('success');
+            
+            // Clear cart even on timeout since backend is processing
+            clearCart();
+            
+            // Redirect to orders page with success message
+            setTimeout(() => {
+              navigate('/orders', {
+                state: {
+                  processing: true,
+                  message: 'Your order is being processed and will appear shortly.'
+                }
+              });
+            }, 2000);
+            return;
           }
           
-          // Clear the cart
-          clearCart();
-          
-          // Reset payment state
+          setPaymentError(errorMessage);
+          alert(errorMessage);
+        }
+      },
+      prefill: {
+        name: `${shippingAddress.firstName} ${shippingAddress.lastName}`,
+        email: shippingAddress.email,
+        contact: shippingAddress.phone
+      },
+      theme: {
+        color: "#3B82F6"
+      },
+      modal: {
+        ondismiss: function() {
+          setPaymentStatus('cancelled');
           paymentInProgressRef.current = false;
           razorpayInstanceRef.current = null;
           
-          // Redirect to order details page
-          navigate(`/orders/${orderId}`, {
-            state: {
-              paymentSuccess: true,
-              paymentId: response.razorpay_payment_id,
-              orderId: orderId
-            },
-            replace: true
-          });
-        } else {
-          throw new Error(verificationResult.message || 'Payment verification failed');
+          setTimeout(() => {
+            if (window.confirm('Payment was cancelled. You can try again from your orders page. Would you like to view your orders?')) {
+              navigate('/shop');
+            }
+          }, 500);
         }
-      } catch (error) {
-        console.error('❌ Payment verification failed:', error);
-        setPaymentStatus('failed');
-        paymentInProgressRef.current = false;
-        
-        let errorMessage = 'Payment verification failed. ';
-        
-        if (error.message.includes('Missing required verification fields')) {
-          errorMessage += 'Technical issue with payment data. Please contact support.';
-        } else if (error.message.includes('signature')) {
-          errorMessage += 'Security verification failed. Please contact support with your payment ID.';
-        } else {
-          errorMessage += error.message || 'Please contact support.';
-        }
-        
-        setPaymentError(errorMessage);
-        alert(errorMessage);
-        
+      },
+      notes: {
+        customerEmail: shippingAddress.email
       }
-    },
-    prefill: {
-      name: `${shippingAddress.firstName} ${shippingAddress.lastName}`,
-      email: shippingAddress.email,
-      contact: shippingAddress.phone
-    },
-    theme: {
-      color: "#3B82F6"
-    },
-    modal: {
-      ondismiss: function() {
-        setPaymentStatus('cancelled');
+    };
+
+    try {
+      // 🔥 FIX: Check if Razorpay is available and handle ad-blocker issues
+      if (typeof window.Razorpay === 'undefined') {
+        throw new Error('Razorpay payment gateway not loaded. Please check if it\'s blocked by your browser or ad-blocker.');
+      }
+
+      const rzp = new window.Razorpay(options);
+      razorpayInstanceRef.current = rzp;
+      
+      rzp.on('payment.failed', function (response) {
+        console.error('❌ Payment failed:', response.error);
+        setPaymentStatus('failed');
+        setPaymentError(response.error.description || 'Payment failed');
         paymentInProgressRef.current = false;
         razorpayInstanceRef.current = null;
         
-        // Show cancellation message but don't block the user
-        setTimeout(() => {
-          if (window.confirm('Payment was cancelled. You can try again from your orders page. Would you like to view your orders?')) {
-            navigate('/shop');
-          }
-        }, 500);
-      }
-    },
-    notes: {
-      customerEmail: shippingAddress.email
-    }
-  };
+        alert(`Payment failed: ${response.error.description}. Please try again.`);
+      });
 
-  try {
-    const rzp = new window.Razorpay(options);
-    razorpayInstanceRef.current = rzp;
-    
-    rzp.on('payment.failed', function (response) {
-      console.error('❌ Payment failed:', response.error);
+      rzp.open();
+    } catch (error) {
+      console.error('❌ Failed to open Razorpay checkout:', error);
       setPaymentStatus('failed');
-      setPaymentError(response.error.description || 'Payment failed');
+      setPaymentError(error.message || 'Failed to initialize payment gateway');
       paymentInProgressRef.current = false;
       razorpayInstanceRef.current = null;
+      setLoading(false);
       
-      alert(`Payment failed: ${response.error.description}. Please try again.`);
-    });
-
-    rzp.open();
-  } catch (error) {
-    console.error('❌ Failed to open Razorpay checkout:', error);
-    setPaymentStatus('failed');
-    setPaymentError('Failed to initialize payment gateway');
-    paymentInProgressRef.current = false;
-    razorpayInstanceRef.current = null;
-    setLoading(false);
-  }
-};
+      if (error.message.includes('ad-blocker')) {
+        alert('Please disable your ad-blocker for payment processing or try a different browser.');
+      }
+    }
+  };
 
   // ==================== UI HELPER FUNCTIONS ====================
   const getPaymentButtonText = () => {
     if (loading || paymentStatus === 'processing') {
       return 'Processing...';
+    }
+    if (paymentStatus === 'verifying') {
+      return 'Verifying Payment...';
     }
     if (paymentStatus === 'success') {
       return 'Payment Successful!';
@@ -577,6 +549,7 @@ const openRazorpayCheckout = async (paymentData) => {
   const getPaymentButtonVariant = () => {
     switch (paymentStatus) {
       case 'success':
+      case 'verifying':
         return 'bg-green-600 hover:bg-green-700';
       case 'failed':
         return 'bg-red-600 hover:bg-red-700';
@@ -618,6 +591,7 @@ const openRazorpayCheckout = async (paymentData) => {
           {paymentStatus !== 'idle' && (
             <div className={`px-4 py-3 rounded-xl shadow-sm border ${
               paymentStatus === 'processing' ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' :
+              paymentStatus === 'verifying' ? 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800' :
               paymentStatus === 'success' ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' :
               paymentStatus === 'failed' ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' :
               'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800'
@@ -630,6 +604,15 @@ const openRazorpayCheckout = async (paymentData) => {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     <span className="text-blue-700 dark:text-blue-300">Processing payment...</span>
+                  </>
+                )}
+                {paymentStatus === 'verifying' && (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-purple-600 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="text-purple-700 dark:text-purple-300">Verifying payment...</span>
                   </>
                 )}
                 {paymentStatus === 'success' && (
@@ -679,7 +662,7 @@ const openRazorpayCheckout = async (paymentData) => {
                     value={shippingAddress.firstName}
                     onChange={(e) => handleAddressChange('firstName', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={paymentStatus === 'processing'}
+                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
                   />
                 </div>
                 
@@ -693,7 +676,7 @@ const openRazorpayCheckout = async (paymentData) => {
                     value={shippingAddress.lastName}
                     onChange={(e) => handleAddressChange('lastName', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={paymentStatus === 'processing'}
+                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
                   />
                 </div>
               </div>
@@ -708,7 +691,7 @@ const openRazorpayCheckout = async (paymentData) => {
                   value={shippingAddress.email}
                   onChange={(e) => handleAddressChange('email', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={paymentStatus === 'processing'}
+                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
                 />
               </div>
 
@@ -722,7 +705,7 @@ const openRazorpayCheckout = async (paymentData) => {
                   value={shippingAddress.phone}
                   onChange={(e) => handleAddressChange('phone', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={paymentStatus === 'processing'}
+                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
                 />
               </div>
 
@@ -736,7 +719,7 @@ const openRazorpayCheckout = async (paymentData) => {
                   value={shippingAddress.address1}
                   onChange={(e) => handleAddressChange('address1', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={paymentStatus === 'processing'}
+                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
                 />
               </div>
 
@@ -749,7 +732,7 @@ const openRazorpayCheckout = async (paymentData) => {
                   value={shippingAddress.address2}
                   onChange={(e) => handleAddressChange('address2', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={paymentStatus === 'processing'}
+                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
                 />
               </div>
 
@@ -764,7 +747,7 @@ const openRazorpayCheckout = async (paymentData) => {
                     value={shippingAddress.city}
                     onChange={(e) => handleAddressChange('city', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={paymentStatus === 'processing'}
+                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
                   />
                 </div>
                 
@@ -778,7 +761,7 @@ const openRazorpayCheckout = async (paymentData) => {
                     value={shippingAddress.region}
                     onChange={(e) => handleAddressChange('region', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={paymentStatus === 'processing'}
+                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
                   />
                 </div>
                 
@@ -792,7 +775,7 @@ const openRazorpayCheckout = async (paymentData) => {
                     value={shippingAddress.zipCode}
                     onChange={(e) => handleAddressChange('zipCode', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={paymentStatus === 'processing'}
+                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
                   />
                 </div>
               </div>
@@ -805,7 +788,7 @@ const openRazorpayCheckout = async (paymentData) => {
                 <CountryDropdown
                   value={shippingAddress.country}
                   onChange={(value) => handleAddressChange('country', value)}
-                  disabled={paymentStatus === 'processing'}
+                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
                   placeholder="Select your country"
                 />
               </div>
@@ -822,7 +805,7 @@ const openRazorpayCheckout = async (paymentData) => {
                       </h2>
                       <button
                         onClick={handleRefreshCoupons}
-                        disabled={couponsLoading || paymentStatus === 'processing'}
+                        disabled={couponsLoading || paymentStatus === 'processing' || paymentStatus === 'verifying'}
                         className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors disabled:opacity-50"
                         title="Refresh coupons"
                       >
@@ -833,7 +816,7 @@ const openRazorpayCheckout = async (paymentData) => {
                     </div>
                     <button
                       onClick={() => setShowAvailableCoupons(!showAvailableCoupons)}
-                      disabled={paymentStatus === 'processing'}
+                      disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
                       className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-sm disabled:opacity-50"
                     >
                       {showAvailableCoupons ? 'Hide' : 'Show'} ({availableCoupons.length})
@@ -887,7 +870,7 @@ const openRazorpayCheckout = async (paymentData) => {
                               </div>
                               <button
                                 onClick={() => handleApplySuggestedCoupon(coupon)}
-                                disabled={couponLoading || paymentStatus === 'processing'}
+                                disabled={couponLoading || paymentStatus === 'processing' || paymentStatus === 'verifying'}
                                 className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 disabled:scale-100"
                               >
                                 {couponLoading ? 'Applying...' : 'Apply'}
@@ -911,7 +894,7 @@ const openRazorpayCheckout = async (paymentData) => {
                 placeholder="Any special instructions for your order..."
                 rows="3"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={paymentStatus === 'processing'}
+                disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
               />
             </div>
           </div>
@@ -1000,10 +983,10 @@ const openRazorpayCheckout = async (paymentData) => {
               {/* ==================== PLACE ORDER BUTTON ==================== */}
               <button
                 onClick={createOrder}
-                disabled={loading || calculating || !calculations || paymentStatus === 'processing'}
+                disabled={loading || calculating || !calculations || paymentStatus === 'processing' || paymentStatus === 'verifying'}
                 className={`w-full mt-6 ${getPaymentButtonVariant()} disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:scale-100 shadow-lg hover:shadow-xl flex items-center justify-center`}
               >
-                {loading || paymentStatus === 'processing' ? (
+                {loading || paymentStatus === 'processing' || paymentStatus === 'verifying' ? (
                   <>
                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

@@ -11,10 +11,8 @@ export const paymentService = {
         throw new Error('Order data is required');
       }
 
-      
       // Send complete order data to payment API
       const response = await apiClient.post(API_ENDPOINTS.PAYMENTS_CREATE_ORDER, orderData);
-      
 
       const paymentDataResponse = response.data.data;
       
@@ -45,11 +43,10 @@ export const paymentService = {
     }
   },
 
-  // Verify payment (client-side verification)
+  // Verify payment with optimized timeout
   async verifyPayment(verificationData) {
     try {
-      
-      // Validate required fields - NO ORDER ID NEEDED
+      // Validate required fields
       const requiredFields = ['razorpay_payment_id', 'razorpay_order_id', 'razorpay_signature'];
       const missingFields = requiredFields.filter(field => !verificationData[field]);
       
@@ -64,14 +61,20 @@ export const paymentService = {
         razorpay_signature: verificationData.razorpay_signature
       };
 
-
-      const response = await apiClient.post(API_ENDPOINTS.PAYMENTS_VERIFY, verificationPayload);
-      
+      // Use shorter timeout for verification
+      const response = await apiClient.post(API_ENDPOINTS.PAYMENTS_VERIFY, verificationPayload, {
+        timeout: 45000 // 45 seconds
+      });
       
       return response.data;
       
     } catch (error) {
       console.error('❌ Payment verification error:', error);
+      
+      // Handle timeout specifically
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        throw new Error('Payment verification is taking longer than expected. Your order is being processed in the background. Please check your orders page in a few minutes.');
+      }
       
       const errorMessage = error.response?.data?.message || 
                           error.response?.data?.error || 
@@ -82,13 +85,17 @@ export const paymentService = {
     }
   },
 
-  // Get payment status
+  // Get payment status with fallback
   async getPaymentStatus(orderId) {
     try {
-      const response = await apiClient.get(`${API_ENDPOINTS.PAYMENTS_STATUS}/${orderId}`);
+      const response = await apiClient.get(`${API_ENDPOINTS.PAYMENTS_STATUS}/${orderId}`, {
+        timeout: 10000
+      });
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to get payment status');
+      console.warn('⚠️ Payment status check failed:', error);
+      // Don't throw error for status check - it's non-critical
+      return { success: false, error: 'Status check failed' };
     }
   }
 };
