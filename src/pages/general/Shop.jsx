@@ -572,12 +572,13 @@ const handleFilterChange = useCallback((newFilters) => {
               </p>
             </div>
             
-            <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+              {/* Desktop Currency Selector */}
               <div className="hidden sm:block">
                 <CurrencySelector />
               </div>
               
-              {/* Mobile Currency Selector */}
+              {/* Mobile Currency Selector - Compact */}
               <div className="sm:hidden">
                 <CurrencySelector mobile />
               </div>
@@ -585,14 +586,14 @@ const handleFilterChange = useCallback((newFilters) => {
               {/* Mobile Filter Button */}
               <button
                 onClick={() => setMobileFiltersOpen(true)}
-                className="flex lg:hidden items-center gap-2 px-3 sm:px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl sm:rounded-2xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                className="flex lg:hidden items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm min-w-[80px] justify-center"
               >
                 <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
                 </svg>
                 <span className="hidden xs:inline">Filters</span>
                 {activeFilters.length > 0 && (
-                  <span className="bg-primary-500 text-white text-xs px-1.5 sm:px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                  <span className="bg-primary-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[18px] text-center flex-shrink-0">
                     {activeFilters.length}
                   </span>
                 )}

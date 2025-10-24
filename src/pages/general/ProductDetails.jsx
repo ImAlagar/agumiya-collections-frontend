@@ -16,7 +16,8 @@ import {
   FiGlobe,
   FiChevronLeft,
   FiChevronRight,
-  FiInfo
+  FiInfo,
+  FiMessageCircle
 } from 'react-icons/fi';
 import FlyingItem from '../../components/user/products/FlyingItem';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -823,30 +824,47 @@ const ProductDetails = () => {
               </div>
 
               {/* Enhanced Features */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center space-x-3">
-                  <FiTruck className="text-green-600 flex-shrink-0" size={20} />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white text-base">
-                      Free Shipping
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      On orders above $50
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <FiShield className="text-blue-600 flex-shrink-0" size={20} />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white text-base">
-                      Secure Payment
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      100% Secure & Encrypted
-                    </p>
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+              {/* 🚚 Free Shipping */}
+              <div className="flex items-center space-x-3">
+                <FiTruck className="text-green-600 flex-shrink-0" size={20} />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white text-base">
+                    Free Shipping
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    On orders above $50
+                  </p>
                 </div>
               </div>
+
+              {/* 🛡️ Secure Payment */}
+              <div className="flex items-center space-x-3">
+                <FiShield className="text-blue-600 flex-shrink-0" size={20} />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white text-base">
+                    Secure Payment
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    100% Secure & Encrypted
+                  </p>
+                </div>
+              </div>
+
+              {/* 🎨 Custom Orders */}
+              <div className="flex items-center space-x-3">
+                <FiMessageCircle className="text-pink-600 flex-shrink-0" size={20} />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white text-base">
+                    Custom Orders
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    DM us on Instagram for color or design changes
+                  </p>
+                </div>
+              </div>
+            </div>
+
             </div>
           </div>
 
