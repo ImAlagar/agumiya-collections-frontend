@@ -17,6 +17,7 @@ import {
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useCurrency } from '../../../contexts/CurrencyContext'; // ✅ ADD THIS IMPORT
 import UserOrderStats from './UserOrderStats';
+import { formatOrderAmount } from '../../../utils/currencyFormatter';
 
 const UserDetails = ({ user, onClose, onStatusUpdate, isLoading }) => {
   const { theme } = useTheme();
@@ -190,35 +191,33 @@ const UserDetails = ({ user, onClose, onStatusUpdate, isLoading }) => {
                 <UserOrderStats user={user} />
             </div>
             </section>
-        {/* Recent Orders */}
-        {user.orders && user.orders.length > 0 && (
-          <section>
-            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Orders</h4>
-            <div className="space-y-3">
-              {user.orders.slice(0, 5).map((order) => (
-                <div key={order.id} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">Order #{order.id}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {formatDate(order.createdAt)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      {/* ✅ CHANGED: Use formatPriceSimple instead of formatCurrency */}
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        {formatPriceSimple(order.totalAmount)}
-                      </p>
-                      <div className="mt-1">
-                        {getPaymentStatusBadge(order.paymentStatus)}
+          {/* Recent Orders */}
+          {user.orders && user.orders.length > 0 && (
+            <section>
+              <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Orders</h4>
+              <div className="space-y-3">
+                {user.orders.slice(0, 5).map((order) => (
+                  <div key={order.id} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">Order #{order.id}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {formatDate(order.createdAt)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        {/* ✅ CHANGED: Use formatPriceSimple for symbol and formatOrderAmount for amount */}
+              
+                        <div className="mt-1">
+                          {getPaymentStatusBadge(order.paymentStatus)}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+                ))}
+              </div>
+            </section>
+          )}
 
         {(!user.orders || user.orders.length === 0) && (
           <section>

@@ -20,6 +20,7 @@ import {
   Monitor
 } from 'lucide-react';
 import { useCurrency } from '../../../contexts/CurrencyContext'; // ✅ ADD THIS IMPORT
+import { formatOrderAmount } from '../../../utils/currencyFormatter';
 
 const OrderDetails = ({ order, onClose, onStatusUpdate }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -142,7 +143,7 @@ const formatCurrency = (amount) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Total:</span>
-                    <span className="font-semibold text-green-600">{formatCurrency(order.totalAmount)}</span> {/* ✅ Updated */}
+                    <span className="font-semibold text-green-600">{formatOrderAmount(order?.totalAmount || 0, order?.currency)}</span> {/* ✅ Updated */}
                   </div>
                 </div>
               </div>
@@ -161,7 +162,7 @@ const formatCurrency = (amount) => {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Amount:</span>
-                    <span className="font-semibold">{formatCurrency(order.totalAmount)}</span> {/* ✅ Updated */}
+                    <span className="font-semibold">{formatOrderAmount(order?.totalAmount || 0, order?.currency)}</span> {/* ✅ Updated */}
                   </div>
                   {order.paymentMethod && (
                     <div className="flex justify-between">
@@ -209,7 +210,7 @@ const formatCurrency = (amount) => {
               </div>
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl text-center border border-gray-200 dark:border-gray-700">
                 <div className="text-lg sm:text-xl font-bold text-green-600">
-                  {formatCurrency(order.totalAmount)} {/* ✅ Updated */}
+                  {formatOrderAmount(order?.totalAmount || 0, order?.currency)}
                 </div>
                 <div className="text-xs sm:text-sm opacity-75">Total</div>
               </div>
@@ -283,7 +284,7 @@ const formatCurrency = (amount) => {
                 Order Items ({order.items?.length || 0})
               </h4>
               <div className="text-xs sm:text-sm opacity-75">
-                Total: {formatCurrency(order.totalAmount)} {/* ✅ Updated */}
+                Total: {formatOrderAmount(order?.totalAmount || 0, order?.currency)}
               </div>
             </div>
 

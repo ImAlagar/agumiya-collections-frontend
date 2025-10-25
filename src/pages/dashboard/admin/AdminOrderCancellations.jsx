@@ -25,6 +25,7 @@ import { useCurrency } from '../../../contexts/CurrencyContext';
 import { useTheme } from '../../../contexts/ThemeContext';
 import StatCard from '../../../components/shared/StatCard';
 import StatsGrid from '../../../components/shared/StatsGrid';
+import { formatOrderAmount } from '../../../utils/currencyFormatter';
 
 const AdminOrderCancellations = () => {
   const { 
@@ -486,11 +487,7 @@ const handleProcessRefund = async (orderId) => {
                 Process Refund for Order #{selectedOrder.id}
               </h3>
               
-              <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700">
-                  Amount to refund: <strong>{formatPriceSimple(selectedOrder.refundAmount || selectedOrder.totalAmount)}</strong>
-                </p>
-              </div>
+
 
               <div className="mb-4">
                 <label className={`block text-sm font-medium ${getTextClass()} mb-2`}>
@@ -658,7 +655,6 @@ const handleProcessRefund = async (orderId) => {
                       <th className={`text-left p-4 font-semibold ${getMutedTextClass()}`}>Refund Status</th>
                       <th className={`text-left p-4 font-semibold ${getMutedTextClass()}`}>Cancelled By</th>
                       <th className={`text-left p-4 font-semibold ${getMutedTextClass()}`}>Date</th>
-                      <th className={`text-right p-4 font-semibold ${getMutedTextClass()}`}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -702,7 +698,7 @@ const handleProcessRefund = async (orderId) => {
                         </td>
                         <td className="p-4">
                           <div className={`font-semibold ${getTextClass()}`}>
-                            {formatPriceSimple(order.totalAmount)}
+                            {formatOrderAmount(order?.totalAmount || 0, order?.currency)}
                           </div>
                         </td>
                         <td className="p-4">
@@ -717,34 +713,7 @@ const handleProcessRefund = async (orderId) => {
                             {new Date(order.cancelledAt).toLocaleDateString()}
                           </div>
                         </td>
-                        <td className="p-4">
-                          <div className="flex justify-end space-x-2">
-                            {order.refundStatus === 'PENDING' && (
-                              <button
-                                onClick={() => {
-                                  setSelectedOrder(order);
-                                  setShowRefundModal(true);
-                                }}
-                                disabled={loadingAction}
-                                className="text-green-600 hover:text-green-900 disabled:opacity-50 transition-colors px-3 py-1 rounded-lg hover:bg-green-50"
-                              >
-                                Process Refund
-                              </button>
-                            )}
 
-                            {order.refundStatus === 'FAILED' && (
-                              <button
-                                onClick={() => handleRetryRefund(order.id)}
-                                disabled={loadingAction === `retry-${order.id}`}
-                                className="text-yellow-600 hover:text-yellow-900 disabled:opacity-50 transition-colors px-3 py-1 rounded-lg hover:bg-yellow-50"
-                              >
-                                {loadingAction === `retry-${order.id}` ? 'Retrying...' : 'Retry'}
-                              </button>
-                            )}
-
-
-                          </div>
-                        </td>
                       </motion.tr>
                     ))}
                   </tbody>

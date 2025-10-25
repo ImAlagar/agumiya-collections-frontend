@@ -6,6 +6,7 @@ import OrderDetails from './OrderDetails';
 import { itemVariants, staggerVariants } from '../../../contexts/ProductsContext';
 import { Package, Calendar, User, CreditCard, Truck, ChevronLeft, ChevronRight, RefreshCw, X, AlertCircle } from 'lucide-react';
 import { useCurrency } from '../../../contexts/CurrencyContext'; // ✅ Already added
+import { formatOrderAmount } from '../../../utils/currencyFormatter';
 
 const StatusBadge = ({ status }) => {
   const statusConfig = {
@@ -443,7 +444,7 @@ const formatCurrency = (amount) => {
                 </td>
                 <td className="p-4">
                   <div className="font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(order.totalAmount || 0)} {/* ✅ Already using updated formatCurrency */}
+                    {formatOrderAmount(order?.totalAmount || 0, order?.currency)}
                   </div>
                 </td>
                 <td className="p-4">
