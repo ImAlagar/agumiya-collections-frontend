@@ -8,6 +8,8 @@ import { useCurrency } from '../../contexts/CurrencyContext';
 import { useAuth } from '../../contexts/AuthProvider';
 import { CreateReviewModal } from '../../components/reviews/CreateReviewModal';
 import { calculationService } from '../../services/api/calculationService';
+import { formatOrderAmount, getCurrencyInfo } from '../../utils/currencyFormatter';
+
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -51,70 +53,38 @@ const OrderDetails = () => {
 
   // ========== HELPER FUNCTIONS - DEFINED FIRST ==========
 
-  // ENHANCED COUPON FUNCTIONS WITH BETTER CALCULATION
-  const getDiscountAmount = () => {
-    // If we have calculated discount, use it
-    if (calculatedTotals?.discount) {
-      return calculatedTotals.discount;
-    }
-    
-    // Priority 1: Explicit discount amount from order
-    if (order?.discountAmount && order.discountAmount > 0) {
-      return order.discountAmount;
-    }
-    
-    // Priority 2: Coupon discount from order
-    if (order?.couponDiscount && order.couponDiscount > 0) {
-      return order.couponDiscount;
-    }
-    
-    // Priority 3: Discount from location state (checkout)
-    if (couponData?.discountAmount && couponData.discountAmount > 0) {
-      return couponData.discountAmount;
-    }
-    
-    // Priority 4: Calculate from totals difference
-    const calculatedDiscount = calculateDiscountFromTotals();
-    if (calculatedDiscount > 0) {
-      return calculatedDiscount;
-    }
-    
-    return 0;
-  };
+    // ENHANCED COUPON FUNCTIONS WITH BETTER CALCULATION
+const getDiscountAmount = () => {
+  // Use explicit discount amount from order
+  if (order?.discountAmount && order.discountAmount > 0) {
+    return order.discountAmount;
+  }
+  
+  // Calculate from totals difference as fallback
+  const itemsTotal = getOrderItems().reduce((sum, item) => 
+    sum + ((item.price || 0) * (item.quantity || 1)), 0
+  );
+  const currentSubtotal = order?.subtotalAmount || 0;
+  
+  if (itemsTotal > currentSubtotal) {
+    return itemsTotal - currentSubtotal;
+  }
+  
+  return 0;
+};
 
-  const calculateDiscountFromTotals = () => {
-    if (order?.items?.length > 0) {
-      const itemsTotal = order.items.reduce((sum, item) => 
-        sum + ((item.price || 0) * (item.quantity || 1)), 0
-      );
-      const currentSubtotal = order.subtotalAmount || order.subtotal || 0;
-      
-      // If items total is greater than subtotal, there's a discount
-      if (itemsTotal > currentSubtotal) {
-        return itemsTotal - currentSubtotal;
-      }
-    }
-    return 0;
-  };
 
-  const getCouponInfo = () => {
-    if (order?.coupon || order?.appliedCoupon) {
-      return order.coupon || order.appliedCoupon;
-    }
-    if (couponData) {
-      return couponData;
-    }
-    return {
-      code: order?.couponCode,
-      discountType: order?.discountType,
-      discountValue: order?.discountValue,
-      discountAmount: order?.discountAmount
-    };
-  };
 
-  const getCouponCode = () => {
-    return getCouponInfo()?.code || order?.couponCode || couponData?.code;
+const getCouponInfo = () => {
+  return {
+    code: order?.couponCode,
+    discountAmount: getDiscountAmount()
   };
+};
+
+const getCouponCode = () => {
+  return order?.couponCode;
+};
 
   const getDiscountType = () => {
     return getCouponInfo()?.discountType || order?.discountType || 'FIXED';
@@ -124,12 +94,11 @@ const OrderDetails = () => {
     return getCouponInfo()?.discountValue || order?.discountValue || 0;
   };
 
-  const hasCouponDiscount = () => {
-    const discount = getDiscountAmount();
-    const code = getCouponCode();
-    return discount > 0 && code;
-  };
-
+const hasCouponDiscount = () => {
+  const discount = getDiscountAmount();
+  const code = getCouponCode();
+  return discount > 0 || code;
+};
   const formatCurrency = (amount) => {
     const { formatted } = formatPrice(Math.abs(amount) || 0);
     return amount < 0 ? `-${formatted}` : formatted;
@@ -189,23 +158,33 @@ const OrderDetails = () => {
   };
 
   // Safe data access functions
-  const getOrderNumber = () => {
-    return order?.orderNumber || order?.id || order?._id || 'N/A';
-  };
+const getOrderNumber = () => {
+  return order?.printifyOrderId || order?.id || 'N/A';
+};
 
-  const getOrderDate = () => {
-    return order?.createdAt || order?.orderDate || new Date();
-  };
 
-  const getOrderStatus = () => {
-    const status = order?.status || order?.fulfillmentStatus || 'unknown';
-    return typeof status === 'string' ? status : 'unknown';
-  };
+const getOrderDate = () => {
+  return order?.createdAt || new Date();
+};
 
-  const getPaymentStatus = () => {
-    const status = order?.paymentStatus || 'pending';
-    return typeof status === 'string' ? status : 'pending';
-  };
+const getOrderStatus = () => {
+  const status = order?.fulfillmentStatus || order?.status || 'unknown';
+  return typeof status === 'string' ? status : 'unknown';
+};
+
+const getPaymentStatus = () => {
+  const status = order?.paymentStatus || 'pending';
+  return typeof status === 'string' ? status : 'pending';
+};
+
+const getShippingAddress = () => {
+  return order?.shippingAddress || {};
+};
+
+const getOrderItems = () => {
+  return order?.items || [];
+};
+
 
   const formatStatusText = (status) => {
     if (!status || typeof status !== 'string') return 'Unknown';
@@ -218,30 +197,34 @@ const OrderDetails = () => {
   };
 
   // Use calculated totals or fallback to stored values
-  const getDisplayTotals = () => {
-    if (calculatedTotals && !calculating) {
-      return {
-        subtotal: calculatedTotals.subtotal,
-        shipping: calculatedTotals.shipping,
-        tax: calculatedTotals.tax,
-        taxRate: calculatedTotals.taxRate,
-        discount: calculatedTotals.discount,
-        total: calculatedTotals.finalTotal,
-        currency: calculatedTotals.currency
-      };
-    }
-
-    // Fallback to stored values
+// Update getDisplayTotals to use dynamic calculations
+const getDisplayTotals = () => {
+  // Priority 1: Use real-time calculated totals
+  if (calculatedTotals && !calculating) {
     return {
-      subtotal: order?.subtotalAmount || order?.subtotal || 0,
-      shipping: order?.shippingCost || order?.shippingFee || 0,
-      tax: order?.taxAmount || order?.tax || 0,
-      taxRate: order?.taxRate || 0,
-      discount: getDiscountAmount(),
-      total: order?.totalAmount || order?.finalAmount || 0,
-      currency: order?.currency || 'USD'
+      subtotal: calculatedTotals.subtotal,
+      shipping: calculatedTotals.shipping,
+      tax: calculatedTotals.tax,
+      taxRate: calculatedTotals.taxRate,
+      discount: calculatedTotals.discount,
+      total: calculatedTotals.finalTotal,
+      currency: calculatedTotals.currency,
+      isFreeShipping: calculatedTotals.isFreeShipping,
+      estimatedDelivery: calculatedTotals.estimatedDelivery
     };
+  }
+
+  // Priority 2: Use stored calculated values from database
+  return {
+    subtotal: order?.subtotalAmount || order?.subtotal || 0,
+    shipping: order?.shippingCost || order?.shippingFee || 0,
+    tax: order?.taxAmount || order?.tax || 0,
+    taxRate: order?.taxRate || 0,
+    discount: getDiscountAmount(),
+    total: order?.totalAmount || order?.finalAmount || 0,
+    currency: order?.currency || 'USD'
   };
+};
 
   // Check if we should show discount info (even if no explicit coupon data)
   const shouldShowDiscountInfo = () => {
@@ -296,56 +279,79 @@ const OrderDetails = () => {
   }, [order?.status, showCancelModal]);
 
   // Calculate totals using the API when order loads
-  useEffect(() => {
-    const calculateOrderTotals = async () => {
-      if (!order?.items || order.items.length === 0) {
-        setCalculatedTotals(null);
-        return;
-      }
+// OrderDetails.js - Replace the calculation useEffect with this:
 
-      setCalculating(true);
-      try {
-
-        const result = await calculationService.calculateCartTotals(
-          order.items.map(item => ({
-            productId: item.productId || item.id,
-            variantId: item.variantId,
-            quantity: item.quantity,
-            price: item.price
-          })),
-          order.shippingAddress || {},
-          order.couponCode || ''
-        );
-
-
-        if (result && result.success) {
-          setCalculatedTotals({
-            subtotal: result.amounts?.subtotalUSD || 0,
-            shipping: result.amounts?.shippingUSD || 0,
-            tax: result.amounts?.taxUSD || 0,
-            taxRate: result.breakdown?.taxRate || 0,
-            discount: result.amounts?.discountUSD || 0,
-            finalTotal: result.amounts?.totalUSD || 0,
-            currency: result.currency || 'USD'
-          });
-        } else {
-          console.warn('❌ ORDER DETAILS - Using fallback calculation');
-          // Fallback to stored values
-          setCalculatedTotals(null);
-        }
-      } catch (error) {
-        console.error('❌ ORDER DETAILS - Calculation failed:', error);
-        // Fallback to stored values
-        setCalculatedTotals(null);
-      } finally {
-        setCalculating(false);
-      }
-    };
-
-    if (order) {
-      calculateOrderTotals();
+useEffect(() => {
+  const calculateOrderTotals = async () => {
+    if (!order?.items || order.items.length === 0) {
+      setCalculatedTotals(null);
+      return;
     }
-  }, [order]);
+
+    setCalculating(true);
+    try {
+      // Use the SAME calculation service as checkout
+      const result = await calculationService.calculateCartTotals(
+        order.items.map(item => ({
+          productId: item.productId || item.id,
+          variantId: item.variantId,
+          quantity: item.quantity,
+          price: item.price,
+          name: item.product?.name || item.name
+        })),
+        order.shippingAddress || {}, // Use order's shipping address
+        order.couponCode || '' // Use order's coupon code
+      );
+
+      if (result && result.success) {
+        console.log('✅ ORDER DETAILS - Real calculation successful:', result);
+        
+        setCalculatedTotals({
+          subtotal: result.amounts?.subtotalUSD || 0,
+          shipping: result.amounts?.shippingUSD || 0,
+          tax: result.amounts?.taxUSD || 0,
+          taxRate: result.breakdown?.taxRate || 0,
+          discount: result.amounts?.discountUSD || 0,
+          finalTotal: result.amounts?.totalUSD || 0,
+          currency: result.currency || 'USD',
+          // Include additional details from calculation
+          isFreeShipping: result.breakdown?.isFreeShipping,
+          estimatedDelivery: result.breakdown?.estimatedDelivery
+        });
+      } else {
+        console.warn('❌ ORDER DETAILS - Using fallback calculation');
+        // Fallback to stored values from database
+        setCalculatedTotals({
+          subtotal: order.subtotalAmount || order.subtotal || 0,
+          shipping: order.shippingCost || 0,
+          tax: order.taxAmount || 0,
+          taxRate: order.taxRate || 0,
+          discount: order.discountAmount || 0,
+          finalTotal: order.totalAmount || order.finalAmount || 0,
+          currency: order.currency || 'USD'
+        });
+      }
+    } catch (error) {
+      console.error('❌ ORDER DETAILS - Calculation failed:', error);
+      // Fallback to stored values
+      setCalculatedTotals({
+        subtotal: order.subtotalAmount || order.subtotal || 0,
+        shipping: order.shippingCost || 0,
+        tax: order.taxAmount || 0,
+        taxRate: order.taxRate || 0,
+        discount: order.discountAmount || 0,
+        finalTotal: order.totalAmount || order.finalAmount || 0,
+        currency: order.currency || 'USD'
+      });
+    } finally {
+      setCalculating(false);
+    }
+  };
+
+  if (order) {
+    calculateOrderTotals();
+  }
+}, [order]);
 
   const displayTotals = getDisplayTotals();
 
@@ -723,14 +729,22 @@ const OrderDetails = () => {
                   Order #{getOrderNumber()}
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-1 sm:mt-2 text-sm sm:text-base">
-                  Placed on {new Date(getOrderDate()).toLocaleDateString()}
+                  Placed on {new Date(getOrderDate()).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
                 </p>
               </div>
-              <div className="text-left md:text-right">
-                <span className={`inline-flex items-center px-3 sm:px-4 py-1 sm:py-2 rounded-full text-sm font-semibold border ${getStatusColor(getOrderStatus())}`}>
-                  {formatStatusText(getOrderStatus())}
-                </span>
-                <div className="mt-1 sm:mt-2">
+              <div className="text-left md:text-right space-y-2">
+                <div>
+                  <span className={`inline-flex items-center px-3 sm:px-4 py-1 sm:py-2 rounded-full text-sm font-semibold border ${getStatusColor(getOrderStatus())}`}>
+                    {formatStatusText(getOrderStatus())}
+                  </span>
+                </div>
+                <div>
                   <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(getPaymentStatus())}`}>
                     Payment: {formatStatusText(getPaymentStatus())}
                   </span>
@@ -941,182 +955,98 @@ const OrderDetails = () => {
                     )}
 
                     {/* DETAILS TAB - UPDATED WITH API CALCULATED TOTALS */}
-                    {activeTab === 'details' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="space-y-6"
-                      >
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {/* Enhanced Order Summary with API Calculated Totals */}
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                              Order Summary {calculating && '(Calculating...)'}
-                            </h3>
-                            <div className="space-y-3">
-                              {/* Show original subtotal if we detect a discount */}
-                              {shouldShowDiscountInfo() && (
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-gray-600 dark:text-gray-400 line-through">
-                                    Original Subtotal
-                                  </span>
-                                  <span className="text-gray-600 dark:text-gray-400 line-through">
-                                    {formatCurrency(getOriginalSubtotal())}
-                                  </span>
-                                </div>
-                              )}
-
-                              {/* Current Subtotal */}
-                              <div className="flex justify-between">
-                                <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {formatCurrency(displayTotals.subtotal)}
-                                </span>
-                              </div>
-
-                              {/* Shipping */}
-                              <div className="flex justify-between">
-                                <span className="text-gray-600 dark:text-gray-400">Shipping</span>
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {displayTotals.shipping === 0 ? 'FREE' : formatCurrency(displayTotals.shipping)}
-                                </span>
-                              </div>
-
-                              {/* Tax */}
-                              <div className="flex justify-between">
-                                <span className="text-gray-600 dark:text-gray-400">
-                                  Tax ({displayTotals.taxRate ? `${displayTotals.taxRate}%` : 'Included'})
-                                </span>
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {formatCurrency(displayTotals.tax)}
-                                </span>
-                              </div>
-
-                              {/* Coupon Discount Line */}
-                              {shouldShowDiscountInfo() && (
-                                <div className="flex justify-between text-green-600 dark:text-green-400">
-                                  <span className="flex items-center">
-                                    🎉 Discount 
-                                    {getCouponCode() && (
-                                      <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
-                                        {getCouponCode()}
-                                      </span>
-                                    )}
-                                    {!getCouponCode() && (
-                                      <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
-                                        Special Offer
-                                      </span>
-                                    )}
-                                  </span>
-                                  <span className="font-medium">
-                                    -{formatCurrency(displayTotals.discount)}
-                                    {getDiscountType() === 'PERCENTAGE' && (
-                                      <span className="text-xs ml-1">
-                                        ({getDiscountValue()}% off)
-                                      </span>
-                                    )}
-                                  </span>
-                                </div>
-                              )}
-
-                              {/* Total Savings Display */}
-                              {shouldShowDiscountInfo() && (
-                                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
-                                  <div className="flex justify-between items-center text-sm">
-                                    <span className="text-green-700 dark:text-green-300 font-medium">
-                                      You saved:
-                                    </span>
-                                    <span className="text-green-700 dark:text-green-300 font-bold">
-                                      {formatCurrency(displayTotals.discount)}
-                                    </span>
-                                  </div>
-                                  {getCouponCode() ? (
-                                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                      Coupon code: <strong>{getCouponCode()}</strong> applied successfully
-                                    </p>
-                                  ) : (
-                                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                      Special discount applied to your order
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Final Total */}
-                              <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-3">
-                                <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                                  Total Paid
-                                </span>
-                                <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
-                                  {formatCurrency(displayTotals.total)}
-                                </span>
-                              </div>
-
-                              {/* Calculation Source Info */}
-                              <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                {calculatedTotals ? (
-                                  <span>✅ Calculated using current rates</span>
-                                ) : (
-                                  <span>ℹ️ Using stored order values</span>
-                                )}
-                                {displayTotals.currency && (
-                                  <span className="ml-2">• Currency: {displayTotals.currency}</span>
-                                )}
-                              </div>
+                  {activeTab === 'details' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="space-y-6"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Order Summary */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            Order Summary
+                          </h3>
+                          <div className="space-y-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                            {/* Subtotal */}
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {formatCurrency(order?.subtotalAmount || 0)}
+                              </span>
                             </div>
+
+                            {/* Shipping */}
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Shipping</span>
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {order?.shippingCost === 0 ? 'FREE' : formatCurrency(order?.shippingCost || 0)}
+                              </span>
+                            </div>
+
+                            {/* Tax */}
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">
+                                Tax ({order?.taxRate ? `${(order.taxRate * 100)}%` : 'Included'})
+                              </span>
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {formatCurrency(order?.taxAmount || 0)}
+                              </span>
+                            </div>
+
+                            {/* Discount */}
+                            {hasCouponDiscount() && (
+                              <div className="flex justify-between text-green-600 dark:text-green-400">
+                                <span className="flex items-center">
+                                  🎉 Discount
+                                  {getCouponCode() && (
+                                    <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
+                                      {getCouponCode()}
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="font-medium">
+                                  -{formatCurrency(getDiscountAmount())}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Total */}
+                          <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-3">
+                            <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                              Total
+                            </span>
+                            <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                              {formatOrderAmount(order?.totalAmount || 0, order?.currency)}
+                            </span>
                           </div>
 
-                          {/* Payment Information */}
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                              Payment Information
-                            </h3>
-                            <div className="space-y-3">
-                              <div>
-                                <span className="text-gray-600 dark:text-gray-400">Method</span>
-                                <p className="font-medium text-gray-900 dark:text-white">
-                                  {order.paymentMethod || 'Credit Card'}
-                                </p>
-                              </div>
-                              {order.transactionId && (
-                                <div>
-                                  <span className="text-gray-600 dark:text-gray-400">Transaction ID</span>
-                                  <p className="font-medium text-gray-900 dark:text-white">
-                                    {order.transactionId}
-                                  </p>
-                                </div>
-                              )}
-                              {/* Add Coupon Information if available */}
-                              {shouldShowDiscountInfo() && (
-                                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-                                  <span className="text-blue-700 dark:text-blue-300 text-sm font-medium">
-                                    {getCouponCode() ? '🎟️ Coupon Applied' : '🎁 Special Offer'}
-                                  </span>
-                                  {getCouponCode() ? (
-                                    <>
-                                      <p className="text-blue-600 dark:text-blue-400 text-sm mt-1">
-                                        Code: <strong>{getCouponCode()}</strong>
-                                      </p>
-                                      <p className="text-blue-600 dark:text-blue-400 text-xs">
-                                        Saved {formatCurrency(displayTotals.discount)}
-                                      </p>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <p className="text-blue-600 dark:text-blue-400 text-sm mt-1">
-                                        Special discount applied
-                                      </p>
-                                    </>
-                                  )}
-                                </div>
-                              )}
+                            {/* Currency Info */}
+                            <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-600">
+                              Currency: {order?.currency || 'USD'}
                             </div>
                           </div>
                         </div>
-                      </motion.div>
-                    )}
 
+                        {/* Payment Information */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            Payment Information
+                          </h3>
+                          <div className="space-y-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                            <div>
+                              <span className="text-gray-600 dark:text-gray-400">Status</span>
+                              <p className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold mt-1 ${getPaymentStatusColor(getPaymentStatus())}`}>
+                                {formatStatusText(getPaymentStatus())}
+                              </p>
+                            </div>
+                            
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
                     {/* ITEMS TAB - UPDATED WITH BETTER REVIEW INTEGRATION */}
                     {activeTab === 'items' && (
                       <motion.div

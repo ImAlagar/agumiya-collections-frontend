@@ -157,10 +157,10 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const clearCart = () => {
-    dispatch({ type: 'CLEAR_CART' });
-  };
-
+const clearCart = (callback) => {
+  dispatch({ type: 'CLEAR_CART' });
+  if (callback) callback();
+};
   // Handle user login
   const handleUserLogin = (userId) => {
     try {

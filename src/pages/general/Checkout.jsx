@@ -143,47 +143,41 @@ const Checkout = () => {
   }, [cartItems, calculations, cartTotal, user, couponsLoading]);
 
   // ==================== SHIPPING & TAX CALCULATION ====================
-  useEffect(() => {
-    const calculateTotals = async () => {
-      if (cartItems.length === 0) return;
-      
-      setCalculating(true);
-      try {
-        const result = await calculationService.calculateCartTotals(
-          cartItems.map(item => ({
-            productId: item.id,
-            variantId: item.variantId,
-            quantity: item.quantity,
-            price: item.price
-          })),
-          shippingAddress,
-          appliedCoupon?.code || ''
-        );
+useEffect(() => {
+  const calculateTotals = async () => {
+    if (cartItems.length === 0) return;
+    
+    setCalculating(true);
+    try {
+      const result = await calculationService.calculateCartTotals(
+        cartItems.map(item => ({
+          productId: item.id,
+          variantId: item.variantId,
+          quantity: item.quantity,
+          price: item.price,
+          name: item.name
+        })),
+        shippingAddress, // Use full shipping address for accurate calculation
+        appliedCoupon?.code || ''
+      );
 
-        if (result && result.success) {
-          setCalculations({
-            subtotal: result.amounts?.subtotalUSD || cartTotal,
-            shipping: result.amounts?.shippingUSD || 0,
-            tax: result.amounts?.taxUSD || 0,
-            finalTotal: result.amounts?.totalUSD || cartTotal,
-            taxRate: result.breakdown?.taxRate || 0,
-            discount: discountAmount,
-            currency: result.currency || 'USD'
-          });
-        } else {
-          console.error('❌ CHECKOUT - Invalid response structure:', result);
-          setCalculations({
-            subtotal: cartTotal,
-            shipping: 0,
-            tax: 0,
-            finalTotal: cartTotal,
-            taxRate: 0,
-            discount: discountAmount,
-            currency: userCurrency
-          });
-        }
-      } catch (error) {
-        console.error('❌ CHECKOUT - Calculation error:', error);
+      if (result && result.success) {
+        console.log('✅ CHECKOUT - Real calculation successful:', result);
+        
+        setCalculations({
+          subtotal: result.amounts.subtotalUSD,
+          shipping: result.amounts.shippingUSD,
+          tax: result.amounts.taxUSD,
+          finalTotal: result.amounts.totalUSD,
+          taxRate: result.breakdown.taxRate,
+          discount: result.breakdown.discount || discountAmount,
+          currency: result.currency || 'USD',
+          // Include additional details
+          isFreeShipping: result.breakdown.isFreeShipping,
+          estimatedDelivery: result.breakdown.estimatedDelivery
+        });
+      } else {
+        console.error('❌ CHECKOUT - Invalid response from real calculation');
         setCalculations({
           subtotal: cartTotal,
           shipping: 0,
@@ -193,14 +187,69 @@ const Checkout = () => {
           discount: discountAmount,
           currency: userCurrency
         });
-      } finally {
-        setCalculating(false);
       }
-    };
+    } catch (error) {
+      console.error('❌ CHECKOUT - Real calculation error:', error);
+      setCalculations({
+        subtotal: cartTotal,
+        shipping: 0,
+        tax: 0,
+        finalTotal: cartTotal,
+        taxRate: 0,
+        discount: discountAmount,
+        currency: userCurrency
+      });
+    } finally {
+      setCalculating(false);
+    }
+  };
 
-    calculateTotals();
-  }, [cartItems, shippingAddress, appliedCoupon, discountAmount, cartTotal, userCurrency]);
+  calculateTotals();
+}, [cartItems, shippingAddress, appliedCoupon, discountAmount, cartTotal, userCurrency]);
 
+
+// In Checkout.jsx - Add this effect
+useEffect(() => {
+  // Recalculate when shipping address changes (with debounce)
+  const timeoutId = setTimeout(() => {
+    if (cartItems.length > 0 && shippingAddress.country) {
+      // Trigger recalculation by updating a dependency
+      const recalc = async () => {
+        setCalculating(true);
+        try {
+          const result = await calculationService.calculateCartTotals(
+            cartItems.map(item => ({
+              productId: item.id,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              price: item.price
+            })),
+            shippingAddress,
+            appliedCoupon?.code || ''
+          );
+          
+          if (result && result.success) {
+            setCalculations(prev => ({
+              ...prev,
+              shipping: result.amounts.shippingUSD,
+              tax: result.amounts.taxUSD,
+              taxRate: result.breakdown.taxRate,
+              finalTotal: result.amounts.totalUSD
+            }));
+          }
+        } catch (error) {
+          console.warn('Recalculation failed:', error);
+        } finally {
+          setCalculating(false);
+        }
+      };
+      
+      recalc();
+    }
+  }, 1000); // 1 second debounce
+
+  return () => clearTimeout(timeoutId);
+}, [shippingAddress.country, shippingAddress.region, shippingAddress.zipCode]);
   // Load coupons after calculations are ready
   useEffect(() => {
     if (calculations && !couponsLoadedRef.current) {
@@ -390,7 +439,7 @@ const Checkout = () => {
             throw new Error('Incomplete payment response from Razorpay');
           }
 
-          // 🔥 OPTIMIZED: Handle payment verification with better UX
+          // Handle payment verification
           const verificationResult = await paymentService.verifyPayment({
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_order_id: response.razorpay_order_id,
@@ -412,11 +461,13 @@ const Checkout = () => {
                 });
               } catch (couponError) {
                 console.warn('⚠️ Failed to mark coupon as used:', couponError);
-                // Don't fail the entire order if coupon marking fails
               }
             }
             
-            // Clear the cart
+            // 🔥 STEP 1: CLEAR THE COUPON FIRST
+            removeCoupon(); // ADD THIS LINE
+            
+            // 🔥 STEP 2: THEN CLEAR THE CART
             clearCart();
             
             // Reset payment state
@@ -447,7 +498,8 @@ const Checkout = () => {
             errorMessage = '✅ Payment successful! Order is being processed. Please check your orders page in a few minutes.';
             setPaymentStatus('success');
             
-            // Clear cart even on timeout since backend is processing
+            // 🔥 STEP 3: CLEAR COUPON ON TIMEOUT TOO
+            removeCoupon(); // ADD THIS LINE
             clearCart();
             
             // Redirect to orders page with success message
@@ -941,19 +993,25 @@ const Checkout = () => {
                 </div>
                 
                 {/* 🚚 Shipping Cost */}
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Shipping</span>
-                  <span className="text-gray-900 dark:text-white">
-                    {formatPriceSimple(calculations?.shipping || 0)}
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {calculations?.isFreeShipping ? (
+                      <span className="text-green-600 dark:text-green-400 font-semibold">FREE</span>
+                    ) : calculations?.shipping > 0 ? (
+                      formatPriceSimple(calculations.shipping)
+                    ) : (
+                      'Calculating...'
+                    )}
                   </span>
                 </div>
                 
                 {/* 💰 Tax Amount */}
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">
-                    Tax {calculations?.taxRate && `(${calculations.taxRate}%)`}
+                    Tax {calculations?.taxRate > 0 && `(${(calculations.taxRate * 100).toFixed(1)}%)`}
                   </span>
-                  <span className="text-gray-900 dark:text-white">
+                  <span className="font-semibold text-gray-900 dark:text-white">
                     {formatPriceSimple(calculations?.tax || 0)}
                   </span>
                 </div>

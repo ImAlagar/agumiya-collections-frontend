@@ -735,6 +735,6 @@ const EditCouponModal = ({ coupon, isOpen, onClose, onSubmit }) => {
       </motion.div>
     </motion.div>
   );
-};
+};  
 
 export default CouponManagement;

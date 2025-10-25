@@ -66,93 +66,103 @@ const Cart = () => {
   }, []);
 
   // Check for payment success
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const paymentSuccess = searchParams.get('payment') === 'success';
-    const locationPaymentSuccess = location.state?.paymentSuccess;
+useEffect(() => {
+  const searchParams = new URLSearchParams(location.search);
+  const paymentSuccess = searchParams.get('payment') === 'success';
+  const locationPaymentSuccess = location.state?.paymentSuccess;
+  
+  if (paymentSuccess || locationPaymentSuccess) {
+    setShowSuccessMessage(true);
     
-    if (paymentSuccess || locationPaymentSuccess) {
-      setShowSuccessMessage(true);
-      clearCart();
-      
-      if (paymentSuccess) {
-        navigate(location.pathname, { replace: true });
-      }
-      
-      const timer = setTimeout(() => {
-        setShowSuccessMessage(false);
-      }, 5000);
-      
-      return () => clearTimeout(timer);
+    // 🔥 STEP 4: CLEAR COUPON FIRST, THEN CART
+    if (appliedCoupon) {
+      removeCoupon(); // ADD THIS LINE
     }
-  }, [location, navigate, clearCart]);
+    clearCart();
+    
+    if (paymentSuccess) {
+      navigate(location.pathname, { replace: true });
+    }
+    
+    const timer = setTimeout(() => {
+      setShowSuccessMessage(false);
+    }, 5000);
+    
+    return () => clearTimeout(timer);
+  }
+}, [location, navigate, clearCart, appliedCoupon, removeCoupon]); // ADD removeCoupon to dependencies
 
   // ==================== SHIPPING & TAX CALCULATION LOADER ====================
-  const loadCalculations = useCallback(async () => {
-    if (cartItems.length === 0) {
-      setCalculations(null);
-      setAvailableCoupons([]);
-      calculationsLoadedRef.current = false;
-      couponsLoadedRef.current = false;
-      return;
-    }
+// In Cart.jsx - Update the loadCalculations function
+const loadCalculations = useCallback(async () => {
+  if (cartItems.length === 0) {
+    setCalculations(null);
+    setAvailableCoupons([]);
+    calculationsLoadedRef.current = false;
+    couponsLoadedRef.current = false;
+    return;
+  }
 
-    // Prevent multiple simultaneous loads
-    if (loading) return;
+  // Prevent multiple simultaneous loads
+  if (loading) return;
 
-    setLoading(true);
-    try {
-      // 🚚 SHIPPING CALCULATION API CALL
-      // Sends cart items and user country to calculate shipping costs
-      const result = await calculationService.calculateCartTotals(
-        cartItems.map(item => ({
-          productId: item.id,
-          variantId: item.variantId,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        { country: userCountry } // User's country for shipping calculation
-      );
+  setLoading(true);
+  try {
+    // 🚚 REAL SHIPPING & TAX CALCULATION API CALL
+    const result = await calculationService.calculateCartTotals(
+      cartItems.map(item => ({
+        productId: item.id,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        price: item.price,
+        name: item.name
+      })),
+      { 
+        country: userCountry,
+        region: '', // You can add region if available
+        city: '',
+        zipCode: ''
+      },
+      appliedCoupon?.code || ''
+    );
 
-      if (result && result.success) {
-        // 💰 TAX CALCULATION RESULTS
-        // API returns calculated tax based on user location and cart value
-        const baseCalculations = {
-          subtotal: result.amounts?.subtotalUSD || cartTotal,      // Cart total before shipping/tax
-          shipping: result.amounts?.shippingUSD || 0,             // Calculated shipping cost
-          tax: result.amounts?.taxUSD || 0,                       // Calculated tax amount
-          taxRate: result.breakdown?.taxRate || 0,                // Tax rate percentage
-          currency: result.currency || 'USD'                      // Display currency
-        };
-        
-        // 🧮 FINAL TOTAL CALCULATION
-        // subtotal + shipping + tax - discount
-        const finalTotal = Math.max(0, baseCalculations.subtotal + baseCalculations.shipping + baseCalculations.tax - discountAmount);
-        
-        setCalculations({
-          ...baseCalculations,
-          discount: discountAmount,
-          finalTotal
-        });
-      } else {
-        // ❌ FALLBACK CALCULATION - If API fails
-        console.warn('Shipping/tax calculation API failed, using fallback');
-        const finalTotal = Math.max(0, cartTotal - discountAmount);
-        setCalculations({
-          subtotal: cartTotal,
-          shipping: 0,        // No shipping calculated
-          tax: 0,             // No tax calculated
-          taxRate: 0,
-          discount: discountAmount,
-          finalTotal,
-          currency: userCurrency
-        });
-      }
+    if (result && result.success) {
+      console.log('💰 REAL CALCULATION RESULT:', result);
       
-      calculationsLoadedRef.current = true;
-    } catch (error) {
-      console.error('❌ CART - Failed to load shipping/tax calculations:', error);
-      // 🆘 EMERGENCY FALLBACK - If everything fails
+      const baseCalculations = {
+        subtotal: result.amounts.subtotalUSD,
+        shipping: result.amounts.shippingUSD,
+        tax: result.amounts.taxUSD,
+        taxRate: result.breakdown.taxRate,
+        currency: result.currency || 'USD',
+        isFreeShipping: result.breakdown.isFreeShipping || false,
+        discount: result.breakdown.discount || discountAmount
+      };
+      
+      // 🧮 FINAL TOTAL CALCULATION with real values
+      const finalTotal = Math.max(0, 
+        baseCalculations.subtotal + 
+        baseCalculations.shipping + 
+        baseCalculations.tax - 
+        baseCalculations.discount
+      );
+      
+      setCalculations({
+        ...baseCalculations,
+        finalTotal,
+        // Include shipping details for progress bar
+        shippingDetails: {
+          cost: baseCalculations.shipping,
+          isFree: baseCalculations.isFreeShipping,
+          freeShippingThreshold: 50, // Your backend threshold
+          amountNeeded: Math.max(0, 50 - baseCalculations.subtotal),
+          progress: Math.min(100, (baseCalculations.subtotal / 50) * 100),
+          estimatedDays: result.breakdown.estimatedDelivery
+        }
+      });
+    } else {
+      // ❌ FALLBACK CALCULATION - If API fails
+      console.warn('Real calculation API failed, using fallback');
       const finalTotal = Math.max(0, cartTotal - discountAmount);
       setCalculations({
         subtotal: cartTotal,
@@ -161,13 +171,39 @@ const Cart = () => {
         taxRate: 0,
         discount: discountAmount,
         finalTotal,
-        currency: userCurrency
+        currency: userCurrency,
+        isFreeShipping: false,
+        shippingDetails: {
+          cost: 0,
+          isFree: false,
+          freeShippingThreshold: 50,
+          amountNeeded: Math.max(0, 50 - cartTotal),
+          progress: Math.min(100, (cartTotal / 50) * 100),
+          estimatedDays: '3-7 business days'
+        }
       });
-      calculationsLoadedRef.current = true;
-    } finally {
-      setLoading(false);
     }
-  }, [cartItems, userCountry, cartTotal, userCurrency, discountAmount, loading]);
+    
+    calculationsLoadedRef.current = true;
+  } catch (error) {
+    console.error('❌ CART - Failed to load real shipping/tax calculations:', error);
+    // 🆘 EMERGENCY FALLBACK
+    const finalTotal = Math.max(0, cartTotal - discountAmount);
+    setCalculations({
+      subtotal: cartTotal,
+      shipping: 0,
+      tax: 0,
+      taxRate: 0,
+      discount: discountAmount,
+      finalTotal,
+      currency: userCurrency,
+      isFreeShipping: false
+    });
+    calculationsLoadedRef.current = true;
+  } finally {
+    setLoading(false);
+  }
+}, [cartItems, userCountry, cartTotal, userCurrency, discountAmount, loading, appliedCoupon]);
 
   // ==================== COUPON LOADING LOGIC ====================
   const loadAvailableCoupons = useCallback(async () => {
@@ -336,9 +372,9 @@ const Cart = () => {
 
   const getDiscountText = (coupon) => {
     if (coupon.discountType === 'percentage') {
-      return `${coupon.discountValue}% OFF`;
+      return `${coupon.discountValue}%`;
     } else {
-      return `${formatPriceSimple(coupon.discountValue)} OFF`;
+      return `${formatPriceSimple(coupon.discountValue)}`;
     }
   };
 
@@ -631,9 +667,7 @@ const Cart = () => {
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div>
-                                <span className="inline-block bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 text-sm font-semibold px-3 py-1 rounded-full mb-2">
-                                  {getDiscountText(coupon)}
-                                </span>
+
                                 <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
                                   {coupon.code}
                                 </h3>
@@ -771,27 +805,28 @@ const Cart = () => {
                 </div>
                 
                 {/* 🚚 SHIPPING COST DISPLAY */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Shipping</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {/* 🆓 SHOW FREE SHIPPING IF ORDER IS $50+ */}
-                    {cartTotal >= 50 ? (
-                      <span className="text-green-600 dark:text-green-400 font-semibold">FREE</span>
-                    ) : (
-                      formatPriceSimple(calculations?.shipping || 0)
-                    )}
-                  </span>
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">Shipping</span>
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {calculations?.isFreeShipping ? (
+                    <span className="text-green-600 dark:text-green-400 font-semibold">FREE</span>
+                  ) : calculations?.shipping > 0 ? (
+                    formatPriceSimple(calculations.shipping)
+                  ) : (
+                    'Calculating...'
+                  )}
+                </span>
+              </div>
                 
                 {/* 💰 TAX DISPLAY */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Tax {calculations?.taxRate && `(${calculations.taxRate}%)`}
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {formatPriceSimple(calculations?.tax || 0)}
-                  </span>
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">
+                  Tax {calculations?.taxRate > 0 && `(${(calculations.taxRate * 100).toFixed(1)}%)`}
+                </span>
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {formatPriceSimple(calculations?.tax || 0)}
+                </span>
+              </div>
                 
                 {/* 🎉 DISCOUNT DISPLAY */}
                 {appliedCoupon && (

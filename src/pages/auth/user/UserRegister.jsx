@@ -678,7 +678,7 @@ const UserRegister = () => {
                   <button
                     type="submit"
                     disabled={!allRequirementsMet || !passwordsMatch || isLoading || Object.keys(errors).length > 0}
-                    className={`w-full bg-gradient-to-r ${themeStyles.button.gradient} text-white py-3 rounded-lg font-semibold transition-all duration-300 disabled:${themeStyles.button.disabled} shadow-lg hover:shadow-xl transform hover:scale-[1.02] text-sm sm:text-base`}
+                    className={`w-full bg-gradient-to-r ${themeStyles.button.gradient} text-white py-3 rounded-lg font-semibold transition-all duration-300 disabled:${themeStyles.button.disabled} disabled:cursor-not-allowed cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] text-sm sm:text-base`}
                   >
                     {isLoading ? (
                       <div className="flex items-center justify-center">
