@@ -304,7 +304,6 @@ useEffect(() => {
       );
 
       if (result && result.success) {
-        console.log('✅ ORDER DETAILS - Real calculation successful:', result);
         
         setCalculatedTotals({
           subtotal: result.amounts?.subtotalUSD || 0,

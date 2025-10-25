@@ -338,7 +338,6 @@ const handleFilterChange = useCallback((newFilters) => {
 
   // ✅ Handle pagination
   const handlePageChange = useCallback((page) => {
-      console.log('🔄 Changing to page:', page); // Debug log
 
     handleFilterChange({ page });
   }, [handleFilterChange]);

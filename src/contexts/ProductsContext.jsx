@@ -151,7 +151,6 @@ const fetchProducts = useCallback(async (page = 1, filters = {}) => {
       page: page || 1 // Ensure page is always set
     };
     
-    console.log('🔄 Fetching products - Page:', page, 'Filters:', currentFilters);
 
     // Prepare API parameters
     const apiFilters = {
@@ -182,9 +181,6 @@ const fetchProducts = useCallback(async (page = 1, filters = {}) => {
     if (response.success) {
       const products = response.data?.data || [];
       const paginationData = response.data?.pagination || {};
-
-      console.log('📦 API Response - Current Page:', paginationData.currentPage);
-      console.log('📦 API Response - Total Pages:', paginationData.totalPages);
 
       const mappedPagination = {
         currentPage: paginationData.currentPage || page,

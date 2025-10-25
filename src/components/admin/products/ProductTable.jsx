@@ -29,11 +29,7 @@ const ProductTable = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionMenu, setActionMenu] = useState(null);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('📊 ProductTable - Pagination:', pagination);
-    console.log('📊 ProductTable - Products count:', products?.length);
-  }, [pagination, products]);
+
 
   const handleRowClick = (product) => {
     setSelectedProduct(product);
@@ -78,7 +74,6 @@ const ProductTable = ({
   };
 
   const handlePageChangeClick = (page) => {
-    console.log('📄 Table: Page change requested to:', page);
     if (onPageChange) {
       onPageChange(page);
     } else {
@@ -87,7 +82,6 @@ const ProductTable = ({
   };
 
   const handlePageSizeChangeClick = (newSize) => {
-    console.log('📊 Table: Page size change requested to:', newSize);
     if (onPageSizeChange) {
       onPageSizeChange(newSize);
     } else {
@@ -145,7 +139,6 @@ const ProductTable = ({
               value={pagination?.limit || 12}
               onChange={(e) => {
                 const newSize = Number(e.target.value);
-                console.log('🎯 Page size select change:', newSize);
                 handlePageSizeChangeClick(newSize);
               }}
               className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

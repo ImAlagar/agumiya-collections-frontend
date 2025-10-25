@@ -162,7 +162,6 @@ useEffect(() => {
       );
 
       if (result && result.success) {
-        console.log('✅ CHECKOUT - Real calculation successful:', result);
         
         setCalculations({
           subtotal: result.amounts.subtotalUSD,

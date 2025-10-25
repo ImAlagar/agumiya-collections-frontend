@@ -7,7 +7,6 @@ export const calculationService = {
    */
   async calculateCartTotals(cartItems, shippingAddress = {}, couponCode = '') {
     try {
-      console.log('🔄 Calculating totals WITH real shipping and tax');
 
       // Prepare request data in the format your backend expects
       const requestData = {

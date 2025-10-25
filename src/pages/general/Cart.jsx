@@ -127,7 +127,6 @@ const loadCalculations = useCallback(async () => {
     );
 
     if (result && result.success) {
-      console.log('💰 REAL CALCULATION RESULT:', result);
       
       const baseCalculations = {
         subtotal: result.amounts.subtotalUSD,

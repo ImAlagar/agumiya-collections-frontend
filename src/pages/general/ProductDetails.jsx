@@ -163,10 +163,7 @@ const ProductDetails = () => {
         try {
           const productData = await getProductById(id);
           setProduct(productData);
-          
-          console.log("🎨 Product Data:", productData);
-          console.log("🎨 Color Options:", productData.colorOptions);
-          
+
           // Set first enabled variant as default
           const enabledVariants = getEnabledVariants();
           if (enabledVariants.length > 0) {
