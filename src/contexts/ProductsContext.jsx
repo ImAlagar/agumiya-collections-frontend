@@ -101,16 +101,16 @@ const productsReducer = (state, action) => {
             : state.currentProduct,
       };
 
-        case PRODUCT_ACTIONS.DELETE_PRODUCT:
-          const productId = action.payload;
-          return {
-            ...state,
-            products: state.products.filter((p) => p.id !== productId && p.printifyProductId !== productId),
-            currentProduct:
-              state.currentProduct?.id === productId || state.currentProduct?.printifyProductId === productId 
-                ? null 
-                : state.currentProduct,
-          };
+    case PRODUCT_ACTIONS.DELETE_PRODUCT:
+      const productId = action.payload;
+      return {
+        ...state,
+        products: state.products.filter((p) => p.id !== productId && p.printifyProductId !== productId),
+        currentProduct:
+          state.currentProduct?.id === productId || state.currentProduct?.printifyProductId === productId 
+            ? null 
+            : state.currentProduct,
+      };
 
     case PRODUCT_ACTIONS.SET_SYNC_STATUS:
       return {
@@ -137,95 +137,96 @@ export const ProductsProvider = ({ children }) => {
     filtersRef.current = state.filters;
   }, [state.filters]);
 
-// ========================
-// 🔸 Fetch Products - FIXED VERSION
-// ========================
-const fetchProducts = useCallback(async (page = 1, filters = {}) => {
-  try {
-    dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
+  // ========================
+  // 🔸 Fetch Products - FIXED VERSION
+  // ========================
+  const fetchProducts = useCallback(async (page = 1, filters = {}) => {
+    try {
+      dispatch({ type: PRODUCT_ACTIONS.SET_LOADING, payload: true });
 
-    // Merge current filters with new filters and page
-    const currentFilters = { 
-      ...filtersRef.current, 
-      ...filters, 
-      page: page || 1 // Ensure page is always set
-    };
-    
+      // Merge current filters with new filters and page
+      const currentFilters = { 
+        ...filtersRef.current, 
+        ...filters, 
+        page: page || 1 // Ensure page is always set
+      };
+      
 
-    // Prepare API parameters
-    const apiFilters = {
-      page: currentFilters.page,
-      limit: currentFilters.limit || 12,
-    };
-
-    if (currentFilters.categories && currentFilters.categories.length > 0) {
-      apiFilters.categories = currentFilters.categories[0];
-    }
-
-    // Add price filters
-    if (currentFilters.minPrice !== null && currentFilters.minPrice !== undefined) {
-      apiFilters.minPrice = currentFilters.minPrice;
-    }
-
-    if (currentFilters.maxPrice !== null && currentFilters.maxPrice !== undefined) {
-      apiFilters.maxPrice = currentFilters.maxPrice;
-    }
-
-    // Add stock filter
-    if (currentFilters.inStock && currentFilters.inStock !== 'all') {
-      apiFilters.inStock = currentFilters.inStock === 'true';
-    }
-
-    const response = await productService.getFilteredProducts(apiFilters);
-    
-    if (response.success) {
-      const products = response.data?.data || [];
-      const paginationData = response.data?.pagination || {};
-
-      const mappedPagination = {
-        currentPage: paginationData.currentPage || page,
-        totalPages: paginationData.totalPages || 1,
-        totalCount: paginationData.totalCount || products.length,
-        limit: paginationData.limit || currentFilters.limit || 12,
-        hasNext: paginationData.hasNext !== undefined
-          ? paginationData.hasNext
-          : (paginationData.currentPage || page) < (paginationData.totalPages || 1),
-        hasPrev: paginationData.hasPrev !== undefined
-          ? paginationData.hasPrev
-          : (paginationData.currentPage || page) > 1,
+      // Prepare API parameters
+      const apiFilters = {
+        page: currentFilters.page,
+        limit: currentFilters.limit || 12,
       };
 
-      dispatch({
-        type: PRODUCT_ACTIONS.SET_PRODUCTS,
-        payload: { products, pagination: mappedPagination },
-      });
+      if (currentFilters.categories && currentFilters.categories.length > 0) {
+        apiFilters.categories = currentFilters.categories[0];
+      }
 
-      // Update filters in state to reflect current page
+      // Add price filters
+      if (currentFilters.minPrice !== null && currentFilters.minPrice !== undefined) {
+        apiFilters.minPrice = currentFilters.minPrice;
+      }
+
+      if (currentFilters.maxPrice !== null && currentFilters.maxPrice !== undefined) {
+        apiFilters.maxPrice = currentFilters.maxPrice;
+      }
+
+      // Add stock filter
+      if (currentFilters.inStock && currentFilters.inStock !== 'all') {
+        apiFilters.inStock = currentFilters.inStock === 'true';
+      }
+
+      const response = await productService.getFilteredProducts(apiFilters);
+      
+      if (response.success) {
+        const products = response.data?.data || [];
+        const paginationData = response.data?.pagination || {};
+
+        const mappedPagination = {
+          currentPage: paginationData.currentPage || page,
+          totalPages: paginationData.totalPages || 1,
+          totalCount: paginationData.totalCount || products.length,
+          limit: paginationData.limit || currentFilters.limit || 12,
+          hasNext: paginationData.hasNext !== undefined
+            ? paginationData.hasNext
+            : (paginationData.currentPage || page) < (paginationData.totalPages || 1),
+          hasPrev: paginationData.hasPrev !== undefined
+            ? paginationData.hasPrev
+            : (paginationData.currentPage || page) > 1,
+        };
+
+        dispatch({
+          type: PRODUCT_ACTIONS.SET_PRODUCTS,
+          payload: { products, pagination: mappedPagination },
+        });
+
+        // Update filters in state to reflect current page
+        dispatch({
+          type: PRODUCT_ACTIONS.SET_FILTERS,
+          payload: { ...currentFilters, page: mappedPagination.currentPage }
+        });
+      } else {
+        throw new Error(response.message || "Failed to fetch products");
+      }
+    } catch (error) {
+      console.error("💥 Fetch products error:", error);
       dispatch({
-        type: PRODUCT_ACTIONS.SET_FILTERS,
-        payload: { ...currentFilters, page: mappedPagination.currentPage }
+        type: PRODUCT_ACTIONS.SET_ERROR,
+        payload: error.response?.data?.message || error.message || "Failed to load products. Please try again.",
       });
-    } else {
-      throw new Error(response.message || "Failed to fetch products");
     }
-  } catch (error) {
-    console.error("💥 Fetch products error:", error);
-    dispatch({
-      type: PRODUCT_ACTIONS.SET_ERROR,
-      payload: error.response?.data?.message || error.message || "Failed to load products. Please try again.",
-    });
-  }
-}, []); // Keep empty dependencies since we're using ref for filters
+  }, []);
+
   // ========================
   // 🔸 Update Page Size
   // ========================
-const updatePageSize = useCallback(
-  async (newLimit) => {
-    // Reset to page 1 when changing page size
-    await fetchProducts(1, { limit: newLimit, page: 1 });
-  },
-  [fetchProducts]
-);
+  const updatePageSize = useCallback(
+    async (newLimit) => {
+      // Reset to page 1 when changing page size
+      await fetchProducts(1, { limit: newLimit, page: 1 });
+    },
+    [fetchProducts]
+  );
 
   // ========================
   // 🔸 Get Product by ID
@@ -355,42 +356,91 @@ const updatePageSize = useCallback(
     }
   }, []);
 
-// In your ProductsContext, ensure deleteProduct is properly implemented
-const deleteProduct = useCallback(async (id) => {
-  try {
-    const response = await productService.deleteProduct(id);
-    if (response.success) {
-      dispatch({ type: PRODUCT_ACTIONS.DELETE_PRODUCT, payload: id });
-      return { success: true };
-    } else {
-      throw new Error(response.message || "Delete failed");
+  const deleteProduct = useCallback(async (id) => {
+    try {
+      const response = await productService.deleteProduct(id);
+      if (response.success) {
+        dispatch({ type: PRODUCT_ACTIONS.DELETE_PRODUCT, payload: id });
+        return { success: true };
+      } else {
+        throw new Error(response.message || "Delete failed");
+      }
+    } catch (error) {
+      dispatch({ type: PRODUCT_ACTIONS.SET_ERROR, payload: error.message });
+      return { success: false, error: error.message };
     }
-  } catch (error) {
-    dispatch({ type: PRODUCT_ACTIONS.SET_ERROR, payload: error.message });
-    return { success: false, error: error.message };
-  }
-}, []);
+  }, []);
 
-
-// In your ProductsContext.jsx - Update the deletePrintifyProduct function
+  // ========================
+  // 🔸 DELETE PRINTIFY PRODUCT - FIXED VERSION
+  // ========================
 const deletePrintifyProduct = useCallback(async (shopId, printifyProductId) => {
   try {
+    
     const response = await productService.deletePrintifyProduct(shopId, printifyProductId);
+    
+    // Handle both success and partial success cases
     if (response.success) {
-      // Find the product by printifyProductId and remove it from state
-      const productToDelete = state.products.find(p => p.printifyProductId === printifyProductId);
-      if (productToDelete) {
-        dispatch({ type: PRODUCT_ACTIONS.DELETE_PRODUCT, payload: productToDelete.id });
+
+      
+      // Find the product in local state using printifyProductId
+      const productToUpdate = state.products.find(p => p.printifyProductId === printifyProductId);
+      
+      if (productToUpdate) {
+        // Update local state to mark as unpublished/archived
+        dispatch({ 
+          type: PRODUCT_ACTIONS.UPDATE_PRODUCT, 
+          payload: { 
+            ...productToUpdate, 
+            isPublished: false // This marks it as "deleted" in the UI
+          }
+        });
+        
+        // Show success message with details
+        dispatch({ 
+          type: PRODUCT_ACTIONS.SET_SUCCESS, 
+          payload: response.message 
+        });
+      } else {
+        console.warn('⚠️ Context: Product not found in local state, refreshing...');
+        fetchProducts(state.pagination.currentPage);
       }
-      return { success: true, data: response.data };
+      
+      return { 
+        success: true, 
+        data: response,
+        message: response.message
+      };
     } else {
-      throw new Error(response.message || "Printify delete failed");
+      // This should not happen with our updated service, but handle it anyway
+      throw new Error(response.message || "Delete operation failed");
     }
   } catch (error) {
-    dispatch({ type: PRODUCT_ACTIONS.SET_ERROR, payload: error.message });
-    return { success: false, error: error.message };
+    console.error('❌ Context: Delete Printify product failed:', error);
+    
+    let errorMessage = error.message;
+    
+    if (error.response?.status === 409) {
+      errorMessage = "Cannot delete product because it has existing orders. The product has been archived instead.";
+    } else if (error.response?.status === 401) {
+      errorMessage = "Unauthorized: Please check your Printify API credentials";
+    } else if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    }
+    
+    dispatch({ 
+      type: PRODUCT_ACTIONS.SET_ERROR, 
+      payload: errorMessage 
+    });
+    
+    return { 
+      success: false, 
+      error: errorMessage 
+    };
   }
-}, [state.products]); // Add state.products as dependency
+}, [state.products, state.pagination.currentPage, fetchProducts]);
+
+
   // ========================
   // 🔸 Get Similar Products
   // ========================

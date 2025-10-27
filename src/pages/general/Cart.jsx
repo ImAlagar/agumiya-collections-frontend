@@ -306,7 +306,7 @@ const loadCalculations = useCallback(async () => {
       setCouponMessage('🎉 You qualify for FREE shipping! Add $20 more to get $20 OFF with coupon code SAVE20');
     } else if (calculations && cartTotal >= 30) {
       const amountNeeded = 50 - cartTotal;
-      setCouponMessage(`Add ${formatPriceSimple(amountNeeded)} more to get FREE shipping and unlock $20 OFF coupon!`);
+      setCouponMessage(`Add ${formatPriceSimple(amountNeeded)} more to get FREE shipping`);
     } else {
       setCouponMessage('');
     }
@@ -549,7 +549,7 @@ const loadCalculations = useCallback(async () => {
             </div>
             
             <p className="text-sm text-blue-800 dark:text-blue-200">
-              {couponMessage || `Add ${formatPriceSimple(50 - cartTotal)} more to get FREE shipping + $20 OFF coupon!`}
+              {couponMessage || `Add ${formatPriceSimple(50 - cartTotal)} more to get FREE shipping`}
             </p>
           </div>
         )}

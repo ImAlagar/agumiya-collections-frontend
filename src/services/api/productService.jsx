@@ -84,6 +84,14 @@ async deleteProduct(id) {
 },
 
 async deletePrintifyProduct(shopId, printifyProductId) {
+  if (!printifyProductId) {
+    throw new Error('Printify Product ID is required');
+  }
+  
+  if (!shopId) {
+    throw new Error('Shop ID is required');
+  }
+
   try {
     const response = await apiClient.delete(`/products/printify/${shopId}/${printifyProductId}`, {
       timeout: 30000
@@ -91,6 +99,12 @@ async deletePrintifyProduct(shopId, printifyProductId) {
     return response.data;
   } catch (error) {
     console.error('Delete Printify product error:', error);
+    
+    if (error.response?.status === 400 || error.response?.status === 404) {
+      // The backend will still process the local deletion, so we return the response
+      return error.response.data;
+    }
+    
     throw error;
   }
 },

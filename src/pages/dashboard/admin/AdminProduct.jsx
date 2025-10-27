@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-toastify'; // ✅ Import toast
 import { useProducts } from '../../../contexts/ProductsContext';
 import ProductTable from '../../../components/admin/products/ProductTable';
 import ProductFilters from '../../../components/admin/products/ProductFilters';
@@ -9,7 +10,7 @@ import { RefreshCwIcon } from 'lucide-react';
 import ProductStats from '../../../components/admin/stats/ProductStats';
 
 const AdminProduct = () => {
-   const { 
+  const { 
     products, 
     isLoading, 
     error, 
@@ -18,7 +19,7 @@ const AdminProduct = () => {
     fetchProducts, 
     syncProducts,
     updateFilters,
-    deletePrintifyProduct, // ✅ Add this
+    deletePrintifyProduct,
     updatePageSize,
     clearError 
   } = useProducts();
@@ -64,31 +65,70 @@ const AdminProduct = () => {
   const handleSync = async () => {
     try {
       const result = await syncProducts();
+      toast.success('Products synced successfully! 🎉');
       return result;
     } catch (error) {
+      toast.error('Failed to sync products 😞');
       throw error;
     }
   };
 
-  // ✅ Fixed delete handler
-  const handleDeletePrintify = async (shopId, printifyProductId) => {
+  const handleDeletePrintify = async (printifyProductId) => {
+    const shopId = '23342579';
+    
+    if (!printifyProductId) {
+      const error = new Error('Bad request: Invalid product ID');
+      console.error('❌ Admin: Missing printifyProductId');
+      throw error;
+    }
+    
+    if (!shopId) {
+      const error = new Error('Bad request: Shop ID not found.');
+      throw error;
+    }
+
     try {
       const result = await deletePrintifyProduct(shopId, printifyProductId);
       
       if (result.success) {
-        // Optional: Show success message or refresh products
-        fetchProducts(pagination.currentPage); // Refresh the list
+        
+        // Show appropriate toast message based on what actually happened
+        if (result.data?.printifyDeleted && result.data?.locallyDeleted) {
+          toast.success('🎉 Product fully deleted from both Printify and local database!');
+        } else if (result.data?.locallyDeleted) {
+          toast.warning('⚠️ Product archived locally (Printify deletion failed)');
+        } else if (result.data?.printifyDeleted) {
+          toast.info('ℹ️ Product deleted from Printify (not found locally)');
+        } else {
+          toast.success('✅ Product deleted successfully!');
+        }
+        
+        return result;
       } else {
-        throw new Error(result.error || 'Failed to delete Printify product');
+        throw new Error(result.error || 'Delete operation failed');
       }
     } catch (error) {
       console.error('❌ Admin: Printify delete error:', error);
-      alert(`Printify delete failed: ${error.message}`);
+      
+      // Show error toast
+      if (error.message.includes('existing orders')) {
+        toast.warning('⚠️ Product archived (has existing orders)');
+      } else if (error.message.includes('Unauthorized')) {
+        toast.error('🔐 Unauthorized: Check Printify API credentials');
+      } else {
+        toast.error('❌ Failed to delete product');
+      }
+      
       throw error;
     }
   };
 
-
+  // Show error toast when there's an error
+  useEffect(() => {
+    if (error) {
+      toast.error(`Error: ${error}`);
+    }
+  }, [error]);
 
   if (error) {
     return (
@@ -167,7 +207,7 @@ const AdminProduct = () => {
           products={products}
           isLoading={isLoading}
           pagination={pagination}
-          onDeletePrintify={handleDeletePrintify} // ✅ Correct prop name
+          onDeletePrintify={handleDeletePrintify}
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}
         />
