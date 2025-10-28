@@ -11,14 +11,10 @@ import {
   FiTruck,
   FiShield,
   FiArrowLeft,
-  FiChevronDown,
-  FiChevronUp,
   FiGlobe,
   FiChevronLeft,
   FiChevronRight,
-  FiInfo,
-  FiMessageCircle,
-  FiX
+  FiMessageCircle
 } from 'react-icons/fi';
 import FlyingItem from '../../components/user/products/FlyingItem';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -34,7 +30,7 @@ const ProductDetails = () => {
     getProductById, 
     getSimilarProducts
   } = useProducts();
-  const { formatPrice, userCurrency, convertPrice, getCurrencySymbol } = useCurrency();
+  const { formatPrice, userCurrency, getCurrencySymbol } = useCurrency();
   const { addToCart } = useCart();
   const { theme } = useTheme();
   const [similarProducts, setSimilarProducts] = useState([]);
@@ -43,23 +39,23 @@ const ProductDetails = () => {
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedSize, setSelectedSize] = useState(null);
+  const [selectedOption, setSelectedOption] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('description');
-  const [isSizeDropdownOpen, setIsSizeDropdownOpen] = useState(false);
+  const [showAllColors, setShowAllColors] = useState(false);
 
   // Animation states
   const [flyingItems, setFlyingItems] = useState([]);
   const addToCartRef = useRef(null);
   const imageScrollRef = useRef(null);
-  const sizeDropdownRef = useRef(null);
 
-  // ✅ DYNAMIC: Check if this product has actual clothing sizes
-  const hasSizes = () => {
-    if (!product?.printifyVariants) return false;
+  // ✅ DYNAMIC: Parse variant title into structured data
+  const parseVariantTitle = (title) => {
+    const parts = title.split('/').map(part => part.trim());
     
-    // Define comprehensive clothing sizes
-    const clothingSizes = [
+    // Common patterns to identify
+    const sizePatterns = [
       'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
       '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48',
       'SMALL', 'MEDIUM', 'LARGE', 'X-LARGE', 'XX-LARGE', 'XXX-LARGE',
@@ -67,133 +63,117 @@ const ProductDetails = () => {
       'ONE SIZE', 'OS'
     ];
     
-    // Check if any variant contains clothing sizes
-    return product.printifyVariants.some(variant => {
-      const parts = variant.title.split('/').map(part => part.trim());
-      return parts.some(part => 
-        clothingSizes.includes(part.toUpperCase().replace(' ', ''))
-      );
-    });
-  };
-
-  // ✅ DYNAMIC: Extract unique colors and sizes from variants
-  const getUniqueColorsAndSizes = () => {
-    if (!product?.printifyVariants) return { colors: [], sizes: [] };
+    const optionPatterns = [
+      'GLOSSY', 'MATTE', 'WITH GIFT PACKAGING', 'WITHOUT GIFT PACKAGING'
+    ];
     
-    const colors = new Set();
-    const sizes = new Set();
-
-    // Define comprehensive clothing sizes
-    const clothingSizes = [
-      'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
-      '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48',
-      'SMALL', 'MEDIUM', 'LARGE', 'X-LARGE', 'XX-LARGE', 'XXX-LARGE',
-      'US 4', 'US 6', 'US 8', 'US 10', 'US 12', 'US 14', 'US 16', 'US 18',
-      'ONE SIZE', 'OS'
+    const devicePatterns = [
+      'IPHONE', 'SAMSUNG', 'GALAXY', 'PIXEL', 'ANDROID'
     ];
 
-    product.printifyVariants.forEach(variant => {
-      const parts = variant.title.split('/').map(part => part.trim());
-      
-      let colorFound = false;
-      let sizeFound = null;
-
-      // Find color and size in parts
-      parts.forEach(part => {
-        const upperPart = part.toUpperCase().replace(' ', '');
-        
-        // Check if part is a size
-        if (clothingSizes.includes(upperPart)) {
-          sizeFound = part;
-          sizes.add(part);
-        } else if (!colorFound) {
-          // Assume first non-size part is color
-          colors.add(part);
-          colorFound = true;
-        }
-      });
-
-      // If no color found but parts exist, use first part as color
-      if (!colorFound && parts.length > 0) {
-        colors.add(parts[0]);
-      }
-    });
-
-    return {
-      colors: Array.from(colors),
-      sizes: Array.from(sizes)
+    const result = {
+      raw: title,
+      parts: parts,
+      color: null,
+      size: null,
+      option: null,
+      device: null,
+      packaging: null,
+      type: 'simple' // simple, clothing, phone_case, mug
     };
+
+    // Analyze parts to determine product type and extract components
+    if (parts.length === 1) {
+      // Simple products like "11oz", "15oz"
+      result.type = 'simple';
+      result.color = parts[0];
+    } 
+    else if (parts.length === 2) {
+      // Check if it's clothing (Color / Size) or simple option
+      const hasSize = sizePatterns.includes(parts[1].toUpperCase().replace('-', '').replace(' ', ''));
+      
+      if (hasSize) {
+        result.type = 'clothing';
+        result.color = parts[0];
+        result.size = parts[1];
+      } else {
+        result.type = 'simple_option';
+        result.color = parts[0];
+        result.option = parts[1];
+      }
+    }
+    else if (parts.length === 3) {
+      // Complex products like phone cases
+      const hasDevice = devicePatterns.some(pattern => parts[0].toUpperCase().includes(pattern));
+      const hasOption = optionPatterns.includes(parts[1].toUpperCase());
+      
+      if (hasDevice && hasOption) {
+        result.type = 'phone_case';
+        result.device = parts[0];
+        result.option = parts[1];
+        result.packaging = parts[2];
+      } else {
+        // Fallback for other 3-part variants
+        result.type = 'complex';
+        result.color = parts[0];
+        result.size = parts[1];
+        result.option = parts[2];
+      }
+    }
+
+    return result;
   };
 
-  // Get available variants based on selected color and size
-  const getAvailableVariants = () => {
+  // ✅ DYNAMIC: Get product type based on all variants
+  const getProductType = () => {
+    if (!product?.printifyVariants) return 'simple';
+    
+    const variantTypes = product.printifyVariants.map(variant => 
+      parseVariantTitle(variant.title).type
+    );
+    
+    // Determine dominant type
+    if (variantTypes.includes('phone_case')) return 'phone_case';
+    if (variantTypes.includes('clothing')) return 'clothing';
+    if (variantTypes.includes('complex')) return 'complex';
+    if (variantTypes.includes('simple_option')) return 'simple_option';
+    
+    return 'simple';
+  };
+
+  const productType = getProductType();
+
+  // ✅ UPDATED: Extract ALL unique colors from variants (both enabled and disabled)
+  const getUniqueColors = () => {
     if (!product?.printifyVariants) return [];
     
-    if (!selectedColor && !selectedSize) return product.printifyVariants;
-    
-    return product.printifyVariants.filter(variant => {
-      const parts = variant.title.split('/').map(part => part.trim());
-      
-      if (selectedColor && selectedSize && hasSizes()) {
-        return parts.includes(selectedColor) && parts.includes(selectedSize);
-      } else if (selectedColor) {
-        return parts.includes(selectedColor);
-      } else if (selectedSize && hasSizes()) {
-        return parts.includes(selectedSize);
-      }
-      return true;
-    });
-  };
-
-  // ✅ DYNAMIC: Check if a color is available
-  const isColorAvailable = (color) => {
-    return product.printifyVariants.some(variant => {
-      const parts = variant.title.split('/').map(part => part.trim());
-      return parts.includes(color) && variant.is_enabled === true;
-    });
-  };
-
-  // ✅ DYNAMIC: Check if a specific size is available for selected color
-  const isSizeAvailable = (size) => {
-    if (!selectedColor || !hasSizes()) return false;
-    
-    return product.printifyVariants.some(variant => {
-      const parts = variant.title.split('/').map(part => part.trim());
-      return parts.includes(selectedColor) && 
-             parts.includes(size) && 
-             variant.is_enabled === true;
-    });
-  };
-
-  // ✅ DYNAMIC: Get available sizes for selected color
-  const getAvailableSizes = () => {
-    if (!selectedColor || !hasSizes()) return [];
-    
-    const availableSizes = new Set();
-    const clothingSizes = [
-      'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
-      '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48',
-      'SMALL', 'MEDIUM', 'LARGE', 'X-LARGE', 'XX-LARGE', 'XXX-LARGE',
-      'US 4', 'US 6', 'US 8', 'US 10', 'US 12', 'US 14', 'US 16', 'US 18',
-      'ONE SIZE', 'OS'
-    ];
+    const colors = new Set();
     
     product.printifyVariants.forEach(variant => {
-      const parts = variant.title.split('/').map(part => part.trim());
-      
-      if (parts.includes(selectedColor) && variant.is_enabled === true) {
-        // Find size in parts
-        parts.forEach(part => {
-          const upperPart = part.toUpperCase().replace(' ', '');
-          if (clothingSizes.includes(upperPart)) {
-            availableSizes.add(part);
-          }
-        });
+      const parsed = parseVariantTitle(variant.title);
+      if (parsed.color) {
+        colors.add(parsed.color);
       }
     });
+
+    return Array.from(colors);
+  };
+
+  // ✅ UPDATED: Extract ALL unique sizes from variants (both enabled and disabled)
+  const getUniqueSizes = () => {
+    if (!product?.printifyVariants) return [];
     
+    const sizes = new Set();
+    
+    product.printifyVariants.forEach(variant => {
+      const parsed = parseVariantTitle(variant.title);
+      if (parsed.size) {
+        sizes.add(parsed.size);
+      }
+    });
+
     // Sort sizes logically
-    return Array.from(availableSizes).sort((a, b) => {
+    return Array.from(sizes).sort((a, b) => {
       const sizeOrder = [
         'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
         '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48'
@@ -202,110 +182,155 @@ const ProductDetails = () => {
     });
   };
 
-  // ✅ DYNAMIC: Extract color from variant title
-  const extractColorFromVariant = (variantTitle) => {
-    const parts = variantTitle.split('/').map(part => part.trim());
-    const clothingSizes = [
-      'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
-      '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48',
-      'SMALL', 'MEDIUM', 'LARGE', 'X-LARGE', 'XX-LARGE', 'XXX-LARGE',
-      'US 4', 'US 6', 'US 8', 'US 10', 'US 12', 'US 14', 'US 16', 'US 18',
-      'ONE SIZE', 'OS'
-    ];
-
-    for (let part of parts) {
-      const upperPart = part.toUpperCase().replace(' ', '');
-      if (!clothingSizes.includes(upperPart)) {
-        return part;
-      }
-    }
+  // ✅ UPDATED: Extract ALL unique options from variants (both enabled and disabled)
+  const getUniqueOptions = () => {
+    if (!product?.printifyVariants) return [];
     
-    return parts[0] || 'Default';
+    const options = new Set();
+    
+    product.printifyVariants.forEach(variant => {
+      const parsed = parseVariantTitle(variant.title);
+      if (parsed.option) {
+        options.add(parsed.option);
+      }
+    });
+
+    return Array.from(options);
   };
 
-  // ✅ DYNAMIC: Extract size from variant title
-  const extractSizeFromVariant = (variantTitle) => {
-    if (!hasSizes()) return null;
+  // ✅ UPDATED: Extract ALL devices from variants (both enabled and disabled)
+  const getUniqueDevices = () => {
+    if (!product?.printifyVariants) return [];
     
-    const parts = variantTitle.split('/').map(part => part.trim());
-    const clothingSizes = [
-      'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
-      '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48',
-      'SMALL', 'MEDIUM', 'LARGE', 'X-LARGE', 'XX-LARGE', 'XXX-LARGE',
-      'US 4', 'US 6', 'US 8', 'US 10', 'US 12', 'US 14', 'US 16', 'US 18',
-      'ONE SIZE', 'OS'
-    ];
-
-    for (let part of parts) {
-      const upperPart = part.toUpperCase().replace(' ', '');
-      if (clothingSizes.includes(upperPart)) {
-        return part;
+    const devices = new Set();
+    
+    product.printifyVariants.forEach(variant => {
+      const parsed = parseVariantTitle(variant.title);
+      if (parsed.device) {
+        devices.add(parsed.device);
       }
-    }
-    
-    return null;
+    });
+
+    return Array.from(devices);
   };
 
-  // ✅ UPDATED: Extract color images from product data using colorOptions
-  const getColorImages = () => {
-    if (!product) return {};
+  // ✅ UPDATED: Check if a color is available (has at least one enabled variant)
+  const isColorAvailable = (color) => {
+    return product.printifyVariants.some(variant => {
+      const parsed = parseVariantTitle(variant.title);
+      return parsed.color === color && variant.is_enabled === true;
+    });
+  };
+
+  // ✅ UPDATED: Check if a specific size is available for selected color
+  const isSizeAvailable = (size) => {
+    if (!selectedColor || productType !== 'clothing') return false;
     
-    // If product has explicit colorImages, use them
-    if (product.colorImages) {
-      return product.colorImages;
-    }
-    
-    // Otherwise, create a mapping from colorOptions
-    const colorImages = {};
-    if (product.colorOptions && product.colorOptions.length > 0) {
-      product.colorOptions.forEach(colorOption => {
-        colorImages[colorOption.name.toLowerCase()] = product.images;
+    return product.printifyVariants.some(variant => {
+      const parsed = parseVariantTitle(variant.title);
+      return parsed.color === selectedColor && 
+             parsed.size === size && 
+             variant.is_enabled === true;
+    });
+  };
+
+  // ✅ UPDATED: Check if an option is available for selected color/device
+  const isOptionAvailable = (option) => {
+    if (productType === 'phone_case') {
+      // For phone cases, check against selected device
+      return product.printifyVariants.some(variant => {
+        const parsed = parseVariantTitle(variant.title);
+        return parsed.device === selectedColor && // Using selectedColor as device for phone cases
+               parsed.option === option && 
+               variant.is_enabled === true;
+      });
+    } else {
+      // For other products, check against selected color
+      if (!selectedColor) return false;
+      
+      return product.printifyVariants.some(variant => {
+        const parsed = parseVariantTitle(variant.title);
+        return parsed.color === selectedColor && 
+               parsed.option === option && 
+               variant.is_enabled === true;
       });
     }
-    
-    return colorImages;
   };
 
-  const colorImages = getColorImages();
-
-  // Get current images based on selected color
-  const getCurrentImages = () => {
-    if (!product || !product.images) return ['/api/placeholder/600/600'];
+  // ✅ UPDATED: Get ALL sizes for selected color (both enabled and disabled)
+  const getAllSizesForColor = () => {
+    if (!selectedColor || productType !== 'clothing') return [];
     
-    if (selectedColor && colorImages) {
-      const colorKey = selectedColor.toLowerCase();
-      if (colorImages[colorKey]) {
-        return colorImages[colorKey];
+    const allSizes = new Set();
+    
+    product.printifyVariants.forEach(variant => {
+      const parsed = parseVariantTitle(variant.title);
+      if (parsed.color === selectedColor && parsed.size) {
+        allSizes.add(parsed.size);
       }
+    });
+    
+    return Array.from(allSizes).sort((a, b) => {
+      const sizeOrder = [
+        'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
+        '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48'
+      ];
+      return sizeOrder.indexOf(a) - sizeOrder.indexOf(b);
+    });
+  };
+
+  // ✅ UPDATED: Get ALL options for selected color/device (both enabled and disabled)
+  const getAllOptionsForColor = () => {
+    if (!selectedColor) return [];
+    
+    const allOptions = new Set();
+    
+    product.printifyVariants.forEach(variant => {
+      const parsed = parseVariantTitle(variant.title);
+      
+      if (productType === 'phone_case') {
+        if (parsed.device === selectedColor && parsed.option) {
+          allOptions.add(parsed.option);
+        }
+      } else {
+        if (parsed.color === selectedColor && parsed.option) {
+          allOptions.add(parsed.option);
+        }
+      }
+    });
+    
+    return Array.from(allOptions);
+  };
+
+  // ✅ DYNAMIC: Get selection label based on product type
+  const getSelectionLabel = () => {
+    switch (productType) {
+      case 'phone_case':
+        return 'Device Model';
+      case 'clothing':
+        return 'Color';
+      case 'simple_option':
+        return 'Style';
+      default:
+        return 'Option';
     }
-    
-    // Fallback to all product images
-    return product.images;
   };
 
-  const currentImages = getCurrentImages();
-
-  // Get enabled variants only
-  const getEnabledVariants = () => {
-    if (!product?.printifyVariants) return [];
-    return product.printifyVariants.filter(variant => variant.is_enabled === true);
+  // ✅ DYNAMIC: Get option label based on product type
+  const getOptionLabel = () => {
+    switch (productType) {
+      case 'phone_case':
+        return 'Finish';
+      case 'simple_option':
+        return 'Option';
+      case 'clothing':
+        return 'Size';
+      default:
+        return 'Option';
+    }
   };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (sizeDropdownRef.current && !sizeDropdownRef.current.contains(event.target)) {
-        setIsSizeDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // ✅ DYNAMIC: Load product with automatic color/size detection
+  // ✅ IMPROVED: Load product with automatic selection detection
   useEffect(() => {
     const loadProduct = async () => {
       if (id) {
@@ -314,28 +339,29 @@ const ProductDetails = () => {
           const productData = await getProductById(id);
           setProduct(productData);
 
-          // Set first enabled variant as default
-          const enabledVariants = getEnabledVariants();
+          // Set first ENABLED variant as default
+          const enabledVariants = productData.printifyVariants?.filter(v => v.is_enabled === true) || [];
           if (enabledVariants.length > 0) {
             const firstVariant = enabledVariants[0];
             setSelectedVariant(firstVariant);
             
-            // Dynamically extract color and size
-            const color = extractColorFromVariant(firstVariant.title);
-            const size = extractSizeFromVariant(firstVariant.title);
+            // Dynamically extract selections based on product type
+            const parsed = parseVariantTitle(firstVariant.title);
             
-            setSelectedColor(color);
-            setSelectedSize(size);
+            setSelectedColor(parsed.color || parsed.device || firstVariant.title);
+            
+            if (parsed.size) setSelectedSize(parsed.size);
+            if (parsed.option) setSelectedOption(parsed.option);
           } else if (productData?.printifyVariants?.[0]) {
             // Fallback to first variant if no enabled variants
             const firstVariant = productData.printifyVariants[0];
             setSelectedVariant(firstVariant);
             
-            const color = extractColorFromVariant(firstVariant.title);
-            const size = extractSizeFromVariant(firstVariant.title);
+            const parsed = parseVariantTitle(firstVariant.title);
+            setSelectedColor(parsed.color || parsed.device || firstVariant.title);
             
-            setSelectedColor(color);
-            setSelectedSize(size);
+            if (parsed.size) setSelectedSize(parsed.size);
+            if (parsed.option) setSelectedOption(parsed.option);
           }
         } catch (error) {
           console.error('Error loading product:', error);
@@ -363,65 +389,86 @@ const ProductDetails = () => {
     loadSimilarProducts();
   }, [product, getSimilarProducts]);
 
-  // ✅ DYNAMIC: Handle color selection
+  // ✅ UPDATED: Handle selection - only allow selection of available options
   const handleColorSelect = (color) => {
-    if (!isColorAvailable(color)) return;
+    if (!isColorAvailable(color)) return; // Only allow available colors
     
     setSelectedColor(color);
     
-    if (hasSizes()) {
-      // Find first available size for this color
-      const availableSizes = getAvailableSizes();
-      
+    // Reset dependent selections
+    setSelectedSize(null);
+    setSelectedOption(null);
+    
+    // Auto-select first available size for clothing
+    if (productType === 'clothing') {
+      const availableSizes = getAllSizesForColor().filter(size => isSizeAvailable(size));
       if (availableSizes.length > 0) {
         setSelectedSize(availableSizes[0]);
-        // Find and set the corresponding variant
-        const firstAvailableVariant = product.printifyVariants.find(variant => {
-          const parts = variant.title.split('/').map(part => part.trim());
-          return parts.includes(color) && 
-                 parts.includes(availableSizes[0]) && 
-                 variant.is_enabled === true;
-        });
-        if (firstAvailableVariant) {
-          setSelectedVariant(firstAvailableVariant);
-        }
-      } else {
-        setSelectedSize(null);
-        setSelectedVariant(null);
       }
-    } else {
-      // For products without sizes, find variant with selected color
-      const matchingVariant = product.printifyVariants.find(variant => {
-        const parts = variant.title.split('/').map(part => part.trim());
-        return parts.includes(color) && variant.is_enabled === true;
-      });
-      
-      if (matchingVariant) {
-        setSelectedVariant(matchingVariant);
-      }
+    }
+    
+    // Auto-select first available option for other product types
+    const availableOptions = getAllOptionsForColor().filter(option => isOptionAvailable(option));
+    if (availableOptions.length > 0) {
+      setSelectedOption(availableOptions[0]);
+    }
+    
+    // Find and set the corresponding variant
+    const matchingVariant = findMatchingVariant();
+    if (matchingVariant) {
+      setSelectedVariant(matchingVariant);
     }
     
     setSelectedImage(0);
   };
 
-  // ✅ DYNAMIC: Handle size selection from dropdown
+  // ✅ UPDATED: Handle size selection - only allow available sizes
   const handleSizeSelect = (size) => {
-    if (!isSizeAvailable(size)) return;
+    if (!isSizeAvailable(size)) return; // Only allow available sizes
     
     setSelectedSize(size);
-    setIsSizeDropdownOpen(false);
     
-    // Find variant with selected color and size
-    const matchingVariant = product.printifyVariants.find(variant => {
-      const parts = variant.title.split('/').map(part => part.trim());
-      return parts.includes(selectedColor) && 
-             parts.includes(size) && 
-             variant.is_enabled === true;
-    });
-    
+    const matchingVariant = findMatchingVariant();
     if (matchingVariant) {
       setSelectedVariant(matchingVariant);
     }
+  };
+
+  // ✅ UPDATED: Handle option selection - only allow available options
+  const handleOptionSelect = (option) => {
+    if (!isOptionAvailable(option)) return; // Only allow available options
+    
+    setSelectedOption(option);
+    
+    const matchingVariant = findMatchingVariant();
+    if (matchingVariant) {
+      setSelectedVariant(matchingVariant);
+    }
+  };
+
+  // ✅ DYNAMIC: Find matching variant based on current selections
+  const findMatchingVariant = () => {
+    return product.printifyVariants.find(variant => {
+      const parsed = parseVariantTitle(variant.title);
+      
+      let matches = variant.is_enabled === true; // Only match enabled variants
+      
+      if (productType === 'phone_case') {
+        matches = matches && parsed.device === selectedColor;
+      } else {
+        matches = matches && parsed.color === selectedColor;
+      }
+      
+      if (productType === 'clothing' && selectedSize) {
+        matches = matches && parsed.size === selectedSize;
+      }
+      
+      if ((productType === 'phone_case' || productType === 'simple_option') && selectedOption) {
+        matches = matches && parsed.option === selectedOption;
+      }
+      
+      return matches;
+    });
   };
 
   // ✅ Get hex code for a color from colorOptions
@@ -496,15 +543,15 @@ const ProductDetails = () => {
 
   const handleAddToCart = () => {
     if (product && selectedVariant && selectedColor) {
-      // For products with sizes, require both color and size
-      if (hasSizes() && (!selectedColor || !selectedSize)) {
+      // Validation based on product type
+      if (productType === 'clothing' && (!selectedColor || !selectedSize)) {
         alert('Please select both color and size before adding to cart.');
         return;
       }
       
-      // For products without sizes, only require color
-      if (!hasSizes() && !selectedColor) {
-        alert('Please select color before adding to cart.');
+      if ((productType === 'phone_case' || productType === 'simple_option') && (!selectedColor || !selectedOption)) {
+        const label = productType === 'phone_case' ? 'device and finish' : 'option';
+        alert(`Please select both ${label} before adding to cart.`);
         return;
       }
 
@@ -518,6 +565,7 @@ const ProductDetails = () => {
         variantId: selectedVariant.id,
         color: selectedColor,
         size: selectedSize,
+        option: selectedOption,
         quantity
       };
       
@@ -565,11 +613,75 @@ const ProductDetails = () => {
     navigate('/checkout');
   };
 
-  const { colors, sizes } = getUniqueColorsAndSizes();
+  // ✅ DYNAMIC: Extract color images from product data
+  const getColorImages = () => {
+    if (!product) return {};
+    
+    if (product.colorImages) {
+      return product.colorImages;
+    }
+    
+    const colorImages = {};
+    if (product.colorOptions && product.colorOptions.length > 0) {
+      product.colorOptions.forEach(colorOption => {
+        colorImages[colorOption.name.toLowerCase()] = product.images;
+      });
+    }
+    
+    return colorImages;
+  };
+
+  const colorImages = getColorImages();
+
+  // Get current images based on selected color
+  const getCurrentImages = () => {
+    if (!product || !product.images) return ['/api/placeholder/600/600'];
+    
+    if (selectedColor && colorImages) {
+      const colorKey = selectedColor.toLowerCase();
+      if (colorImages[colorKey]) {
+        return colorImages[colorKey];
+      }
+    }
+    
+    return product.images;
+  };
+
+  const currentImages = getCurrentImages();
+
+  // Get enabled variants only
+  const getEnabledVariants = () => {
+    if (!product?.printifyVariants) return [];
+    return product.printifyVariants.filter(variant => variant.is_enabled === true);
+  };
+
+  const colors = getUniqueColors();
+  const sizes = getUniqueSizes();
+  const options = getUniqueOptions();
+  const devices = getUniqueDevices();
   const enabledVariants = getEnabledVariants();
   const savingsInfo = calculateSavings();
-  const productHasSizes = hasSizes();
-  const availableSizes = getAvailableSizes();
+  const allSizes = getAllSizesForColor();
+  const allOptions = getAllOptionsForColor();
+  
+  const selectionLabel = getSelectionLabel();
+  const optionLabel = getOptionLabel();
+
+  // Show more/less functionality
+  const visibleColorsCount = 6;
+  const displayColors = showAllColors ? colors : colors.slice(0, visibleColorsCount);
+  const hasMoreColors = colors.length > visibleColorsCount;
+
+  // ✅ DYNAMIC: Get current selection display text
+  const getCurrentSelectionText = () => {
+    if (!selectedColor) return null;
+    
+    let text = selectedColor;
+    if (selectedSize) text += ` / ${selectedSize}`;
+    if (selectedOption) text += ` / ${selectedOption}`;
+    
+    return text;
+  };
 
   if (isLoading) {
     return (
@@ -852,76 +964,100 @@ const ProductDetails = () => {
                 </div>
               </div>
 
-              {/* ✅ DYNAMIC: Color Selection with availability check */}
-              {product.colorOptions && product.colorOptions.length > 0 && (
+              {/* ✅ UPDATED: Main Selection (Color/Device/Style) - Show ALL with strikeout for unavailable */}
+              {(colors.length > 0 || devices.length > 0) && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {productHasSizes ? "Select Color" : "Select Option"}
+                      {selectionLabel}
                     </h3>
                     {/* Show selected option dynamically */}
                     {selectedColor && (
                       <div className="flex items-center space-x-2 text-sm">
                         <span className="text-gray-600 dark:text-gray-400">
-                          {productHasSizes ? "Selected:" : "Selected Option:"}
+                          Selected:
                         </span>
                         <div className="flex items-center space-x-2">
-                          <div 
-                            className="w-4 h-4 rounded-full border border-gray-300"
-                            style={{ backgroundColor: getColorHexCode(selectedColor) }}
-                          />
+                          {productType !== 'phone_case' && (
+                            <div 
+                              className="w-4 h-4 rounded-full border border-gray-300"
+                              style={{ backgroundColor: getColorHexCode(selectedColor) }}
+                            />
+                          )}
                           <span className="font-medium text-gray-900 dark:text-white">
-                            {selectedColor}
-                            {selectedSize && productHasSizes && ` / ${selectedSize}`}
+                            {getCurrentSelectionText()}
                           </span>
                         </div>
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-3">
-                    {product.colorOptions.map((colorOption) => {
-                      const available = isColorAvailable(colorOption.name);
-                      
-                      return (
+                  
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-3">
+                      {displayColors.map((colorOption) => {
+                        const colorName = typeof colorOption === 'string' ? colorOption : colorOption.name;
+                        const available = isColorAvailable(colorName);
+                        
+                        return (
+                          <button
+                            key={colorName}
+                            onClick={() => available && handleColorSelect(colorName)}
+                            disabled={!available}
+                            className={`flex items-center space-x-2 px-4 py-3 rounded-lg border-2 transition-all relative ${
+                              selectedColor === colorName
+                                ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                                : available
+                                  ? 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
+                                  : 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                            }`}
+                          >
+                            {/* Show color swatch only for non-phone case products */}
+                            {productType !== 'phone_case' && (
+                              <div 
+                                className="w-6 h-6 rounded-full border border-gray-300 flex-shrink-0"
+                                style={{ 
+                                  backgroundColor: getColorHexCode(colorName),
+                                  opacity: available ? 1 : 0.5
+                                }}
+                              />
+                            )}
+                            <span className={`font-medium ${
+                              available ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'
+                            }`}>
+                              {colorName}
+                            </span>
+                            
+                            {/* ✅ UPDATED: Gray strikeout ONLY for unavailable options */}
+                            {!available && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-full border-t-2 border-gray-400 dark:border-gray-500 transform rotate-12"></div>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Show More/Less Button */}
+                    {hasMoreColors && (
+                      <div className="flex justify-center">
                         <button
-                          key={colorOption.name}
-                          onClick={() => available && handleColorSelect(colorOption.name)}
-                          disabled={!available}
-                          className={`flex items-center space-x-2 px-4 py-3 rounded-lg border-2 transition-all relative ${
-                            selectedColor === colorOption.name
-                              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
-                              : available
-                                ? 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                                : 'border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                          }`}
+                          onClick={() => setShowAllColors(!showAllColors)}
+                          className="flex items-center space-x-2 px-4 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                         >
-                          {/* Use actual hex code from API */}
-                          <div 
-                            className="w-6 h-6 rounded-full border border-gray-300 flex-shrink-0"
-                            style={{ backgroundColor: colorOption.hexCode }}
-                          />
-                          <span className={`font-medium ${
-                            available ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'
-                          }`}>
-                            {colorOption.name}
+                          <span className="font-medium">
+                            {showAllColors ? 'Show Less' : `Show More (${colors.length - visibleColorsCount} more)`}
                           </span>
-                          
-                          {/* Strikeout for unavailable colors */}
-                          {!available && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-full border-t border-red-400 dark:border-red-500 transform rotate-12"></div>
-                            </div>
-                          )}
                         </button>
-                      );
-                    })}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* ✅ DYNAMIC: Size Selection with Dropdown - Only show if product has sizes */}
-              {productHasSizes && availableSizes.length > 0 && (
-                <div className="space-y-4" ref={sizeDropdownRef}>
+              {/* ✅ UPDATED: Size Selection for Clothing - Show ALL with strikeout for unavailable - NO DROPDOWN */}
+              {productType === 'clothing' && allSizes.length > 0 && (
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                       Select Size
@@ -933,66 +1069,90 @@ const ProductDetails = () => {
                     )}
                   </div>
                   
-                  {/* Dropdown for Size Selection */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsSizeDropdownOpen(!isSizeDropdownOpen)}
-                      className={`w-full py-3 px-4 rounded-lg border-2 text-left flex items-center justify-between transition-all ${
-                        selectedSize
-                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                      }`}
-                    >
-                      <span className={`font-medium ${selectedSize ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                        {selectedSize || 'Choose Size'}
-                      </span>
-                      {isSizeDropdownOpen ? (
-                        <FiChevronUp className="text-gray-400" />
-                      ) : (
-                        <FiChevronDown className="text-gray-400" />
-                      )}
-                    </button>
-
-                    {/* Dropdown Menu */}
-                    <AnimatePresence>
-                      {isSizeDropdownOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.2 }}
-                          className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto"
+                  {/* Button Group for Size Selection */}
+                  <div className="flex flex-wrap gap-3">
+                    {allSizes.map((size) => {
+                      const available = isSizeAvailable(size);
+                      
+                      return (
+                        <button
+                          key={size}
+                          onClick={() => available && handleSizeSelect(size)}
+                          disabled={!available}
+                          className={`px-4 py-3 rounded-lg border-2 transition-all relative min-w-[60px] text-center ${
+                            selectedSize === size
+                              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                              : available
+                                ? 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                                : 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                          }`}
                         >
-                          {availableSizes.map((size) => {
-                            const available = isSizeAvailable(size);
-                            
-                            return (
-                              <button
-                                key={size}
-                                onClick={() => available && handleSizeSelect(size)}
-                                disabled={!available}
-                                className={`w-full z-10 px-4 py-3 text-left flex items-center justify-between transition-colors ${
-                                  selectedSize === size
-                                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                                    : available
-                                      ? 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white'
-                                      : 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                } ${
-                                  available ? 'border-b border-gray-100 dark:border-gray-700 last:border-b-0' : ''
-                                }`}
-                              >
-                                <span className={selectedSize === size ? 'font-semibold' : 'font-medium'}>
-                                  {size}
-                                </span>
-                                {!available && (
-                                  <span className="text-xs text-red-500 dark:text-red-400">Out of stock</span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                          <span className={`font-medium ${
+                            selectedSize === size ? 'font-semibold' : 'font-normal'
+                          }`}>
+                            {size}
+                          </span>
+                          
+                          {/* Gray strikeout for unavailable sizes */}
+                          {!available && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-4/5 border-t-2 border-gray-400 dark:border-gray-500 transform rotate-12"></div>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* ✅ UPDATED: Options Selection - Show ALL with strikeout for unavailable - NO DROPDOWN */}
+              {(productType === 'phone_case' || productType === 'simple_option') && allOptions.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Select {optionLabel}
+                    </h3>
+                    {!selectedOption && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Please select a {optionLabel.toLowerCase()}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Button Group for Options Selection */}
+                  <div className="flex flex-wrap gap-3">
+                    {allOptions.map((option) => {
+                      const available = isOptionAvailable(option);
+                      
+                      return (
+                        <button
+                          key={option}
+                          onClick={() => available && handleOptionSelect(option)}
+                          disabled={!available}
+                          className={`px-4 py-3 rounded-lg border-2 transition-all relative ${
+                            selectedOption === option
+                              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                              : available
+                                ? 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                                : 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                          }`}
+                        >
+                          <span className={`font-medium ${
+                            selectedOption === option ? 'font-semibold' : 'font-normal'
+                          }`}>
+                            {option}
+                          </span>
+                          
+                          {/* Gray strikeout for unavailable options */}
+                          {!available && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-4/5 border-t-2 border-gray-400 dark:border-gray-500 transform rotate-12"></div>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1035,7 +1195,9 @@ const ProductDetails = () => {
                   <button
                     ref={addToCartRef}
                     onClick={handleAddToCart}
-                    disabled={!product.inStock || !selectedColor || (productHasSizes && !selectedSize)}
+                    disabled={!product.inStock || !selectedColor || 
+                      (productType === 'clothing' && !selectedSize) || 
+                      ((productType === 'phone_case' || productType === 'simple_option') && !selectedOption)}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 px-8 rounded-xl font-semibold text-lg transition-colors flex items-center justify-center space-x-3 relative overflow-hidden"
                   >
                     <motion.span
@@ -1045,7 +1207,10 @@ const ProductDetails = () => {
                       <FiShoppingCart size={24} />
                       <span>
                         {!product.inStock ? 'Out of Stock' : 
-                         !selectedColor || (productHasSizes && !selectedSize) ? 'Select Options' : 'Add to Cart'}
+                         !selectedColor || 
+                         (productType === 'clothing' && !selectedSize) || 
+                         ((productType === 'phone_case' || productType === 'simple_option') && !selectedOption) ? 
+                         'Select Options' : 'Add to Cart'}
                       </span>
                     </motion.span>
                     
@@ -1059,7 +1224,9 @@ const ProductDetails = () => {
 
                   <button
                     onClick={handleBuyNow}
-                    disabled={!product.inStock || !selectedColor || (productHasSizes && !selectedSize)}
+                    disabled={!product.inStock || !selectedColor || 
+                      (productType === 'clothing' && !selectedSize) || 
+                      ((productType === 'phone_case' || productType === 'simple_option') && !selectedOption)}
                     className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 px-8 rounded-xl font-semibold text-lg transition-colors"
                   >
                     Buy Now
