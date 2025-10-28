@@ -17,7 +17,8 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiInfo,
-  FiMessageCircle
+  FiMessageCircle,
+  FiX
 } from 'react-icons/fi';
 import FlyingItem from '../../components/user/products/FlyingItem';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -45,27 +46,76 @@ const ProductDetails = () => {
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('description');
+  const [isSizeDropdownOpen, setIsSizeDropdownOpen] = useState(false);
 
   // Animation states
   const [flyingItems, setFlyingItems] = useState([]);
   const addToCartRef = useRef(null);
   const imageScrollRef = useRef(null);
+  const sizeDropdownRef = useRef(null);
 
-  // ✅ REMOVE STATIC COLOR MAP - Use API colorOptions instead
-  // const colorMap = { ... }; // DELETE THIS
+  // ✅ DYNAMIC: Check if this product has actual clothing sizes
+  const hasSizes = () => {
+    if (!product?.printifyVariants) return false;
+    
+    // Define comprehensive clothing sizes
+    const clothingSizes = [
+      'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
+      '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48',
+      'SMALL', 'MEDIUM', 'LARGE', 'X-LARGE', 'XX-LARGE', 'XXX-LARGE',
+      'US 4', 'US 6', 'US 8', 'US 10', 'US 12', 'US 14', 'US 16', 'US 18',
+      'ONE SIZE', 'OS'
+    ];
+    
+    // Check if any variant contains clothing sizes
+    return product.printifyVariants.some(variant => {
+      const parts = variant.title.split('/').map(part => part.trim());
+      return parts.some(part => 
+        clothingSizes.includes(part.toUpperCase().replace(' ', ''))
+      );
+    });
+  };
 
-  // Extract unique colors and sizes from ALL variants (not just enabled)
+  // ✅ DYNAMIC: Extract unique colors and sizes from variants
   const getUniqueColorsAndSizes = () => {
     if (!product?.printifyVariants) return { colors: [], sizes: [] };
     
     const colors = new Set();
     const sizes = new Set();
 
+    // Define comprehensive clothing sizes
+    const clothingSizes = [
+      'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
+      '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48',
+      'SMALL', 'MEDIUM', 'LARGE', 'X-LARGE', 'XX-LARGE', 'XXX-LARGE',
+      'US 4', 'US 6', 'US 8', 'US 10', 'US 12', 'US 14', 'US 16', 'US 18',
+      'ONE SIZE', 'OS'
+    ];
+
     product.printifyVariants.forEach(variant => {
       const parts = variant.title.split('/').map(part => part.trim());
-      if (parts.length >= 2) {
+      
+      let colorFound = false;
+      let sizeFound = null;
+
+      // Find color and size in parts
+      parts.forEach(part => {
+        const upperPart = part.toUpperCase().replace(' ', '');
+        
+        // Check if part is a size
+        if (clothingSizes.includes(upperPart)) {
+          sizeFound = part;
+          sizes.add(part);
+        } else if (!colorFound) {
+          // Assume first non-size part is color
+          colors.add(part);
+          colorFound = true;
+        }
+      });
+
+      // If no color found but parts exist, use first part as color
+      if (!colorFound && parts.length > 0) {
         colors.add(parts[0]);
-        sizes.add(parts[1]);
       }
     });
 
@@ -83,30 +133,117 @@ const ProductDetails = () => {
     
     return product.printifyVariants.filter(variant => {
       const parts = variant.title.split('/').map(part => part.trim());
-      const color = parts[0];
-      const size = parts[1];
       
-      if (selectedColor && selectedSize) {
-        return color === selectedColor && size === selectedSize;
+      if (selectedColor && selectedSize && hasSizes()) {
+        return parts.includes(selectedColor) && parts.includes(selectedSize);
       } else if (selectedColor) {
-        return color === selectedColor;
-      } else if (selectedSize) {
-        return size === selectedSize;
+        return parts.includes(selectedColor);
+      } else if (selectedSize && hasSizes()) {
+        return parts.includes(selectedSize);
       }
       return true;
     });
   };
 
-  // Check if a specific size is available for selected color
+  // ✅ DYNAMIC: Check if a color is available
+  const isColorAvailable = (color) => {
+    return product.printifyVariants.some(variant => {
+      const parts = variant.title.split('/').map(part => part.trim());
+      return parts.includes(color) && variant.is_enabled === true;
+    });
+  };
+
+  // ✅ DYNAMIC: Check if a specific size is available for selected color
   const isSizeAvailable = (size) => {
-    if (!selectedColor) return false;
+    if (!selectedColor || !hasSizes()) return false;
     
     return product.printifyVariants.some(variant => {
       const parts = variant.title.split('/').map(part => part.trim());
-      const color = parts[0];
-      const variantSize = parts[1];
-      return color === selectedColor && variantSize === size && variant.is_enabled === true;
+      return parts.includes(selectedColor) && 
+             parts.includes(size) && 
+             variant.is_enabled === true;
     });
+  };
+
+  // ✅ DYNAMIC: Get available sizes for selected color
+  const getAvailableSizes = () => {
+    if (!selectedColor || !hasSizes()) return [];
+    
+    const availableSizes = new Set();
+    const clothingSizes = [
+      'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
+      '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48',
+      'SMALL', 'MEDIUM', 'LARGE', 'X-LARGE', 'XX-LARGE', 'XXX-LARGE',
+      'US 4', 'US 6', 'US 8', 'US 10', 'US 12', 'US 14', 'US 16', 'US 18',
+      'ONE SIZE', 'OS'
+    ];
+    
+    product.printifyVariants.forEach(variant => {
+      const parts = variant.title.split('/').map(part => part.trim());
+      
+      if (parts.includes(selectedColor) && variant.is_enabled === true) {
+        // Find size in parts
+        parts.forEach(part => {
+          const upperPart = part.toUpperCase().replace(' ', '');
+          if (clothingSizes.includes(upperPart)) {
+            availableSizes.add(part);
+          }
+        });
+      }
+    });
+    
+    // Sort sizes logically
+    return Array.from(availableSizes).sort((a, b) => {
+      const sizeOrder = [
+        'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
+        '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48'
+      ];
+      return sizeOrder.indexOf(a) - sizeOrder.indexOf(b);
+    });
+  };
+
+  // ✅ DYNAMIC: Extract color from variant title
+  const extractColorFromVariant = (variantTitle) => {
+    const parts = variantTitle.split('/').map(part => part.trim());
+    const clothingSizes = [
+      'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
+      '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48',
+      'SMALL', 'MEDIUM', 'LARGE', 'X-LARGE', 'XX-LARGE', 'XXX-LARGE',
+      'US 4', 'US 6', 'US 8', 'US 10', 'US 12', 'US 14', 'US 16', 'US 18',
+      'ONE SIZE', 'OS'
+    ];
+
+    for (let part of parts) {
+      const upperPart = part.toUpperCase().replace(' ', '');
+      if (!clothingSizes.includes(upperPart)) {
+        return part;
+      }
+    }
+    
+    return parts[0] || 'Default';
+  };
+
+  // ✅ DYNAMIC: Extract size from variant title
+  const extractSizeFromVariant = (variantTitle) => {
+    if (!hasSizes()) return null;
+    
+    const parts = variantTitle.split('/').map(part => part.trim());
+    const clothingSizes = [
+      'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL',
+      '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48',
+      'SMALL', 'MEDIUM', 'LARGE', 'X-LARGE', 'XX-LARGE', 'XXX-LARGE',
+      'US 4', 'US 6', 'US 8', 'US 10', 'US 12', 'US 14', 'US 16', 'US 18',
+      'ONE SIZE', 'OS'
+    ];
+
+    for (let part of parts) {
+      const upperPart = part.toUpperCase().replace(' ', '');
+      if (clothingSizes.includes(upperPart)) {
+        return part;
+      }
+    }
+    
+    return null;
   };
 
   // ✅ UPDATED: Extract color images from product data using colorOptions
@@ -121,8 +258,6 @@ const ProductDetails = () => {
     // Otherwise, create a mapping from colorOptions
     const colorImages = {};
     if (product.colorOptions && product.colorOptions.length > 0) {
-      // For now, use the same images for all colors
-      // In future, you can map specific images to specific colors
       product.colorOptions.forEach(colorOption => {
         colorImages[colorOption.name.toLowerCase()] = product.images;
       });
@@ -156,6 +291,21 @@ const ProductDetails = () => {
     return product.printifyVariants.filter(variant => variant.is_enabled === true);
   };
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sizeDropdownRef.current && !sizeDropdownRef.current.contains(event.target)) {
+        setIsSizeDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // ✅ DYNAMIC: Load product with automatic color/size detection
   useEffect(() => {
     const loadProduct = async () => {
       if (id) {
@@ -167,20 +317,25 @@ const ProductDetails = () => {
           // Set first enabled variant as default
           const enabledVariants = getEnabledVariants();
           if (enabledVariants.length > 0) {
-            setSelectedVariant(enabledVariants[0]);
-            const parts = enabledVariants[0].title.split('/').map(part => part.trim());
-            if (parts.length >= 2) {
-              setSelectedColor(parts[0]);
-              setSelectedSize(parts[1]);
-            }
+            const firstVariant = enabledVariants[0];
+            setSelectedVariant(firstVariant);
+            
+            // Dynamically extract color and size
+            const color = extractColorFromVariant(firstVariant.title);
+            const size = extractSizeFromVariant(firstVariant.title);
+            
+            setSelectedColor(color);
+            setSelectedSize(size);
           } else if (productData?.printifyVariants?.[0]) {
             // Fallback to first variant if no enabled variants
-            setSelectedVariant(productData.printifyVariants[0]);
-            const parts = productData.printifyVariants[0].title.split('/').map(part => part.trim());
-            if (parts.length >= 2) {
-              setSelectedColor(parts[0]);
-              setSelectedSize(parts[1]);
-            }
+            const firstVariant = productData.printifyVariants[0];
+            setSelectedVariant(firstVariant);
+            
+            const color = extractColorFromVariant(firstVariant.title);
+            const size = extractSizeFromVariant(firstVariant.title);
+            
+            setSelectedColor(color);
+            setSelectedSize(size);
           }
         } catch (error) {
           console.error('Error loading product:', error);
@@ -208,49 +363,60 @@ const ProductDetails = () => {
     loadSimilarProducts();
   }, [product, getSimilarProducts]);
 
-  // Handle color selection
+  // ✅ DYNAMIC: Handle color selection
   const handleColorSelect = (color) => {
+    if (!isColorAvailable(color)) return;
+    
     setSelectedColor(color);
     
-    // Find first available size for this color
-    const availableSizes = product.printifyVariants
-      .filter(variant => {
-        const parts = variant.title.split('/').map(part => part.trim());
-        return parts[0] === color && variant.is_enabled === true;
-      })
-      .map(variant => {
-        const parts = variant.title.split('/').map(part => part.trim());
-        return parts[1];
-      });
-    
-    if (availableSizes.length > 0) {
-      setSelectedSize(availableSizes[0]);
-      // Find and set the corresponding variant
-      const firstAvailableVariant = product.printifyVariants.find(variant => {
-        const parts = variant.title.split('/').map(part => part.trim());
-        return parts[0] === color && parts[1] === availableSizes[0] && variant.is_enabled === true;
-      });
-      if (firstAvailableVariant) {
-        setSelectedVariant(firstAvailableVariant);
+    if (hasSizes()) {
+      // Find first available size for this color
+      const availableSizes = getAvailableSizes();
+      
+      if (availableSizes.length > 0) {
+        setSelectedSize(availableSizes[0]);
+        // Find and set the corresponding variant
+        const firstAvailableVariant = product.printifyVariants.find(variant => {
+          const parts = variant.title.split('/').map(part => part.trim());
+          return parts.includes(color) && 
+                 parts.includes(availableSizes[0]) && 
+                 variant.is_enabled === true;
+        });
+        if (firstAvailableVariant) {
+          setSelectedVariant(firstAvailableVariant);
+        }
+      } else {
+        setSelectedSize(null);
+        setSelectedVariant(null);
       }
     } else {
-      setSelectedSize(null);
-      setSelectedVariant(null);
+      // For products without sizes, find variant with selected color
+      const matchingVariant = product.printifyVariants.find(variant => {
+        const parts = variant.title.split('/').map(part => part.trim());
+        return parts.includes(color) && variant.is_enabled === true;
+      });
+      
+      if (matchingVariant) {
+        setSelectedVariant(matchingVariant);
+      }
     }
     
     setSelectedImage(0);
   };
 
-  // Handle size selection
+  // ✅ DYNAMIC: Handle size selection from dropdown
   const handleSizeSelect = (size) => {
-    if (!isSizeAvailable(size)) return; // Don't allow selection of unavailable sizes
+    if (!isSizeAvailable(size)) return;
     
     setSelectedSize(size);
+    setIsSizeDropdownOpen(false);
     
     // Find variant with selected color and size
     const matchingVariant = product.printifyVariants.find(variant => {
       const parts = variant.title.split('/').map(part => part.trim());
-      return parts[0] === selectedColor && parts[1] === size && variant.is_enabled === true;
+      return parts.includes(selectedColor) && 
+             parts.includes(size) && 
+             variant.is_enabled === true;
     });
     
     if (matchingVariant) {
@@ -258,7 +424,7 @@ const ProductDetails = () => {
     }
   };
 
-  // ✅ NEW: Get hex code for a color from colorOptions
+  // ✅ Get hex code for a color from colorOptions
   const getColorHexCode = (colorName) => {
     if (!product?.colorOptions) return '#000000';
     
@@ -329,7 +495,19 @@ const ProductDetails = () => {
   };
 
   const handleAddToCart = () => {
-    if (product && selectedVariant && selectedColor && selectedSize) {
+    if (product && selectedVariant && selectedColor) {
+      // For products with sizes, require both color and size
+      if (hasSizes() && (!selectedColor || !selectedSize)) {
+        alert('Please select both color and size before adding to cart.');
+        return;
+      }
+      
+      // For products without sizes, only require color
+      if (!hasSizes() && !selectedColor) {
+        alert('Please select color before adding to cart.');
+        return;
+      }
+
       const cartItem = {
         id: `${product.id}-${selectedVariant.id}`,
         productId: product.id,
@@ -346,7 +524,7 @@ const ProductDetails = () => {
       addToCart(cartItem);
       triggerFlyingAnimation();
     } else {
-      alert('Please select both color and size before adding to cart.');
+      alert('Please select required options before adding to cart.');
     }
   };
 
@@ -390,6 +568,8 @@ const ProductDetails = () => {
   const { colors, sizes } = getUniqueColorsAndSizes();
   const enabledVariants = getEnabledVariants();
   const savingsInfo = calculateSavings();
+  const productHasSizes = hasSizes();
+  const availableSizes = getAvailableSizes();
 
   if (isLoading) {
     return (
@@ -508,7 +688,7 @@ const ProductDetails = () => {
                   onTouchEnd={handleTouchEnd}
                 >
                   <motion.img
-                    key={`${selectedImage}-${selectedColor}`} // ✅ Add color to key for image re-render
+                    key={`${selectedImage}-${selectedColor}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3 }}
@@ -672,81 +852,148 @@ const ProductDetails = () => {
                 </div>
               </div>
 
-              {/* ✅ UPDATED: Color Selection using API colorOptions */}
+              {/* ✅ DYNAMIC: Color Selection with availability check */}
               {product.colorOptions && product.colorOptions.length > 0 && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      Color: {selectedColor}
+                      {productHasSizes ? "Select Color" : "Select Option"}
                     </h3>
+                    {/* Show selected option dynamically */}
+                    {selectedColor && (
+                      <div className="flex items-center space-x-2 text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          {productHasSizes ? "Selected:" : "Selected Option:"}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          <div 
+                            className="w-4 h-4 rounded-full border border-gray-300"
+                            style={{ backgroundColor: getColorHexCode(selectedColor) }}
+                          />
+                          <span className="font-medium text-gray-900 dark:text-white">
+                            {selectedColor}
+                            {selectedSize && productHasSizes && ` / ${selectedSize}`}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-3">
-                    {product.colorOptions.map((colorOption) => (
-                      <button
-                        key={colorOption.name}
-                        onClick={() => handleColorSelect(colorOption.name)}
-                        className={`flex items-center space-x-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                          selectedColor === colorOption.name
-                            ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                        }`}
-                      >
-                        {/* ✅ Use actual hex code from API */}
-                        <div 
-                          className="w-6 h-6 rounded-full border border-gray-300 flex-shrink-0"
-                          style={{ backgroundColor: colorOption.hexCode }}
-                        />
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          {colorOption.name}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Size Selection */}
-              {sizes.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      Select Size
-                    </h3>
-                  </div>
-                  
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-                    {sizes.map((size) => {
-                      const available = isSizeAvailable(size);
+                    {product.colorOptions.map((colorOption) => {
+                      const available = isColorAvailable(colorOption.name);
                       
                       return (
                         <button
-                          key={size}
-                          onClick={() => available && handleSizeSelect(size)}
+                          key={colorOption.name}
+                          onClick={() => available && handleColorSelect(colorOption.name)}
                           disabled={!available}
-                          className={`py-3 px-2 rounded-lg border-2 text-sm font-medium transition-all relative ${
-                            selectedSize === size
-                              ? 'border-blue-600 bg-blue-600 text-white'
+                          className={`flex items-center space-x-2 px-4 py-3 rounded-lg border-2 transition-all relative ${
+                            selectedColor === colorOption.name
+                              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
                               : available
-                                ? 'border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white hover:border-blue-600 dark:hover:border-blue-400'
+                                ? 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                                 : 'border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                           }`}
                         >
-                          {size}
+                          {/* Use actual hex code from API */}
+                          <div 
+                            className="w-6 h-6 rounded-full border border-gray-300 flex-shrink-0"
+                            style={{ backgroundColor: colorOption.hexCode }}
+                          />
+                          <span className={`font-medium ${
+                            available ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'
+                          }`}>
+                            {colorOption.name}
+                          </span>
+                          
+                          {/* Strikeout for unavailable colors */}
                           {!available && (
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-full border-t border-gray-400 dark:border-gray-500 transform rotate-12"></div>
+                              <div className="w-full border-t border-red-400 dark:border-red-500 transform rotate-12"></div>
                             </div>
                           )}
                         </button>
                       );
                     })}
                   </div>
+                </div>
+              )}
 
-                  {!selectedSize && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Please select a size
-                    </p>
-                  )}
+              {/* ✅ DYNAMIC: Size Selection with Dropdown - Only show if product has sizes */}
+              {productHasSizes && availableSizes.length > 0 && (
+                <div className="space-y-4" ref={sizeDropdownRef}>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Select Size
+                    </h3>
+                    {!selectedSize && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Please select a size
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Dropdown for Size Selection */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsSizeDropdownOpen(!isSizeDropdownOpen)}
+                      className={`w-full py-3 px-4 rounded-lg border-2 text-left flex items-center justify-between transition-all ${
+                        selectedSize
+                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                    >
+                      <span className={`font-medium ${selectedSize ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                        {selectedSize || 'Choose Size'}
+                      </span>
+                      {isSizeDropdownOpen ? (
+                        <FiChevronUp className="text-gray-400" />
+                      ) : (
+                        <FiChevronDown className="text-gray-400" />
+                      )}
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    <AnimatePresence>
+                      {isSizeDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.2 }}
+                          className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto"
+                        >
+                          {availableSizes.map((size) => {
+                            const available = isSizeAvailable(size);
+                            
+                            return (
+                              <button
+                                key={size}
+                                onClick={() => available && handleSizeSelect(size)}
+                                disabled={!available}
+                                className={`w-full z-10 px-4 py-3 text-left flex items-center justify-between transition-colors ${
+                                  selectedSize === size
+                                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                                    : available
+                                      ? 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white'
+                                      : 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                } ${
+                                  available ? 'border-b border-gray-100 dark:border-gray-700 last:border-b-0' : ''
+                                }`}
+                              >
+                                <span className={selectedSize === size ? 'font-semibold' : 'font-medium'}>
+                                  {size}
+                                </span>
+                                {!available && (
+                                  <span className="text-xs text-red-500 dark:text-red-400">Out of stock</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               )}
 
@@ -788,7 +1035,7 @@ const ProductDetails = () => {
                   <button
                     ref={addToCartRef}
                     onClick={handleAddToCart}
-                    disabled={!product.inStock || !selectedColor || !selectedSize}
+                    disabled={!product.inStock || !selectedColor || (productHasSizes && !selectedSize)}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 px-8 rounded-xl font-semibold text-lg transition-colors flex items-center justify-center space-x-3 relative overflow-hidden"
                   >
                     <motion.span
@@ -798,7 +1045,7 @@ const ProductDetails = () => {
                       <FiShoppingCart size={24} />
                       <span>
                         {!product.inStock ? 'Out of Stock' : 
-                         !selectedColor || !selectedSize ? 'Select Options' : 'Add to Cart'}
+                         !selectedColor || (productHasSizes && !selectedSize) ? 'Select Options' : 'Add to Cart'}
                       </span>
                     </motion.span>
                     
@@ -812,7 +1059,7 @@ const ProductDetails = () => {
 
                   <button
                     onClick={handleBuyNow}
-                    disabled={!product.inStock || !selectedColor || !selectedSize}
+                    disabled={!product.inStock || !selectedColor || (productHasSizes && !selectedSize)}
                     className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 px-8 rounded-xl font-semibold text-lg transition-colors"
                   >
                     Buy Now
@@ -821,47 +1068,46 @@ const ProductDetails = () => {
               </div>
 
               {/* Enhanced Features */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
-              {/* 🚚 Free Shipping */}
-              <div className="flex items-center space-x-3">
-                <FiTruck className="text-green-600 flex-shrink-0" size={20} />
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white text-base">
-                    Free Shipping
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    On orders above $50
-                  </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                {/* 🚚 Free Shipping */}
+                <div className="flex items-center space-x-3">
+                  <FiTruck className="text-green-600 flex-shrink-0" size={20} />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white text-base">
+                      Free Shipping
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      On orders above $50
+                    </p>
+                  </div>
+                </div>
+
+                {/* 🛡️ Secure Payment */}
+                <div className="flex items-center space-x-3">
+                  <FiShield className="text-blue-600 flex-shrink-0" size={20} />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white text-base">
+                      Secure Payment
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      100% Secure & Encrypted
+                    </p>
+                  </div>
+                </div>
+
+                {/* 🎨 Custom Orders */}
+                <div className="flex items-center space-x-3">
+                  <FiMessageCircle className="text-pink-600 flex-shrink-0" size={20} />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white text-base">
+                      Custom Orders
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      DM us on Instagram for color or design changes
+                    </p>
+                  </div>
                 </div>
               </div>
-
-              {/* 🛡️ Secure Payment */}
-              <div className="flex items-center space-x-3">
-                <FiShield className="text-blue-600 flex-shrink-0" size={20} />
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white text-base">
-                    Secure Payment
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    100% Secure & Encrypted
-                  </p>
-                </div>
-              </div>
-
-              {/* 🎨 Custom Orders */}
-              <div className="flex items-center space-x-3">
-                <FiMessageCircle className="text-pink-600 flex-shrink-0" size={20} />
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white text-base">
-                    Custom Orders
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    DM us on Instagram for color or design changes
-                  </p>
-                </div>
-              </div>
-            </div>
-
             </div>
           </div>
 
