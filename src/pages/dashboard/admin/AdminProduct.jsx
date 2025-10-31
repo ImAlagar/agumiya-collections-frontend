@@ -28,19 +28,22 @@ const AdminProduct = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [localFilters, setLocalFilters] = useState(filters);
 
+  // ✅ FIXED: Proper initial fetch
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(1); // Explicitly start from page 1
   }, [fetchProducts]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (JSON.stringify(localFilters) !== JSON.stringify(filters)) {
+        console.log('🔄 Filter change detected, updating...'); // Debug log
         updateFilters(localFilters);
       }
     }, 500);
     
     return () => clearTimeout(timeoutId);
   }, [localFilters, updateFilters, filters]);
+
 
   const handlePageChange = (page) => {
     fetchProducts(page);

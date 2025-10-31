@@ -134,23 +134,7 @@ const handleConfirmDelete = async () => {
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Total: {pagination?.totalCount || 0} products
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Show:</span>
-            <select 
-              value={pagination?.limit || 12}
-              onChange={(e) => {
-                const newSize = Number(e.target.value);
-                handlePageSizeChangeClick(newSize);
-              }}
-              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={12}>12</option>
-              <option value={24}>24</option>
-              <option value={36}>36</option>
-              <option value={48}>48</option>
-            </select>
-            <span className="text-sm text-gray-600 dark:text-gray-400">per page</span>
-          </div>
+
         </div>
 
         {/* Desktop Table */}
