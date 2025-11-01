@@ -322,17 +322,19 @@ const handleFilterChange = useCallback((newFilters) => {
     setMobileFiltersOpen(false);
   }, []);
 
-  // ✅ Format price for display
+  // ✅ Format price for display - FIXED VERSION
   const formatPriceForDisplay = useCallback((price) => {
     if (price === null || price === undefined) return 'N/A';
     
+
     try {
       const { formatted } = formatPrice(price, userCurrency);
       return formatted;
     } catch (error) {
-      console.warn('Price formatting failed, using fallback:', error);
+      console.warn('❌ Shop - Price formatting failed:', error);
       const convertedPrice = convertPrice(price, 'USD', userCurrency);
-      return `${getCurrencySymbol()}${convertedPrice.toFixed(2)}`;
+      const fallbackPrice = `${getCurrencySymbol()}${convertedPrice.toFixed(2)}`;
+      return fallbackPrice;
     }
   }, [formatPrice, convertPrice, userCurrency, getCurrencySymbol]);
 

@@ -201,37 +201,37 @@ export function CurrencyProvider({ children }) {
   }, [state.userCurrency]);
 
   // ✅ Format price professionally (returns object with formatted and original)
-const formatPrice = useCallback((price, currency = state.userCurrency, showOriginal = false) => {
-  // Round the converted price to nearest whole number
-  const convertedPrice = Math.round(convertPrice(price, 'USD', currency));
+  const formatPrice = useCallback((price, currency = state.userCurrency, showOriginal = false) => {
+    // Removed rounding - use the exact converted price
+    const convertedPrice = convertPrice(price, 'USD', currency);
 
-  try {
-    const formatted = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(convertedPrice);
-
-    if (showOriginal && currency !== 'USD') {
-      const original = new Intl.NumberFormat('en-US', {
+    try {
+      const formatted = new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: 'USD',
+        currency,
         minimumFractionDigits: 2,
-      }).format(price);
+        maximumFractionDigits: 2,
+      }).format(convertedPrice);
+
+      if (showOriginal && currency !== 'USD') {
+        const original = new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 2,
+        }).format(price);
+        return { formatted, original };
+      }
+
+      return { formatted, original: null };
+    } catch (error) {
+      console.warn('Fallback format used', { error });
+      const formatted = `${convertedPrice.toFixed(2)} ${currency}`;
+      const original = currency !== 'USD' ? `$${price.toFixed(2)}` : null;
       return { formatted, original };
     }
+  }, [convertPrice, state.userCurrency]);
 
-    return { formatted, original: null };
-  } catch (error) {
-    console.warn('Fallback format used', { error });
-    const formatted = `${convertedPrice.toFixed(2)} ${currency}`;
-    const original = currency !== 'USD' ? `$${price.toFixed(2)}` : null;
-    return { formatted, original };
-  }
-}, [convertPrice, state.userCurrency]);
-
-  // ✅ NEW: Simple format function that returns just the formatted string
+  // ✅ Simple format function that returns just the formatted string
   const formatPriceSimple = useCallback((price, currency = state.userCurrency) => {
     const { formatted } = formatPrice(price, currency);
     return formatted;

@@ -3,7 +3,7 @@ export const FALLBACK_RATES = {
   USD: 1,
   EUR: 0.85,
   GBP: 0.73,
-  INR: 83.25,
+  INR: 87.8,
   CAD: 1.35,
   AUD: 1.52,
   JPY: 149.50,

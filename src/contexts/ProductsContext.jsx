@@ -178,7 +178,6 @@ const fetchProducts = useCallback(async (page = null, filters = {}) => {
       apiFilters.inStock = currentFilters.inStock === 'true';
     }
 
-    console.log('🔄 Fetching products with page:', apiFilters.page, 'filters:', apiFilters);
 
     const response = await productService.getFilteredProducts(apiFilters);
     
@@ -199,7 +198,6 @@ const fetchProducts = useCallback(async (page = null, filters = {}) => {
           : (paginationData.currentPage || currentFilters.page) > 1,
       };
 
-      console.log('✅ Pagination mapped:', mappedPagination);
 
       dispatch({
         type: PRODUCT_ACTIONS.SET_PRODUCTS,
@@ -233,7 +231,6 @@ const fetchProducts = useCallback(async (page = null, filters = {}) => {
 // ========================
 const updatePageSize = useCallback(
   async (newLimit) => {
-    console.log('🔄 Changing page size to:', newLimit); // Debug log
     // Reset to page 1 when changing page size and update filters
     dispatch({ 
       type: PRODUCT_ACTIONS.SET_FILTERS, 

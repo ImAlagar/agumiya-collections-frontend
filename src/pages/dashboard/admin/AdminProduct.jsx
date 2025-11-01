@@ -36,7 +36,6 @@ const AdminProduct = () => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (JSON.stringify(localFilters) !== JSON.stringify(filters)) {
-        console.log('🔄 Filter change detected, updating...'); // Debug log
         updateFilters(localFilters);
       }
     }, 500);

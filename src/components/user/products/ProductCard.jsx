@@ -15,14 +15,11 @@ const ProductCard = ({ product }) => {
   } = useCurrency();
   const firstImage = product.images?.[0];
   
-  // Get price range for variants
-  const variantPrices = product.printifyVariants?.map(v => v.price) || [];
-  const minPrice = variantPrices.length > 0 ? Math.min(...variantPrices) : product.price;
-  const maxPrice = variantPrices.length > 0 ? Math.max(...variantPrices) : product.price;
-  const hasMultiplePrices = minPrice !== maxPrice;
+  // ✅ FIXED: Always use base product price for consistency
+  const basePrice = product.price;
   const hasVariants = product.printifyVariants && product.printifyVariants.length > 0;
 
-  // ✅ FIX: Extract formatted prices properly
+  // ✅ FIXED: Extract formatted prices properly
   const getFormattedPrice = (price) => {
     if (formatPriceRounded) {
       return formatPriceRounded(price, userCurrency);
@@ -33,10 +30,9 @@ const ProductCard = ({ product }) => {
     }
   };
 
-  // ✅ FIX: Get formatted prices
-  const formattedMinPrice = getFormattedPrice(minPrice);
-  const formattedMaxPrice = getFormattedPrice(maxPrice);
-  const formattedProductPrice = getFormattedPrice(product.price);
+  // ✅ FIXED: Always use base product price for consistency
+  const formattedPrice = getFormattedPrice(basePrice);
+  const originalFormattedPrice = product.originalPrice ? getFormattedPrice(product.originalPrice) : null;
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -134,16 +130,18 @@ const ProductCard = ({ product }) => {
             {product.name}
           </h3>
 
-          {/* ✅ FIXED: Price Section */}
+          {/* ✅ FIXED: Consistent Price Section - Only Base Price */}
           <div className="mb-3 min-h-[60px]">
             <div className="flex items-baseline justify-between mb-2">
               <div className="flex items-baseline space-x-2">
                 <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {hasMultiplePrices ? formattedMinPrice : formattedProductPrice}
+                  {formattedPrice}
                 </span>
-                {hasMultiplePrices && (
-                  <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-                    - {formattedMaxPrice}
+                
+                {/* Show original price if on sale */}
+                {product.originalPrice && product.originalPrice > basePrice && (
+                  <span className="text-lg text-gray-500 line-through">
+                    {originalFormattedPrice}
                   </span>
                 )}
               </div>
@@ -159,23 +157,23 @@ const ProductCard = ({ product }) => {
               )}
             </div>
 
-            {/* Price range info for variants */}
-            {hasMultiplePrices && (
+            {/* ✅ FIXED: Show variant count without price variation mention */}
+            {hasVariants && (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Price varies by {product.printifyVariants.length} options
+                {product.printifyVariants.length} options available
               </p>
             )}
           </div>
 
-          {/* Variants Info */}
+          {/* Variants Info - Without Price References */}
           {hasVariants && (
             <div className="mb-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600 dark:text-gray-400 font-medium">
-                  {product.printifyVariants.length} options available
+                  Choose options
                 </span>
                 <span className="text-primary-600 dark:text-primary-400 font-semibold flex items-center">
-                  Choose <span className="ml-1">→</span>
+                  Select <span className="ml-1">→</span>
                 </span>
               </div>
             </div>
@@ -191,6 +189,11 @@ const ProductCard = ({ product }) => {
             {product.isPremium && (
               <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium">
                 ✨ Premium
+              </span>
+            )}
+            {hasVariants && (
+              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium">
+                🔄 Multiple Options
               </span>
             )}
           </div>
