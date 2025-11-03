@@ -89,6 +89,7 @@ const OrderTable = ({
   onPageChange,
   onPageSizeChange,
   onViewOrder,
+  onStatusUpdate,
   onCancelOrder,
   actionLoading
 }) => {
@@ -153,6 +154,16 @@ const formatCurrency = (amount) => {
     setSelectedOrder(null);
   };
 
+  const handleStatusUpdateClick = (order, e) => {
+    e?.stopPropagation(); // Prevent row click
+    if (onStatusUpdate) {
+      onStatusUpdate(order, e);
+    } else {
+      // Fallback if prop not provided
+      setSelectedOrder(order);
+      setShowStatusModal(true);
+    }
+  };
   // Add cancel order handler
   const handleCancelClick = (order, e) => {
     e.stopPropagation(); // Prevent row click
@@ -447,7 +458,18 @@ const formatCurrency = (amount) => {
                     {formatOrderAmount(order?.totalAmount || 0, order?.currency)}
                   </div>
                 </td>
-                <td className="p-4">
+              <td className="p-4">
+                <div className="flex flex-wrap gap-2">
+                  {/* Status Update Button */}
+                  <button
+                    onClick={(e) => handleStatusUpdateClick(order, e)}
+                    disabled={actionLoading === `status-${order.id}`}
+                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {actionLoading === `status-${order.id}` ? 'Updating...' : 'Update Status'}
+                  </button>
+
+                  {/* Cancel Button */}
                   {order.fulfillmentStatus !== 'CANCELLED' && (
                     <button
                       onClick={(e) => handleCancelClick(order, e)}
@@ -457,184 +479,198 @@ const formatCurrency = (amount) => {
                       {actionLoading === `cancel-${order.id}` ? 'Cancelling...' : 'Cancel'}
                     </button>
                   )}
-                </td>
+                </div>
+              </td>
               </motion.tr>
             ))}
           </tbody>
         </table>
       </div>
-        {/* Mobile Cards section */}
-        <div className="md:hidden space-y-4 px-3 pb-6 w-full overflow-y-auto max-h-[calc(100vh-220px)]">
-
-          {safeOrders.map((order, index) => (
-            <motion.div
-              key={order.id || index}
-              variants={itemVariants}
-              className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all duration-150"
-              onClick={() => handleRowClick(order)}
-            >
-              {/* Header: Image + ID + Status */}
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="relative flex-shrink-0">
-                    {order.items?.[0]?.product?.images?.[0] ? (
-                      <img
-                        src={order.items[0].product.images[0]}
-                        alt="Product"
-                        className="w-14 h-14 rounded-lg object-cover shadow-sm"
-                        onError={(e) => {
-                          e.target.src = '/api/placeholder/40/40';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-14 h-14 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center shadow-sm">
-                        <Package className="w-5 h-5 text-gray-400" />
-                      </div>
-                    )}
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+{/* MObile card */}
+    <div className="md:hidden space-y-4 px-3 pb-6 w-full overflow-y-auto max-h-[calc(100vh-220px)]">
+      {safeOrders.map((order, index) => (
+        <motion.div
+          key={order.id || index}
+          variants={itemVariants}
+          className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all duration-150"
+          onClick={() => handleRowClick(order)}
+        >
+          {/* Header: Image + ID + Status */}
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-shrink-0">
+                {order.items?.[0]?.product?.images?.[0] ? (
+                  <img
+                    src={order.items[0].product.images[0]}
+                    alt="Product"
+                    className="w-14 h-14 rounded-lg object-cover shadow-sm"
+                    onError={(e) => {
+                      e.target.src = '/api/placeholder/40/40';
+                    }}
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center shadow-sm">
+                    <Package className="w-5 h-5 text-gray-400" />
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {getOrderDisplayId(order)}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {order.items?.length || 0} item(s)
-                    </div>
-                  </div>
-                </div>
-                <StatusBadge status={order.fulfillmentStatus || 'PENDING'} />
+                )}
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-800"></div>
               </div>
-
-              {/* Info Grid */}
-              <div className="grid grid-cols-2 gap-3 text-xs mb-4">
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                    <User className="w-3 h-3" />
-                    Customer
-                  </div>
-                  <div className="font-medium truncate text-gray-900 dark:text-gray-200">
-                    {getCustomerName(order)}
-                  </div>
+              <div>
+                <div className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[160px]">
+                  {getOrderDisplayId(order)}
                 </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400">Amount</div>
-                  <div className="font-semibold text-gray-900 dark:text-gray-100">
-                    {formatCurrency(order.totalAmount || 0)} {/* ✅ Already using updated formatCurrency */}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                    <CreditCard className="w-3 h-3" />
-                    Payment
-                  </div>
-                  <div className="font-medium">
-                    <PaymentStatusBadge status={order.paymentStatus || 'PENDING'} />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                    <Truck className="w-3 h-3" />
-                    Printify
-                  </div>
-                  <div className="font-medium">
-                    <PrintifyStatusBadge order={order} />
-                  </div>
+                <div className="text-xs text-gray-500">
+                  {order.items?.length || 0} item(s)
                 </div>
               </div>
-
-              {/* Cancel Order Button */}
-              {order.fulfillmentStatus !== 'CANCELLED' && (
-                <button
-                  onClick={(e) => handleCancelClick(order, e)}
-                  disabled={actionLoading === `cancel-${order.id}`}
-                  className="w-full px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {actionLoading === `cancel-${order.id}`
-                    ? 'Cancelling Order...'
-                    : 'Cancel Order'}
-                </button>
-              )}
-
-              {/* Footer */}
-              <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700 mt-3">
-                <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {order.createdAt ? formatDate(order.createdAt) : 'N/A'}
-                </div>
-                <div className="text-blue-600 dark:text-blue-400 text-xs font-medium">
-                  Tap to view details →
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-
-        {pagination && pagination.totalPages > 1 && (
-          <div className="w-full overflow-hidden">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700 gap-4 overflow-x-auto"
-            >
-              {/* Showing Range Info */}
-              <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                Showing {showingRange.start}-{showingRange.end} of {showingRange.total} orders
-              </div>
-
-              {/* Pagination Buttons */}
-              <div className="flex items-center gap-2 overflow-x-auto max-w-full scrollbar-hide px-1">
-                
-                {/* Previous Button */}
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={pagination.currentPage === 1}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium shrink-0"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </button>
-
-                {/* Page Numbers */}
-                <div className="flex gap-1 overflow-x-auto max-w-full scrollbar-hide">
-                  {pageNumbers.map((page, index) =>
-                    page === '...' ? (
-                      <span
-                        key={`ellipsis-${index}`}
-                        className="px-2 text-gray-500 flex items-center"
-                      >
-                        ...
-                      </span>
-                    ) : (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page)}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[36px] shrink-0 ${
-                          pagination.currentPage === page
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                            : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    )
-                  )}
-                </div>
-
-                {/* Next Button */}
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={pagination.currentPage === pagination.totalPages}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium shrink-0"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </motion.div>
+            </div>
+            <StatusBadge status={order.fulfillmentStatus || 'PENDING'} />
           </div>
-        )}
+
+          {/* Info Grid */}
+          <div className="grid grid-cols-2 gap-3 text-xs mb-4">
+            <div>
+              <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                <User className="w-3 h-3" />
+                Customer
+              </div>
+              <div className="font-medium truncate text-gray-900 dark:text-gray-200">
+                {getCustomerName(order)}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-gray-600 dark:text-gray-400">Amount</div>
+              <div className="font-semibold text-gray-900 dark:text-gray-100">
+                {formatCurrency(order.totalAmount || 0)}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                <CreditCard className="w-3 h-3" />
+                Payment
+              </div>
+              <div className="font-medium">
+                <PaymentStatusBadge status={order.paymentStatus || 'PENDING'} />
+              </div>
+            </div>
+
+            <div>
+              <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                <Truck className="w-3 h-3" />
+                Printify
+              </div>
+              <div className="font-medium">
+                <PrintifyStatusBadge order={order} />
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col xs:flex-row gap-2 mb-3 w-full">
+            {/* Status Update Button */}
+            <button
+              onClick={(e) => handleStatusUpdateClick(order, e)}
+              disabled={actionLoading === `status-${order.id}`}
+              className="flex-1 px-3 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 active:scale-[0.98]"
+            >
+              {actionLoading === `status-${order.id}` ? 'Updating...' : 'Update Status'}
+            </button>
+
+            {/* Cancel Button */}
+            {order.fulfillmentStatus !== 'CANCELLED' && (
+              <button
+                onClick={(e) => handleCancelClick(order, e)}
+                disabled={actionLoading === `cancel-${order.id}`}
+                className="flex-1 px-3 py-2 text-sm sm:text-base bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 active:scale-[0.98]"
+              >
+                {actionLoading === `cancel-${order.id}` ? 'Cancelling...' : 'Cancel'}
+              </button>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pt-3 border-t border-gray-200 dark:border-gray-700 mt-3 gap-2 sm:gap-0">
+            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              {order.createdAt ? formatDate(order.createdAt) : 'N/A'}
+            </div>
+            <div className="text-blue-600 dark:text-blue-400 text-xs font-medium text-right">
+              Tap to view details →
+            </div>
+          </div>
+        </motion.div>
+      ))}
+    </div>
+
+
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="w-full overflow-hidden">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col sm:flex-row justify-between items-center p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700 gap-3 sm:gap-4"
+          >
+            {/* Showing Range Info */}
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap text-center sm:text-left">
+              Showing {showingRange.start}-{showingRange.end} of {showingRange.total} orders
+            </div>
+
+            {/* Pagination Buttons */}
+            <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide px-1 max-w-full sm:max-w-none">
+              
+              {/* Previous Button */}
+              <button
+                onClick={() => handlePageChange(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
+                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-xs sm:text-sm font-medium shrink-0"
+              >
+                <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Prev</span>
+              </button>
+
+              {/* Page Numbers */}
+              <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+                {pageNumbers.map((page, index) =>
+                  page === '...' ? (
+                    <span
+                      key={`ellipsis-${index}`}
+                      className="px-2 text-gray-500 flex items-center"
+                    >
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 min-w-[30px] sm:min-w-[36px] shrink-0 ${
+                        pagination.currentPage === page
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                          : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+              </div>
+
+              {/* Next Button */}
+              <button
+                onClick={() => handlePageChange(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.totalPages}
+                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-xs sm:text-sm font-medium shrink-0"
+              >
+                <span className="hidden xs:inline">Next</span>
+                <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       </motion.div>
 

@@ -298,21 +298,21 @@ const fetchOrders = useCallback(
   }, []);
 
   // ✅ Update Order Status
-  const updateOrderStatus = useCallback(async (orderId, statusData) => {
-    try {
-      const response = await orderService.updateOrderStatus(
-        orderId,
-        statusData
-      );
-      if (response.success) {
-        dispatch({ type: ORDER_ACTIONS.UPDATE_ORDER, payload: response.data });
-        return { success: true };
-      } else throw new Error(response.message);
-    } catch (error) {
-      dispatch({ type: ORDER_ACTIONS.SET_ERROR, payload: error.message });
-      return { success: false };
-    }
-  }, []);
+const updateOrderStatus = useCallback(async (orderId, statusData) => {
+  try {
+    const response = await orderService.updateOrderStatus(
+      orderId,
+      statusData
+    );
+    if (response.success) {
+      dispatch({ type: ORDER_ACTIONS.UPDATE_ORDER, payload: response.data });
+      return { success: true };
+    } else throw new Error(response.message);
+  } catch (error) {
+    dispatch({ type: ORDER_ACTIONS.SET_ERROR, payload: error.message });
+    return { success: false };
+  }
+}, []);
 
   // ✅ Retry Printify Order
   const retryPrintifyOrder = useCallback(async (orderId) => {

@@ -133,7 +133,6 @@ const ProductDetails = ({ product, onClose }) => {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Package },
-    { id: 'variants', label: 'Variants', icon: Layers },
     { id: 'images', label: 'Media', icon: ImageIcon },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
   ];
@@ -521,10 +520,7 @@ const ProductDetails = ({ product, onClose }) => {
                         <span className="font-medium">SKU Prefix:</span>
                         <span className="font-mono text-xs opacity-75 truncate ml-2">{product.sku}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium">Total Variants:</span>
-                        <span className="font-mono text-xs opacity-75">{product.printifyVariants?.length || 0}</span>
-                      </div>
+
                     </div>
                   </div>
                 </div>

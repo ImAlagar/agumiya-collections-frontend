@@ -151,7 +151,7 @@ const UserProfile = () => {
     if (isAdmin) {
       return 'Admin dashboard for managing Agumiya Collections. Monitor orders, products, and system analytics.';
     }
-    return 'Manage your Agumiya Collections account. View and update your profile information, order history, and preferences.';
+    return 'Manage your Agumiya Collections account. View and update your , order history, and preferences.';
   };
 
   if (loading) {
@@ -806,114 +806,54 @@ const ProfileOverview = ({ userData, isAdmin, formatDate, onUpdateProfile }) => 
       exit={{ opacity: 0, y: -20 }}
       className="space-y-6"
     >
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {isAdmin ? 'Admin Information' : 'Profile Information'}
-          </h2>
-          <div className="flex space-x-2">
-            {isEditing ? (
-              <>
-                <button
-                  onClick={handleCancel}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  className={`px-4 py-2 rounded-lg text-white transition-colors ${
-                    isAdmin 
-                      ? 'bg-purple-600 hover:bg-purple-700' 
-                      : 'bg-indigo-600 hover:bg-indigo-700'
-                  }`}
-                >
-                  Save Changes
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setIsEditing(true)}
-                className={`px-4 py-2 rounded-lg text-white transition-colors ${
-                  isAdmin 
-                    ? 'bg-purple-600 hover:bg-purple-700' 
-                    : 'bg-indigo-600 hover:bg-indigo-700'
-                }`}
-              >
-                Edit Profile
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Full Name
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-              />
-            ) : (
-              <p className="text-gray-900 dark:text-white">{userData?.name || 'Not provided'}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Email Address
-            </label>
-            {isEditing ? (
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-              />
-            ) : (
-              <p className="text-gray-900 dark:text-white">{userData?.email || 'Not provided'}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Phone Number
-            </label>
-            {isEditing ? (
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-              />
-            ) : (
-              <p className="text-gray-900 dark:text-white">{userData?.phone || 'Not provided'}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              User Since
-            </label>
-            <p className="text-gray-900 dark:text-white">
-              {userData?.createdAt ? formatDate(userData.createdAt) : 'Unknown'}
-            </p>
-          </div>
-
-          {isAdmin && userData?.role && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Role
-              </label>
-              <p className="text-gray-900 dark:text-white capitalize">{userData.role}</p>
-            </div>
-          )}
-        </div>
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          {isAdmin ? 'Admin Information' : 'Profile Information'}
+        </h2>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Full Name
+          </label>
+          <p className="text-gray-900 dark:text-white">{userData?.name || 'Not provided'}</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Email Address
+          </label>
+          <p className="text-gray-900 dark:text-white">{userData?.email || 'Not provided'}</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Phone Number
+          </label>
+          <p className="text-gray-900 dark:text-white">{userData?.phone || 'Not provided'}</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            User Since
+          </label>
+          <p className="text-gray-900 dark:text-white">
+            {userData?.createdAt ? formatDate(userData.createdAt) : 'Unknown'}
+          </p>
+        </div>
+
+        {isAdmin && userData?.role && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Role
+            </label>
+            <p className="text-gray-900 dark:text-white capitalize">{userData.role}</p>
+          </div>
+        )}
+      </div>
+    </div>
     </motion.div>
   );
 };

@@ -4,11 +4,127 @@ import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthProvider';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useCoupon } from '../../contexts/CouponContext';
-import { orderService } from '../../services/api/orderService';
 import { paymentService } from '../../services/api/paymentService';
 import { calculationService } from '../../services/api/calculationService';
 import { couponService } from '../../services/api/couponService';
 import CountryDropdown from '../../components/common/CountryDropdown';
+
+
+const determineProductType = (item) => {
+  const category = item.category?.toLowerCase() || '';
+  const productName = item.name?.toLowerCase() || '';
+  const variantTitle = item.variantTitle?.toLowerCase() || item.variant?.title?.toLowerCase() || '';
+
+  if (category.includes('phone') || 
+      category.includes('case') ||
+      category.includes('accessory') ||
+      productName.includes('case') || 
+      productName.includes('iphone') ||
+      productName.includes('samsung') ||
+      variantTitle.includes('iphone') || 
+      variantTitle.includes('samsung') ||
+      variantTitle.includes('glossy') ||
+      variantTitle.includes('matte')) {
+    return 'PHONE_CASE';
+  }
+
+  if (category.includes('clothing') || 
+      category.includes('wear') || 
+      productName.includes('shirt') || 
+      productName.includes('hoodie') ||
+      productName.includes('sweatshirt') ||
+      productName.includes('t-shirt')) {
+    return 'CLOTHING';
+  }
+
+  if (category.includes('mug') || productName.includes('mug')) {
+    return 'MUG';
+  }
+
+  if (category.includes('home') || category.includes('living')) {
+    return 'HOME_LIVING';
+  }
+
+  return 'GENERAL';
+};
+
+// 🔥 FRONTEND SELECTION EXTRACTION
+const extractSelectionsByProductType = (item) => {
+  const productType = determineProductType(item);
+  const variantTitle = item.variantTitle || item.variant?.title || '';
+  const parts = variantTitle.split('/').map(part => part.trim());
+  
+  switch (productType) {
+    case 'PHONE_CASE':
+      if (parts.length >= 2) {
+        return {
+          size: parts[0] || 'Standard',
+          color: parts[1] || 'Default', 
+          phoneModel: parts[0] || 'Standard Model',
+          finishType: parts[1] || 'Standard Finish',
+          productType: 'PHONE_CASE',
+          displayText: `${parts[0]} • ${parts[1]}`
+        };
+      } else {
+        return {
+          size: 'Standard',
+          color: 'Default',
+          phoneModel: 'Standard Model', 
+          finishType: 'Standard Finish',
+          productType: 'PHONE_CASE',
+          displayText: 'Standard Model • Standard Finish'
+        };
+      }
+      
+    case 'CLOTHING':
+      if (parts.length >= 2) {
+        return {
+          size: parts[0] || 'Standard',
+          color: parts[1] || 'Default',
+          productType: 'CLOTHING',
+          displayText: `Size: ${parts[0]} • Color: ${parts[1]}`
+        };
+      } else {
+        return {
+          size: item.selectedSize || 'Standard',
+          color: item.selectedColor || 'Default',
+          productType: 'CLOTHING',
+          displayText: item.selectedSize && item.selectedColor ?
+            `Size: ${item.selectedSize} • Color: ${item.selectedColor}` :
+            (item.selectedSize ? `Size: ${item.selectedSize}` : 'Standard')
+        };
+      }
+      
+    case 'MUG':
+      return {
+        size: parts[0] || 'Standard',
+        color: item.selectedColor || 'Default',
+        productType: 'MUG',
+        displayText: `Size: ${parts[0] || 'Standard'}`
+      };
+      
+    case 'HOME_LIVING':
+      return {
+        size: parts[0] || 'Standard',
+        color: parts[1] || 'Default',
+        material: parts[1] || 'Standard Material',
+        productType: 'HOME_LIVING',
+        displayText: parts[1] ? 
+          `Size: ${parts[0] || 'Standard'} • Material: ${parts[1]}` :
+          `Size: ${parts[0] || 'Standard'}`
+      };
+      
+    default:
+      return {
+        size: item.selectedSize || 'Standard',
+        color: item.selectedColor || 'Default',
+        productType: 'GENERAL',
+        displayText: item.selectedSize && item.selectedColor ?
+          `Size: ${item.selectedSize} • Color: ${item.selectedColor}` :
+          (item.selectedSize ? `Size: ${item.selectedSize}` : 'Standard')
+      };
+  }
+};
 
 const Checkout = () => {
   const { cartItems, total: cartTotal, clearCart } = useCart();
@@ -383,14 +499,39 @@ useEffect(() => {
             throw new Error(`Invalid variantId: ${item.variantId}. Please select a valid product variant.`);
           }
           
-          return {
+          // 🔥 USE FRONTEND DTO LOGIC TO EXTRACT SELECTIONS
+          const selections = extractSelectionsByProductType({
+            ...item,
+            variantTitle: item.variantTitle || item.variant?.title,
+            category: item.category,
+            name: item.name
+          });
+
+          // ✅ SEND ALL EXTRACTED SELECTIONS TO BACKEND
+          const orderItem = {
             productId: productId,
             quantity: item.quantity,
             variantId: variantId,
             price: item.price,
-            size: item.size || '',
-            color: item.color || ''
+            variantTitle: item.variantTitle || item.variant?.title,
+            
+            // ✅ SEND EXTRACTED SELECTIONS
+            size: selections.size,
+            color: selections.color,
+            phoneModel: selections.phoneModel,
+            finishType: selections.finishType,
+            material: selections.material,
+            productType: selections.productType
           };
+
+          // ✅ REMOVE EMPTY/UNDEFINED FIELDS
+          Object.keys(orderItem).forEach(key => {
+            if (orderItem[key] === undefined || orderItem[key] === null) {
+              delete orderItem[key];
+            }
+          });
+
+          return orderItem;
         }),
         orderNotes,
         couponCode: appliedCoupon?.code || ''

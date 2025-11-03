@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import logger from '../utils/logger';
 
 const CartContext = createContext();
 
@@ -11,8 +10,43 @@ const loadCartFromStorage = (userId = 'guest') => {
   try {
     const cartKey = getCartKey(userId);
     const savedCart = localStorage.getItem(cartKey);
-    return savedCart ? JSON.parse(savedCart) : { items: [] };
+    
+    if (!savedCart) return { items: [] };
+    
+    const parsedCart = JSON.parse(savedCart);
+    
+    // 🔥 MIGRATION: Convert old cart items to new structure
+    if (parsedCart.items && parsedCart.items.length > 0) {
+      const migratedItems = parsedCart.items.map(item => {
+        // If it's already in new format, return as is
+        if (item.cartItemId) {
+          return item;
+        }
+        
+        // 🔥 MIGRATE from old format to new format
+        const cartItemId = `${item.id}-${item.variantId || 'default'}`;
+        
+        return {
+          ...item,
+          cartItemId,
+          // Ensure variant data exists
+          variant: item.variant || {
+            id: item.variantId,
+            title: item.variantTitle || `Variant ${item.variantId}`,
+            price: item.price,
+            sku: item.sku
+          },
+          selectedColor: item.color || item.selectedColor,
+          selectedSize: item.size || item.selectedSize
+        };
+      });
+      
+      return { ...parsedCart, items: migratedItems };
+    }
+    
+    return parsedCart;
   } catch (error) {
+    console.error('❌ Error loading cart from storage:', error);
     return { items: [] };
   }
 };
@@ -23,6 +57,7 @@ const saveCartToStorage = (cartState, userId = 'guest') => {
     const cartKey = getCartKey(userId);
     localStorage.setItem(cartKey, JSON.stringify(cartState));
   } catch (error) {
+    console.error('❌ Error saving cart to storage:', error);
   }
 };
 
@@ -32,32 +67,81 @@ const cartReducer = (state, action) => {
 
   switch (action.type) {
     case 'ADD_TO_CART': {
-      const existingItem = state.items.find(
-        (item) => item.id === action.payload.id && item.variantId === action.payload.variantId
+      const { 
+        product, 
+        variant, 
+        quantity = 1,
+        selectedColor,  // ✅ Make sure these are passed
+        selectedSize,   // ✅ Make sure these are passed
+            selectedPhoneModel,
+    selectedFinish,
+    hasGiftPackaging
+      } = action.payload;
+      
+      // 🔥 CRITICAL: Validate variant data
+      if (!variant || !variant.id) {
+        console.error('❌ Invalid variant data:', variant);
+        return state;
+      }
+
+      const variantId = variant.id;
+      const cartItemId = `${product.id}-${variantId}`;
+      
+      const existingItemIndex = state.items.findIndex(
+        item => item.cartItemId === cartItemId
       );
-      if (existingItem) {
-        newState = {
-          ...state,
-          items: state.items.map((item) =>
-            item.id === action.payload.id && item.variantId === action.payload.variantId
-              ? { ...item, quantity: item.quantity + action.payload.quantity }
-              : item
-          ),
-        };
+
+      if (existingItemIndex >= 0) {
+        const updatedItems = [...state.items];
+        updatedItems[existingItemIndex].quantity += quantity;
+        newState = { ...state, items: updatedItems };
       } else {
-        newState = { ...state, items: [...state.items, action.payload] };
+        const newItem = {
+          cartItemId,
+          id: product.id,
+          productId: product.id,
+          variantId: variantId,
+          name: product.name,
+          price: variant.price || product.price,
+          originalPrice: product.price,
+          image: variant.image || product.image || product.images?.[0],
+          quantity,
+          variant: {
+            id: variant.id,
+            title: variant.title,
+            price: variant.price,
+            sku: variant.sku,
+            isAvailable: variant.isAvailable,
+            isEnabled: variant.isEnabled,
+            image: variant.image
+          },
+          // 🔥 CRITICAL: Store selected size and color
+          selectedColor: selectedColor || variant.color || 'Black',
+          selectedSize: selectedSize || variant.size || 'M',
+              // 🔥 STORE PHONE CASE SPECIFIC DATA
+          selectedPhoneModel: selectedPhoneModel,
+          selectedFinish: selectedFinish,
+          hasGiftPackaging: hasGiftPackaging || false,
+          product: {
+            id: product.id,
+            name: product.name,
+            printifyProductId: product.printifyProductId,
+            printifyVariants: product.printifyVariants,
+            category: product.category
+          }
+        };
+        newState = { ...state, items: [...state.items, newItem] };
       }
       break;
     }
-
     case 'REMOVE_FROM_CART':
       newState = {
         ...state,
         items: state.items.filter(
-          (item) =>
-            !(item.id === action.payload.id && item.variantId === action.payload.variantId)
+          (item) => item.cartItemId !== action.payload.cartItemId // 🔥 FIXED: Changed === to !==
         ),
       };
+      
       break;
 
     case 'UPDATE_QUANTITY':
@@ -65,13 +149,12 @@ const cartReducer = (state, action) => {
         ...state,
         items: state.items
           .map((item) =>
-            item.id === action.payload.id && item.variantId === action.payload.variantId
+            item.cartItemId === action.payload.cartItemId
               ? { ...item, quantity: action.payload.quantity }
               : item
           )
           .filter((item) => item.quantity > 0),
       };
-
       break;
 
     case 'CLEAR_CART':
@@ -84,7 +167,6 @@ const cartReducer = (state, action) => {
         items: action.payload.items || [],
         currentUserId: action.payload.userId || 'guest',
       };
-
       break;
 
     case 'SWITCH_USER_CART':
@@ -93,7 +175,6 @@ const cartReducer = (state, action) => {
         items: action.payload.items || [],
         currentUserId: action.payload.userId,
       };
-
       break;
 
     case 'RESET_TO_GUEST':
@@ -129,64 +210,75 @@ export const CartProvider = ({ children }) => {
     }
   }, [state.items, state.currentUserId]);
 
-  const addToCart = (product) => {
-    const cartProduct = {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      quantity: product.quantity || 1,
-      variantId: product.variantId || 'default',
-      ...product,
-    };
-    dispatch({ type: 'ADD_TO_CART', payload: cartProduct });
+  const addToCart = (productData) => {
+    const { 
+      product, 
+      variant, 
+      quantity = 1, 
+      selectedColor, 
+      selectedSize 
+    } = productData;
+
+    if (!product || !variant) {
+      console.error('❌ Missing product or variant data:', { product, variant });
+      return;
+    }
+
+    dispatch({ 
+      type: 'ADD_TO_CART', 
+      payload: {
+        product,
+        variant,
+        quantity,
+        selectedColor,
+        selectedSize
+      }
+    });
   };
 
-  const removeFromCart = (productId, variantId = 'default') => {
-    dispatch({ type: 'REMOVE_FROM_CART', payload: { id: productId, variantId } });
+  // 🔥 FIXED: removeFromCart with proper logging
+  const removeFromCart = (cartItemId) => {
+    dispatch({ type: 'REMOVE_FROM_CART', payload: { cartItemId } });
   };
 
-  const updateQuantity = (productId, quantity, variantId = 'default') => {
+  const updateQuantity = (cartItemId, quantity) => {
     if (quantity <= 0) {
-      removeFromCart(productId, variantId);
+      removeFromCart(cartItemId);
     } else {
       dispatch({
         type: 'UPDATE_QUANTITY',
-        payload: { id: productId, variantId, quantity },
+        payload: { cartItemId, quantity },
       });
     }
   };
 
-const clearCart = (callback) => {
-  dispatch({ type: 'CLEAR_CART' });
-  if (callback) callback();
-};
+  const clearCart = (callback) => {
+    dispatch({ type: 'CLEAR_CART' });
+    if (callback) callback();
+  };
+
   // Handle user login
   const handleUserLogin = (userId) => {
     try {
       if (userId && userId !== state.currentUserId) {
-
-        // Save current guest cart before switching
         if (state.items.length > 0 && state.currentUserId === 'guest') {
           saveCartToStorage({ items: state.items }, 'guest');
         }
 
-        // Load user's cart
         const userCart = loadCartFromStorage(userId);
         dispatch({
           type: 'SWITCH_USER_CART',
           payload: { items: userCart.items, userId },
         });
-
       }
     } catch (error) {
+      console.error('❌ User login cart switch error:', error);
     }
   };
 
   // Handle user logout
   const handleUserLogout = () => {
     try {
-
       if (state.currentUserId !== 'guest' && state.items.length > 0) {
         saveCartToStorage({ items: state.items }, state.currentUserId);
       }
@@ -196,12 +288,16 @@ const clearCart = (callback) => {
         type: 'SWITCH_USER_CART',
         payload: { items: guestCart.items, userId: 'guest' },
       });
-
     } catch (error) {
+      console.error('❌ User logout cart switch error:', error);
     }
   };
 
-  const total = state.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const total = state.items.reduce((sum, item) => {
+    const itemPrice = item.variant?.price || item.price;
+    return sum + (itemPrice * item.quantity);
+  }, 0);
+
   const totalItems = state.items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (

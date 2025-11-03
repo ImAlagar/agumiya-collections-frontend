@@ -22,6 +22,7 @@ import { ReviewProvider } from './contexts/ReviewContext';
 import logger from './utils/logger.jsx';
 import ErrorBoundary from './components/common/ErrorBoundary.jsx';
 import { TaxProvider } from './contexts/TaxContext.jsx';
+import { Toaster } from 'react-hot-toast';
 
 // 🧠 Setup Global Error Handlers (production-safe)
 window.addEventListener('error', (event) => {
@@ -52,6 +53,27 @@ createRoot(document.getElementById('root')).render(
                                   <ProgressLoader />
                                   <Loader />
                                   <RouterProvider router={router}/>
+                                      {/* Global Toaster */}
+                                        <Toaster
+                                          position="top-right"
+                                          toastOptions={{
+                                            duration: 4000,
+                                            style: {
+                                              background: '#363636',
+                                              color: '#fff',
+                                            },
+                                            success: {
+                                              duration: 3000,
+                                              theme: {
+                                                primary: 'green',
+                                                secondary: 'black',
+                                              },
+                                            },
+                                            error: {
+                                              duration: 5000,
+                                            },
+                                          }}
+                                        />
                                 </TaxProvider> {/* CLOSE TAXPROVIDER HERE */}
                               </ReviewProvider>
                             </ContactsProvider>

@@ -4,8 +4,9 @@ import { motion } from 'framer-motion';
 import { useOrders } from '../../../contexts/OrdersContext';
 import OrderFilters from '../../../components/admin/order/OrderFilters';
 import OrderTable from '../../../components/admin/order/OrderTable';
-import { CheckCircle, AlertCircle, RefreshCw, X } from 'lucide-react';
+import { CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import OrderStats from '../../../components/admin/stats/OrderStats';
+import StatusUpdateModal from '../../../components/admin/order/StatusUpdateModal';
 
 const AdminOrders = () => {
   const {
@@ -25,7 +26,6 @@ const AdminOrders = () => {
 
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusUpdateOrder, setStatusUpdateOrder] = useState(null);
-  const [showDetails, setShowDetails] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const [stats, setStats] = useState(null);
@@ -69,7 +69,6 @@ const AdminOrders = () => {
     loadData();
   }, [fetchOrders, fetchOrderStats]);
 
-
   // Handle filter changes with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -98,51 +97,78 @@ const AdminOrders = () => {
   // View order details
   const handleViewOrder = (order) => {
     setSelectedOrder(order);
-    setShowDetails(true);
   };
 
-  
-const handleCancelOrder = async (orderId, reason) => {
-  try {
-    setActionLoading(`cancel-${orderId}`);
-    const result = await adminCancelOrder(orderId, reason);
-    
-    if (result && result.success) {
-      setSuccessMessage(`Order #${orderId} cancelled successfully`);
+  const handleUpdateStatus = async (orderId, statusData) => {
+    try {
+      setActionLoading(`status-${orderId}`);
       
-      // Refresh orders and stats
-      await fetchOrders(pagination?.currentPage || 1);
+      const result = await updateOrderStatus(orderId, statusData);
       
-      if (fetchOrderStats && typeof fetchOrderStats === 'function') {
-        const statsResult = await fetchOrderStats();
-        if (statsResult && statsResult.success) {
-          setStats(statsResult.stats);
+      if (result && result.success) {
+        setSuccessMessage(`Order status updated successfully`);
+        
+        // Refresh orders to get updated data
+        await fetchOrders(pagination?.currentPage || 1);
+        
+        // Refresh stats if available
+        if (fetchOrderStats) {
+          const statsResult = await fetchOrderStats();
+          if (statsResult && statsResult.success) {
+            setStats(statsResult.stats);
+          }
         }
+        
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        throw new Error(result?.error || 'Failed to update order status');
       }
-      
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } else {
-      throw new Error(result?.error || 'Failed to cancel order');
-    }
-  } catch (error) {
-    console.error('Cancel order error:', error);
-    
-    // FIXED: Use the context's error handling instead of undefined setError
-    if (typeof clearError === 'function') {
-      // Set error message in your context
-      // This depends on how your useOrders context handles errors
-      // If you have a setError function in context, use it:
-      // setError(error.message || 'Failed to cancel order');
-      
-      // Or display the error in success message area for now:
+    } catch (error) {
+      console.error('Update status error:', error);
       setSuccessMessage(`Error: ${error.message}`);
       setTimeout(() => setSuccessMessage(''), 5000);
+    } finally {
+      setActionLoading(null);
     }
-  } finally {
-    setActionLoading(null);
-  }
-};
+  };
 
+  // Add function to open status modal
+  const handleStatusUpdateClick = (order, e) => {
+    e?.stopPropagation(); // Prevent row click
+    setStatusUpdateOrder(order);
+    setShowStatusModal(true);
+  };
+  
+  const handleCancelOrder = async (orderId, reason) => {
+    try {
+      setActionLoading(`cancel-${orderId}`);
+      const result = await adminCancelOrder(orderId, reason);
+      
+      if (result && result.success) {
+        setSuccessMessage(`Order #${orderId} cancelled successfully`);
+        
+        // Refresh orders and stats
+        await fetchOrders(pagination?.currentPage || 1);
+        
+        if (fetchOrderStats && typeof fetchOrderStats === 'function') {
+          const statsResult = await fetchOrderStats();
+          if (statsResult && statsResult.success) {
+            setStats(statsResult.stats);
+          }
+        }
+        
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        throw new Error(result?.error || 'Failed to cancel order');
+      }
+    } catch (error) {
+      console.error('Cancel order error:', error);
+      setSuccessMessage(`Error: ${error.message}`);
+      setTimeout(() => setSuccessMessage(''), 5000);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const handleFilterChange = (newFilters) => {
     setLocalFilters(prev => ({ ...prev, ...newFilters }));
@@ -174,20 +200,20 @@ const handleCancelOrder = async (orderId, reason) => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-center h-64"
+        className="flex items-center justify-center h-64 p-4"
       >
-        <div className="text-center">
-          <div className="w-12 h-12 text-red-500 mx-auto mb-4">⚠️</div>
+        <div className="text-center max-w-sm">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 text-red-500 mx-auto mb-3 sm:mb-4">⚠️</div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
             Error Loading Orders
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4 break-words">{error}</p>
           <button
             onClick={() => {
               clearError();
               fetchOrders(1);
             }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base w-full sm:w-auto"
           >
             Try Again
           </button>
@@ -201,26 +227,26 @@ const handleCancelOrder = async (orderId, reason) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="space-y-6"
+      className="space-y-4 sm:space-y-6 px-2 sm:px-0"
     >
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="w-full sm:w-auto">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
             Order Management
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
             Manage and track customer orders
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto justify-start sm:justify-end">
           <button
             onClick={handleRefresh}
             disabled={isLoading}
-            className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 text-sm sm:text-base w-full sm:w-auto justify-center"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            <span className="sm:block">Refresh</span>
           </button>
         </div>
       </div>
@@ -230,16 +256,16 @@ const handleCancelOrder = async (orderId, reason) => {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4"
+          className="mb-4 sm:mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 sm:p-4"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
-              <span className="text-red-800 dark:text-red-200">{error}</span>
+              <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-400 mr-2" />
+              <span className="text-sm sm:text-base text-red-800 dark:text-red-200 break-words">{error}</span>
             </div>
             <button
               onClick={clearError}
-              className="text-red-800 dark:text-red-200 hover:text-red-900 dark:hover:text-red-100 font-medium"
+              className="text-red-800 dark:text-red-200 hover:text-red-900 dark:hover:text-red-100 font-medium text-sm sm:text-base self-end sm:self-auto mt-2 sm:mt-0"
             >
               Dismiss
             </button>
@@ -252,20 +278,22 @@ const handleCancelOrder = async (orderId, reason) => {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4"
+          className="mb-4 sm:mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 sm:p-4"
         >
           <div className="flex items-center">
-            <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
-            <span className="text-green-800 dark:text-green-200">{successMessage}</span>
+            <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-400 mr-2" />
+            <span className="text-sm sm:text-base text-green-800 dark:text-green-200 break-words">{successMessage}</span>
           </div>
         </motion.div>
       )}
 
       {/* Order Statistics Dashboard */}
-      <OrderStats orders={safeOrders} stats={stats} />
+      <div className="px-1 sm:px-0">
+        <OrderStats orders={safeOrders} stats={stats} />
+      </div>
 
       {/* Filters Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
         <OrderFilters
           filters={localFilters}
           onFilterChange={handleFilterChange}
@@ -287,27 +315,42 @@ const handleCancelOrder = async (orderId, reason) => {
 
       {/* Orders Table Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <OrderTable
-          orders={safeOrders}
-          isLoading={isLoading}
-          pagination={pagination}
-          onViewOrder={handleViewOrder}
-          onCancelOrder={handleCancelOrder}
-          actionLoading={actionLoading}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-        />
+        <div className="overflow-x-auto">
+          <OrderTable
+            orders={safeOrders}
+            isLoading={isLoading}
+            pagination={pagination}
+            onViewOrder={handleViewOrder}
+            onStatusUpdate={handleStatusUpdateClick}
+            onCancelOrder={handleCancelOrder}
+            actionLoading={actionLoading}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
+        </div>
       </div>
+
+      {/* Status Update Modal */}
+      <StatusUpdateModal
+        order={statusUpdateOrder}
+        isOpen={showStatusModal}
+        onClose={() => {
+          setShowStatusModal(false);
+          setStatusUpdateOrder(null);
+        }}
+        onUpdateStatus={handleUpdateStatus}
+        isLoading={actionLoading === `status-${statusUpdateOrder?.id}`}
+      />
 
       {/* Loading Indicator */}
       {isLoading && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
+          className="fixed bottom-4 right-4 bg-blue-600 text-white px-3 py-2 sm:px-4 sm:py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm sm:text-base max-w-[90vw] z-50"
         >
-          <RefreshCw className="w-4 h-4 animate-spin" />
-          <span>Loading Orders...</span>
+          <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" />
+          <span className="truncate">Loading Orders...</span>
         </motion.div>
       )}
     </motion.div>

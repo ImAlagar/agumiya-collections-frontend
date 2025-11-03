@@ -37,6 +37,47 @@ const Cart = () => {
   const calculationsLoadedRef = useRef(false);
   const couponsLoadedRef = useRef(false);
 
+
+    // Helper function to extract phone model from item data
+  const getPhoneModel = (item) => {
+    // Check various possible locations for phone model data
+    if (item.phoneModel) return item.phoneModel;
+    if (item.selectedPhoneModel) return item.selectedPhoneModel;
+    
+    // Extract from variant title (e.g., "iPhone 13 / Glossy")
+    if (item.variant?.title) {
+      const parts = item.variant.title.split('/').map(part => part.trim());
+      if (parts.length > 0) {
+        const possibleModel = parts[0];
+        // Check if it looks like a phone model
+        if (possibleModel.toLowerCase().includes('iphone') || 
+            possibleModel.toLowerCase().includes('samsung') ||
+            possibleModel.toLowerCase().includes('phone')) {
+          return possibleModel;
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  // Helper function to extract finish type
+  const getFinishType = (item) => {
+    if (item.finishType) return item.finishType;
+    if (item.selectedFinish) return item.selectedFinish;
+    
+    // Extract from variant title
+    if (item.variant?.title) {
+      const parts = item.variant.title.split('/').map(part => part.trim());
+      if (parts.length > 1) {
+        return parts[1]; // Second part is usually the finish
+      }
+    }
+    
+    return null;
+  };
+
+
   // ==================== SHIPPING & TAX CALCULATION LOGIC ====================
 
   /**
@@ -56,14 +97,18 @@ const Cart = () => {
    */
 
   // Generate cart hash for comparison
-  const getCartHash = useCallback((items) => {
-    return JSON.stringify(items.map(item => ({
-      id: item.id,
-      variantId: item.variantId,
-      quantity: item.quantity,
-      price: item.price
-    })).sort((a, b) => a.id.localeCompare(b.id)));
-  }, []);
+const getCartHash = useCallback((items) => {
+  return JSON.stringify(items.map(item => ({
+    id: item.id,
+    variantId: item.variantId,
+    quantity: item.quantity,
+    price: item.price
+  })).sort((a, b) => {
+    const idA = String(a.id || '');
+    const idB = String(b.id || '');
+    return idA.localeCompare(idB);
+  }));
+}, []);
 
   // Check for payment success
 useEffect(() => {
@@ -558,68 +603,112 @@ const loadCalculations = useCallback(async () => {
           {/* Cart Items & Available Coupons */}
           <div className="xl:col-span-2 space-y-6">
             {/* Cart Items */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Cart Items</h2>
-              </div>
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {cartItems.map((item) => (
-                  <div key={`${item.id}-${item.variantId}`} className="p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                      <img 
-                        src={item.image} 
-                        alt={item.name}
-                        className="w-full sm:w-24 h-24 object-cover rounded-xl flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">
-                          {item.name}
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          Variant: {item.variantName || item.variantId}
-                        </p>
-                        <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-2">
-                          {formatPriceSimple(item.price)}
-                        </p>
+
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Cart Items</h2>
+            </div>
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {cartItems.map((item) => (
+                <div key={item.cartItemId} className="p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                    <img 
+                      src={item.image} 
+                      alt={item.name}
+                      className="w-full sm:w-24 h-24 object-cover rounded-xl flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">
+                        {item.name}
+                      </h3>
+                      
+                      {/* 🔥 UPDATED: BETTER PHONE CASE DETAILS DISPLAY */}
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 space-y-1">
+                        {/* Extract phone model and finish from variant title or item properties */}
+                        {(item.variant?.title || item.phoneModel || item.finishType) && (
+                          <div className="flex flex-wrap gap-2">
+                            {/* Phone Model */}
+                            {(getPhoneModel(item) || item.selectedPhoneModel) && (
+                              <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-md text-xs">
+                                📱 {getPhoneModel(item) || item.selectedPhoneModel}
+                              </span>
+                            )}
+                            
+                            {/* Finish Type */}
+                            {(getFinishType(item) || item.selectedFinish) && (
+                              <span className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-md text-xs">
+                                ✨ {getFinishType(item) || item.selectedFinish}
+                              </span>
+                            )}
+                            
+
+                          </div>
+                        )}
+                        
+                        {/* Show variant title if it contains useful info */}
+                        {item.variant?.title && !item.variant.title.includes(getPhoneModel(item) || '') && (
+                          <p className="text-gray-600 dark:text-gray-400">Variant: {item.variant.title}</p>
+                        )}
+                        
+                        {/* Show size and color for non-phone case products */}
+                        {!getPhoneModel(item) && !item.selectedPhoneModel && (
+                          <div className="flex flex-wrap gap-2">
+                            {item.selectedSize && (
+                              <span className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded-md text-xs">
+                                📏 {item.selectedSize}
+                              </span>
+                            )}
+                            {item.selectedColor && (
+                              <span className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded-md text-xs">
+                                🎨 {item.selectedColor}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center justify-between sm:justify-end gap-4">
-                        <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-xl">
-                          <button 
-                            onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1), item.variantId)}
-                            className="w-10 h-10 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-l-xl transition-all duration-200"
-                          >
-                            <span className="text-lg">−</span>
-                          </button>
-                          <span className="w-12 text-center font-medium text-gray-900 dark:text-white">
-                            {item.quantity}
-                          </span>
-                          <button 
-                            onClick={() => updateQuantity(item.id, item.quantity + 1, item.variantId)}
-                            className="w-10 h-10 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-r-xl transition-all duration-200"
-                          >
-                            <span className="text-lg">+</span>
-                          </button>
-                        </div>
+                      
+                      <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-2">
+                        {formatPriceSimple(item.variant?.price || item.price)}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between sm:justify-end gap-4">
+                      <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-xl">
                         <button 
-                          onClick={() => removeFromCart(item.id, item.variantId)}
-                          className="w-10 h-10 flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-200"
+                          onClick={() => updateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}
+                          className="w-10 h-10 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-l-xl transition-all duration-200"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                          </svg>
+                          <span className="text-lg">−</span>
+                        </button>
+                        <span className="w-12 text-center font-medium text-gray-900 dark:text-white">
+                          {item.quantity}
+                        </span>
+                        <button 
+                          onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
+                          className="w-10 h-10 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-r-xl transition-all duration-200"
+                        >
+                          <span className="text-lg">+</span>
                         </button>
                       </div>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-400">Item Total</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {formatPriceSimple(item.price * item.quantity)}
-                      </span>
+                      <button 
+                        onClick={() => removeFromCart(item.cartItemId)}
+                        className="w-10 h-10 flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-200"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">Item Total</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {formatPriceSimple((item.variant?.price || item.price) * item.quantity)}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
+          </div>
 
             {/* Available Coupons Section */}
             {availableCoupons.length > 0 && (
@@ -666,14 +755,15 @@ const loadCalculations = useCallback(async () => {
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div>
-
+                                <span className="inline-block bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 text-sm font-semibold px-3 py-1 rounded-full mb-2">
+                                  {getDiscountText(coupon)}
+                                </span>
                                 <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
                                   {coupon.code}
                                 </h3>
                                 <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
                                   {coupon.description}
                                 </p>
-                                {/* 🚚 FREE SHIPPING MESSAGE FOR SAVE20 COUPON */}
                                 {coupon.code === 'SAVE20' && cartTotal >= 50 && (
                                   <p className="text-green-600 dark:text-green-400 text-sm mt-1 font-medium">
                                     🚚 Includes FREE Shipping!
@@ -693,7 +783,7 @@ const loadCalculations = useCallback(async () => {
                               <button
                                 onClick={() => handleApplySuggestedCoupon(coupon)}
                                 disabled={couponLoading}
-                                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105"
+                                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 disabled:scale-100"
                               >
                                 {couponLoading ? 'Applying...' : 'Apply'}
                               </button>
@@ -707,7 +797,6 @@ const loadCalculations = useCallback(async () => {
               </div>
             )}
           </div>
-
           {/* ==================== ORDER SUMMARY SECTION ==================== */}
           <div className="xl:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sticky top-6">
