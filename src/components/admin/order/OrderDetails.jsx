@@ -100,6 +100,43 @@ const formatCurrency = (amount) => {
     return colors[status] || colors.PENDING;
   };
 
+  // Color name to hex code mapping function
+const getColorHexCode = (colorName) => {
+  const colorMap = {
+    'black': '#000000',
+    'Black': '#000000',
+    'white': '#FFFFFF',
+    'White': '#FFFFFF',
+    'navy': '#000080',
+    'Navy': '#000080',
+    'red': '#FF0000',
+    'Red': '#FF0000',
+    'blue': '#0000FF',
+    'Blue': '#0000FF',
+    'green': '#008000',
+    'Green': '#008000',
+    'yellow': '#FFFF00',
+    'Yellow': '#FFFF00',
+    'purple': '#800080',
+    'Purple': '#800080',
+    'pink': '#FFC0CB',
+    'Pink': '#FFC0CB',
+    'orange': '#FFA500',
+    'Orange': '#FFA500',
+    'gray': '#808080',
+    'Gray': '#808080',
+    'grey': '#808080',
+    'Grey': '#808080',
+    'brown': '#A52A2A',
+    'Brown': '#A52A2A',
+    'glossy': '#FFFFFF', // For photo prints
+    'Glossy': '#FFFFFF',
+    'matte': '#F5F5F5',
+    'Matte': '#F5F5F5'
+  };
+  
+  return colorMap[colorName] || '#CCCCCC'; // Default gray if color not found
+};
   const tabs = [
     { id: 'overview', label: 'Overview', icon: ShoppingCart },
     { id: 'customer', label: 'Customer', icon: User },
@@ -114,297 +151,255 @@ const formatCurrency = (amount) => {
     return 'grid-cols-1 md:grid-cols-2';
   };
 
-  const TabContent = ({ activeTab }) => {
-    switch (activeTab) {
-      case 'overview':
-        return (
-          <div className="space-y-4 sm:space-y-6">
+const TabContent = ({ activeTab }) => {
+  switch (activeTab) {
+    /* ---------------- OVERVIEW TAB ---------------- */
+    case 'overview':
+      return (
+        <div className="space-y-4 sm:space-y-6">
+          {/* Order Summary + Payment Details */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* Order Summary */}
-            <div className={`grid ${getGridClasses()} gap-3 sm:gap-4`}>
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                <label className="block text-xs sm:text-sm font-semibold opacity-75 mb-3 flex items-center gap-2">
-                  <ShoppingCart size={isMobile ? 14 : 16} />
-                  Order Summary
-                </label>
-                <div className="space-y-2 text-xs sm:text-sm">
-                  <div className="flex justify-between">
-                    <span className="font-medium">Order ID:</span>
-                    <span className="font-mono">{getOrderDisplayId()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Date:</span>
-                    <span>{formatDate(order.createdAt)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Status:</span>
-                    <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(order.fulfillmentStatus)}`}>
-                      {order.fulfillmentStatus || 'PENDING'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Total:</span>
-                    <span className="font-semibold text-green-600">{formatOrderAmount(order?.totalAmount || 0, order?.currency)}</span> {/* ✅ Updated */}
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                <label className="block text-xs sm:text-sm font-semibold opacity-75 mb-3 flex items-center gap-2">
-                  <CreditCard size={isMobile ? 14 : 16} />
-                  Payment Details
-                </label>
-                <div className="space-y-2 text-xs sm:text-sm">
-                  <div className="flex justify-between">
-                    <span className="font-medium">Status:</span>
-                    <span className={`px-2 py-1 rounded-full text-xs ${getPaymentStatusColor(order.paymentStatus)}`}>
-                      {order.paymentStatus || 'PENDING'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Amount:</span>
-                    <span className="font-semibold">{formatOrderAmount(order?.totalAmount || 0, order?.currency)}</span> {/* ✅ Updated */}
-                  </div>
-                  {order.paymentMethod && (
-                    <div className="flex justify-between">
-                      <span className="font-medium">Method:</span>
-                      <span>{order.paymentMethod}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Additional Information */}
-            <div className={`grid ${getGridClasses()} gap-3 sm:gap-4`}>
-              {order.printifyOrderId && (
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                  <label className="block text-xs sm:text-sm font-semibold opacity-75 mb-2">
-                    Printify Information
-                  </label>
-                  <div className="text-xs sm:text-sm">
-                    <div className="font-mono bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded break-all">
-                      {order.printifyOrderId}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {order.orderNotes && (
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                  <label className="block text-xs sm:text-sm font-semibold opacity-75 mb-2 flex items-center gap-2">
-                    <FileText size={isMobile ? 14 : 16} />
-                    Order Notes
-                  </label>
-                  <p className="text-xs sm:text-sm opacity-90 whitespace-pre-wrap">
-                    {order.orderNotes}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl text-center border border-gray-200 dark:border-gray-700">
-                <div className="text-lg sm:text-xl font-bold text-blue-600">{order.items?.length || 0}</div>
-                <div className="text-xs sm:text-sm opacity-75">Items</div>
-              </div>
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl text-center border border-gray-200 dark:border-gray-700">
-                <div className="text-lg sm:text-xl font-bold text-green-600">
-                  {formatOrderAmount(order?.totalAmount || 0, order?.currency)}
-                </div>
-                <div className="text-xs sm:text-sm opacity-75">Total</div>
-              </div>
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl text-center border border-gray-200 dark:border-gray-700">
-                <div className="text-xs sm:text-sm font-bold text-purple-600">
-                  {formatDate(order.createdAt)}
-                </div>
-                <div className="text-xs sm:text-sm opacity-75">Order Date</div>
-              </div>
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl text-center border border-gray-200 dark:border-gray-700">
-                <div className={`text-xs px-2 py-1 rounded-full ${getStatusColor(order.fulfillmentStatus)}`}>
-                  {order.fulfillmentStatus || 'PENDING'}
-                </div>
-                <div className="text-xs sm:text-sm opacity-75 mt-1">Status</div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'customer':
-        return (
-          <div className="space-y-4 sm:space-y-6">
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-              <label className="block text-xs sm:text-sm font-semibold opacity-75 mb-3 flex items-center gap-2">
-                <User size={isMobile ? 14 : 16} />
-                Customer Information
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+              <label className="block text-xs sm:text-sm font-semibold mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                <ShoppingCart size={16} /> Order Summary
               </label>
-              <div className="space-y-3 text-xs sm:text-sm">
-                <div className="flex items-center gap-3 p-2 rounded-lg bg-white/50 dark:bg-gray-700/50">
-                  <User size={14} className="text-blue-500" />
-                  <div>
-                    <div className="font-medium">Name</div>
-                    <div>{getCustomerName()}</div>
-                  </div>
+              <div className="space-y-2 text-xs sm:text-sm">
+                <div className="flex justify-between"><span className="font-medium">Order ID:</span><span className="font-mono">{getOrderDisplayId()}</span></div>
+                <div className="flex justify-between"><span className="font-medium">Date:</span><span>{formatDate(order.createdAt)}</span></div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Status:</span>
+                  <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(order.fulfillmentStatus)}`}>
+                    {order.fulfillmentStatus || 'PENDING'}
+                  </span>
                 </div>
-                
-                {order.shippingAddress?.email && (
-                  <div className="flex items-center gap-3 p-2 rounded-lg bg-white/50 dark:bg-gray-700/50">
-                    <Mail size={14} className="text-green-500" />
-                    <div>
-                      <div className="font-medium">Email</div>
-                      <div>{order.shippingAddress.email}</div>
-                    </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Total:</span>
+                  <span className="font-semibold text-green-600">{formatOrderAmount(order?.totalAmount || 0, order?.currency)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Details */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+              <label className="block text-xs sm:text-sm font-semibold mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                <CreditCard size={16} /> Payment Details
+              </label>
+              <div className="space-y-2 text-xs sm:text-sm">
+                <div className="flex justify-between">
+                  <span className="font-medium">Status:</span>
+                  <span className={`px-2 py-1 rounded-full text-xs ${getPaymentStatusColor(order.paymentStatus)}`}>
+                    {order.paymentStatus || 'PENDING'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Amount:</span>
+                  <span className="font-semibold">{formatOrderAmount(order?.totalAmount || 0, order?.currency)}</span>
+                </div>
+                {order.paymentMethod && (
+                  <div className="flex justify-between">
+                    <span className="font-medium">Method:</span>
+                    <span>{order.paymentMethod}</span>
                   </div>
                 )}
-                
-                {order.shippingAddress?.phone && (
-                  <div className="flex items-center gap-3 p-2 rounded-lg bg-white/50 dark:bg-gray-700/50">
-                    <Phone size={14} className="text-purple-500" />
-                    <div>
-                      <div className="font-medium">Phone</div>
-                      <div>{order.shippingAddress.phone}</div>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="p-2">
-                  <div className="font-medium">User ID</div>
-                  <div className="font-mono text-xs opacity-75">{order.userId || 'N/A'}</div>
-                </div>
               </div>
             </div>
           </div>
-        );
 
-      case 'items':
-        return (
-          <div className="space-y-4 sm:space-y-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-              <h4 className="font-semibold text-sm sm:text-base">
-                Order Items ({order.items?.length || 0})
-              </h4>
-              <div className="text-xs sm:text-sm opacity-75">
-                Total: {formatOrderAmount(order?.totalAmount || 0, order?.currency)}
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            {[
+              { label: 'Items', value: order.items?.length || 0, color: 'text-blue-600' },
+              { label: 'Total', value: formatOrderAmount(order?.totalAmount || 0, order?.currency), color: 'text-green-600' },
+              { label: 'Order Date', value: formatDate(order.createdAt), color: 'text-purple-600' },
+              { label: 'Status', value: order.fulfillmentStatus || 'PENDING', color: 'text-orange-600' },
+            ].map((stat, i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-xl text-center border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div className={`text-sm sm:text-base font-bold ${stat.color}`}>{stat.value}</div>
+                <div className="text-xs sm:text-sm opacity-75">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    /* ---------------- CUSTOMER TAB ---------------- */
+    case 'customer':
+      return (
+        <div className="space-y-4 sm:space-y-6">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <label className="block text-xs sm:text-sm font-semibold mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-200">
+              <User size={16} /> Customer Information
+            </label>
+            <div className="space-y-3 text-xs sm:text-sm">
+              <div className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                <User size={14} className="text-blue-500" />
+                <div>
+                  <div className="font-medium">Name</div>
+                  <div>{getCustomerName()}</div>
+                </div>
+              </div>
+              {order.shippingAddress?.email && (
+                <div className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                  <Mail size={14} className="text-green-500" />
+                  <div>
+                    <div className="font-medium">Email</div>
+                    <div>{order.shippingAddress.email}</div>
+                  </div>
+                </div>
+              )}
+              {order.shippingAddress?.phone && (
+                <div className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                  <Phone size={14} className="text-purple-500" />
+                  <div>
+                    <div className="font-medium">Phone</div>
+                    <div>{order.shippingAddress.phone}</div>
+                  </div>
+                </div>
+              )}
+              <div className="p-2">
+                <div className="font-medium">User ID</div>
+                <div className="font-mono text-xs opacity-75">{order.userId || 'N/A'}</div>
               </div>
             </div>
+          </div>
+        </div>
+      );
 
-            {order.items && order.items.length > 0 ? (
-              <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 max-h-96 overflow-y-auto">
+    /* ---------------- ITEMS TAB ---------------- */
+    case 'items':
+      return (
+        <div className="space-y-4 sm:space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+            <h4 className="font-semibold text-sm sm:text-base">
+              Order Items ({order.items?.length || 0})
+            </h4>
+            <div className="text-xs sm:text-sm opacity-75">
+              Total: {formatOrderAmount(order?.totalAmount || 0, order?.currency)}
+            </div>
+          </div>
+
+          {/* Items */}
+          {order.items?.length > 0 ? (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 max-h-96 overflow-y-auto">
                 <table className="w-full">
-                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+                  <thead className="bg-gray-50 dark:bg-gray-900 text-xs sm:text-sm">
                     <tr>
-                      <th className="text-left p-3 text-xs sm:text-sm font-medium">Product</th>
-                      <th className="text-left p-3 text-xs sm:text-sm font-medium">Qty</th>
-                      <th className="text-left p-3 text-xs sm:text-sm font-medium">Price</th>
-                      <th className="text-left p-3 text-xs sm:text-sm font-medium">Total</th>
+                      <th className="p-3 text-left font-medium">Product</th>
+                      <th className="p-3 text-left font-medium">Variant</th>
+                      <th className="p-3 text-left font-medium">Qty</th>
+                      <th className="p-3 text-left font-medium">Price</th>
+                      <th className="p-3 text-left font-medium">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {order.items.map((item, index) => (
-                      <tr 
-                        key={index}
-                        className="group hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                      >
-                        <td className="p-3">
-                          <div className="flex items-center gap-2 sm:gap-3">
-                            {item.product?.images?.[0] && (
-                              <img 
-                                src={item.product.images[0]} 
-                                alt={item.product.name} 
-                                className="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
-                              />
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs sm:text-sm font-medium truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                {item.product?.name || 'Unnamed Product'}
-                              </div>
-                              <div className="text-xs text-gray-500 truncate">
-                                SKU: {item.sku || 'N/A'}
-                              </div>
-                            </div>
+                    {order.items.map((item, i) => (
+                      <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td className="p-3 flex items-center gap-3">
+                          {item.product?.images?.[0] && (
+                            <img src={item.product.images[0]} alt={item.product.name} className="w-10 h-10 rounded-md border" />
+                          )}
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{item.product?.name}</div>
+                            <div className="text-xs text-gray-500">SKU: {item.sku || 'N/A'}</div>
                           </div>
                         </td>
-                        <td className="p-3 text-xs sm:text-sm font-medium">{item.quantity || 1}</td>
-                        <td className="p-3 text-xs sm:text-sm">{formatCurrency(item.price || 0)}</td> {/* ✅ Updated */}
-                        <td className="p-3 text-xs sm:text-sm font-medium text-green-600 dark:text-green-400">
-                          {formatCurrency((item.price || 0) * (item.quantity || 1))} {/* ✅ Updated */}
+                        <td className="p-3 text-xs">
+                          Color: {item.color || 'Default'}, Size: {item.size || 'Standard'}
+                        </td>
+                        <td className="p-3 text-xs">{item.quantity || 1}</td>
+                        <td className="p-3 text-xs">{formatCurrency(item.price || 0)}</td>
+                        <td className="p-3 text-xs font-semibold text-green-600">
+                          {formatCurrency((item.price || 0) * (item.quantity || 1))}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            ) : (
-              <div className="text-center py-8 sm:py-12 text-gray-500 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                <Package size={32} className="mx-auto mb-3 opacity-50" />
-                <p className="text-sm">No items found in this order</p>
-              </div>
-            )}
-          </div>
-        );
 
-      case 'shipping':
-        return (
-          <div className="space-y-4 sm:space-y-6">
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-              <label className="block text-xs sm:text-sm font-semibold opacity-75 mb-3 flex items-center gap-2">
-                <MapPin size={isMobile ? 14 : 16} />
-                Shipping Address
-              </label>
-              {order.shippingAddress ? (
-                <div className="text-xs sm:text-sm space-y-2">
-                  <div className="font-semibold text-sm">{getCustomerName()}</div>
-                  <div className="flex items-center gap-2">
-                    <ChevronRight size={12} className="text-gray-400" />
-                    {order.shippingAddress.address1}
-                  </div>
-                  {order.shippingAddress.address2 && (
-                    <div className="flex items-center gap-2">
-                      <ChevronRight size={12} className="text-gray-400" />
-                      {order.shippingAddress.address2}
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-4 px-1 pb-4 overflow-y-auto max-h-[70vh]">
+                {order.items.map((item, i) => (
+                  <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      {item.product?.images?.[0] && (
+                        <img src={item.product.images[0]} alt={item.product.name} className="w-16 h-16 object-cover rounded-lg border" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold truncate">{item.product?.name}</div>
+                        <div className="text-xs text-gray-500 truncate">SKU: {item.sku || 'N/A'}</div>
+                      </div>
+                      <div className="text-xs font-semibold text-green-600">
+                        {formatCurrency((item.price || 0) * (item.quantity || 1))}
+                      </div>
                     </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <ChevronRight size={12} className="text-gray-400" />
-                    {order.shippingAddress.city}, {order.shippingAddress.region} {order.shippingAddress.zipCode}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ChevronRight size={12} className="text-gray-400" />
-                    {order.shippingAddress.country}
-                  </div>
-                  {order.shippingAddress.phone && (
-                    <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-600">
-                      <Phone size={12} className="text-gray-400" />
-                      {order.shippingAddress.phone}
+
+                    <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                      <div><span className="text-gray-500">Qty:</span> {item.quantity}</div>
+                      <div><span className="text-gray-500">Price:</span> {formatCurrency(item.price || 0)}</div>
+                      <div><span className="text-gray-500">Color:</span> {item.color || 'Default'}</div>
+                      <div><span className="text-gray-500">Size:</span> {item.size || 'Standard'}</div>
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-gray-500 text-center py-4 text-sm">
-                  No shipping address provided
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8 text-gray-500 bg-gray-50 dark:bg-gray-800 rounded-xl">
+              <Package size={32} className="mx-auto mb-2 opacity-60" />
+              <p className="text-sm">No items found in this order</p>
             </div>
+          )}
+        </div>
+      );
 
-            {order.trackingNumber && (
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10 p-3 sm:p-4 rounded-xl border border-blue-200 dark:border-blue-800">
-                <label className="block text-xs sm:text-sm font-semibold opacity-75 mb-3 flex items-center gap-2">
-                  <Truck size={isMobile ? 14 : 16} className="text-blue-500" />
-                  Tracking Information
-                </label>
-                <div className="text-xs sm:text-sm space-y-2">
-                  <div><span className="font-medium">Tracking Number:</span> {order.trackingNumber}</div>
-                  {order.carrier && <div><span className="font-medium">Carrier:</span> {order.carrier}</div>}
-                </div>
+    /* ---------------- SHIPPING TAB ---------------- */
+    case 'shipping':
+      return (
+        <div className="space-y-4 sm:space-y-6">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <label className="block text-xs sm:text-sm font-semibold mb-3 flex items-center gap-2 text-gray-700 dark:text-gray-200">
+              <MapPin size={16} /> Shipping Address
+            </label>
+            {order.shippingAddress ? (
+              <div className="text-xs sm:text-sm space-y-2">
+                <div className="font-semibold">{getCustomerName()}</div>
+                <div>{order.shippingAddress.address1}</div>
+                {order.shippingAddress.address2 && <div>{order.shippingAddress.address2}</div>}
+                <div>{order.shippingAddress.city}, {order.shippingAddress.region} {order.shippingAddress.zipCode}</div>
+                <div>{order.shippingAddress.country}</div>
+                {order.shippingAddress.phone && (
+                  <div className="pt-2 border-t border-gray-200 dark:border-gray-600">{order.shippingAddress.phone}</div>
+                )}
               </div>
+            ) : (
+              <div className="text-gray-500 text-center py-4 text-sm">No shipping address provided</div>
             )}
           </div>
-        );
 
-      default:
-        return null;
-    }
-  };
+          {order.trackingNumber && (
+            <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm">
+              <label className="block text-xs sm:text-sm font-semibold mb-3 flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                <Truck size={16} /> Tracking Information
+              </label>
+              <div className="text-xs sm:text-sm space-y-2">
+                <div><span className="font-medium">Tracking Number:</span> {order.trackingNumber}</div>
+                {order.carrier && <div><span className="font-medium">Carrier:</span> {order.carrier}</div>}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+
+    default:
+      return null;
+  }
+};
+
 
   return (
     <motion.div

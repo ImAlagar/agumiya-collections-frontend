@@ -53,6 +53,37 @@ const OrderDetails = () => {
 
   // ========== HELPER FUNCTIONS - DEFINED FIRST ==========
 
+  // Color name to hex code mapping function
+const getColorHexCode = (colorName) => {
+  const colorMap = {
+    'black': '#000000',
+    'Black': '#000000',
+    'white': '#FFFFFF',
+    'White': '#FFFFFF',
+    'navy': '#000080',
+    'Navy': '#000080',
+    'red': '#FF0000',
+    'Red': '#FF0000',
+    'blue': '#0000FF',
+    'Blue': '#0000FF',
+    'green': '#008000',
+    'Green': '#008000',
+    'yellow': '#FFFF00',
+    'Yellow': '#FFFF00',
+    'purple': '#800080',
+    'Purple': '#800080',
+    'pink': '#FFC0CB',
+    'Pink': '#FFC0CB',
+    'orange': '#FFA500',
+    'Orange': '#FFA500',
+    'gray': '#808080',
+    'Gray': '#808080',
+    'brown': '#A52A2A',
+    'Brown': '#A52A2A'
+  };
+  
+  return colorMap[colorName] || '#CCCCCC'; // Default gray if color not found
+};
     // ENHANCED COUPON FUNCTIONS WITH BETTER CALCULATION
 const getDiscountAmount = () => {
   // Use explicit discount amount from order
@@ -1047,54 +1078,59 @@ useEffect(() => {
                     </motion.div>
                   )}
                     {/* ITEMS TAB - UPDATED WITH BETTER REVIEW INTEGRATION */}
-                    {activeTab === 'items' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-                          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2 sm:mb-0">
-                            Order Items
-                          </h3>
-                          
-                          {/* Review Stats */}
-                          {hasReviewableProducts() && (
-                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
-                              <p className="text-blue-700 dark:text-blue-300 text-sm">
-                                {getReviewableProductsCount()} product{getReviewableProductsCount() > 1 ? 's' : ''} available for review
-                              </p>
+                        {activeTab === 'items' && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+                              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2 sm:mb-0">
+                                Order Items
+                              </h3>
+                              
+                              {/* Review Stats */}
+                              {hasReviewableProducts() && (
+                                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
+                                  <p className="text-blue-700 dark:text-blue-300 text-sm">
+                                    {getReviewableProductsCount()} product{getReviewableProductsCount() > 1 ? 's' : ''} available for review
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        
-                        {/* Coupon Summary Banner */}
-                        {shouldShowDiscountInfo() && (
-                          <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-3 sm:p-4 border border-green-200 dark:border-green-800 mb-4 sm:mb-6">
-                            <div className="flex items-center space-x-2 sm:space-x-3">
-                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center flex-shrink-0">
-                                <span className="text-green-600 dark:text-green-400 text-sm sm:text-lg">🎉</span>
+                            
+                            {/* Coupon Summary Banner */}
+                            {shouldShowDiscountInfo() && (
+                              <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-3 sm:p-4 border border-green-200 dark:border-green-800 mb-4 sm:mb-6">
+                                <div className="flex items-center space-x-2 sm:space-x-3">
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <span className="text-green-600 dark:text-green-400 text-sm sm:text-lg">🎉</span>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-semibold text-green-800 dark:text-green-200 text-sm sm:text-base truncate">
+                                      {getCouponCode() ? 'Coupon Applied Successfully!' : 'Special Discount Applied!'}
+                                    </h4>
+                                    <p className="text-green-700 dark:text-green-300 text-xs sm:text-sm truncate">
+                                      You saved {formatCurrency(displayTotals.discount)} 
+                                      {getCouponCode() && ` with code ${getCouponCode()}`}
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-green-800 dark:text-green-200 text-sm sm:text-base truncate">
-                                  {getCouponCode() ? 'Coupon Applied Successfully!' : 'Special Discount Applied!'}
-                                </h4>
-                                <p className="text-green-700 dark:text-green-300 text-xs sm:text-sm truncate">
-                                  You saved {formatCurrency(displayTotals.discount)} 
-                                  {getCouponCode() && ` with code ${getCouponCode()}`}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        <div className="space-y-3 sm:space-y-4">
+                            )}
+                            
+                            <div className="space-y-3 sm:space-y-4">
                               {order.items?.length > 0 ? (
                                 order.items.map((item, index) => {
                                   // FIXED: Use the actual product ID from the product object
                                   const productId = getProductIdFromItem(item);
                                   const canReview = canReviewProduct(productId);
                                   const alreadyReviewed = alreadyReviewedProducts.includes(productId);
+                                  
+                                  // CORRECT COLOR AND SIZE EXTRACTION
+                                  const itemColor = item.color || item.selections?.color || 'Default Color';
+                                  const itemSize = item.size || item.selections?.size || 'Standard Size';
+                                  const displayText = item.displayText || item.selections?.displayText || 'Standard';
                                   
                                   return (
                                     <div
@@ -1112,15 +1148,56 @@ useEffect(() => {
                                         <h4 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base truncate">
                                           {item.product?.name || item.name || 'Product'}
                                         </h4>
-                                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                          Variant: {item.variant || item.size || 'Standard'}
-                                        </p>
-                                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                          Quantity: {item.quantity || 1}
-                                        </p>
+                                        
+                                        {/* CORRECT COLOR AND SIZE DISPLAY */}
+                                        <div className="space-y-1 mt-2">
+                                          {/* Color */}
+                                          <div className="flex items-center space-x-2">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">Color:</span>
+                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                              {itemColor}
+                                            </span>
+                                            {itemColor !== 'Default Color' && itemColor !== 'Default' && (
+                                              <div 
+                                                className="w-3 h-3 rounded-full border border-gray-300"
+                                                style={{
+                                                  backgroundColor: getColorHexCode(itemColor),
+                                                  display: 'inline-block'
+                                                }}
+                                                title={itemColor}
+                                              />
+                                            )}
+                                          </div>
+                                          
+                                          {/* Size */}
+                                          <div className="flex items-center space-x-2">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">Size:</span>
+                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                              {itemSize}
+                                            </span>
+                                          </div>
+                                          
+                                          {/* Display Text (if available) */}
+                                          {displayText && displayText !== 'Standard' && (
+                                            <div className="flex items-center space-x-2">
+                                              <span className="text-xs text-gray-500 dark:text-gray-400">Type:</span>
+                                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                                {displayText}
+                                              </span>
+                                            </div>
+                                          )}
+                                          
+                                          {/* Quantity */}
+                                          <div className="flex items-center space-x-2">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">Quantity:</span>
+                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                              {item.quantity || 1}
+                                            </span>
+                                          </div>
+                                        </div>
                                         
                                         {/* Review Status */}
-                                        <div className="mt-2">
+                                        <div className="mt-3">
                                           {canReview && (
                                             <button
                                               onClick={() => {
@@ -1161,9 +1238,9 @@ useEffect(() => {
                                   No items found for this order.
                                 </p>
                               )}
-                        </div>
-                      </motion.div>
-                    )}
+                            </div>
+                          </motion.div>
+                        )}
 
                     {/* SHIPPING TAB */}
                     {activeTab === 'shipping' && (
