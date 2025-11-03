@@ -120,11 +120,9 @@ const Shop = () => {
   // ✅ FIX: Read URL parameters for category - CRUCIAL FIX
   useEffect(() => {
     const urlCategory = searchParams.get('category');
-    console.log('🛍️ URL Category:', urlCategory);
     
     if (urlCategory && !urlProcessed) {
       const decodedCategory = decodeURIComponent(urlCategory);
-      console.log('🛍️ Setting category from URL:', decodedCategory);
       
       setLocalFilters(prev => ({
         ...prev,
@@ -146,7 +144,6 @@ const Shop = () => {
   // ✅ Sync with context filters but don't override URL categories
   useEffect(() => {
     if (filters && Object.keys(filters).length > 0) {
-      console.log('🔄 Context filters received:', filters);
       // Only sync non-category filters to avoid overriding URL categories
       const { categories, ...otherFilters } = filters;
       setLocalFilters(prev => ({ 
@@ -183,8 +180,6 @@ const Shop = () => {
   useEffect(() => {
     setIsFiltering(true);
     const timeoutId = setTimeout(() => {
-      console.log('🔄 Fetching products with filters:', localFilters);
-      console.log('🔄 Category filter in fetch:', localFilters.categories);
       fetchProducts(localFilters.page, localFilters);
       setIsFiltering(false);
     }, 500);
@@ -207,7 +202,6 @@ const Shop = () => {
     const urlCategory = searchParams.get('category');
     
     if (urlCategory && productsSectionRef.current && !hasScrolled && products.length > 0) {
-      console.log('🎯 Attempting scroll to products');
       
       const scrollToProducts = () => {
         try {
@@ -222,7 +216,6 @@ const Shop = () => {
           });
           
           setHasScrolled(true);
-          console.log('✅ Successfully scrolled to products section');
         } catch (error) {
           console.error('❌ Scroll failed:', error);
         }
@@ -249,19 +242,9 @@ const Shop = () => {
     }
   }, [searchParams.get('category')]);
 
-  // ✅ Debugging effects
-  useEffect(() => {
-    console.log('🔍 Current Local Filters:', localFilters);
-    console.log('🔍 Active Filters:', activeFilters);
-  }, [localFilters, activeFilters]);
 
-  useEffect(() => {
-    console.log('📦 Products loaded:', products.length);
-    console.log('📦 Current category filter:', localFilters.categories);
-  }, [products, localFilters.categories]);
 
   const handleFilterChange = useCallback((newFilters) => {
-    console.log('🎛️ Filter change:', newFilters);
     
     const updated = {
       ...localFilters,
@@ -299,14 +282,12 @@ const Shop = () => {
 
   // ✅ Handle category change
   const handleCategoryChange = useCallback((selectedCategory) => {
-    console.log('🎯 Category changed:', selectedCategory);
     const categories = selectedCategory ? [selectedCategory] : [];
     handleFilterChange({ categories });
   }, [handleFilterChange]);
 
   // ✅ Handle price range change
   const handlePriceRangeChange = useCallback(([min, max]) => {
-    console.log('💰 Price range changed:', min, max);
     handleFilterChange({ 
       minPrice: min,
       maxPrice: max
@@ -315,13 +296,11 @@ const Shop = () => {
 
   // ✅ Handle availability change
   const handleAvailabilityChange = useCallback((inStock) => {
-    console.log('📦 Availability changed:', inStock);
     handleFilterChange({ inStock });
   }, [handleFilterChange]);
 
   // ✅ Remove individual filter
   const removeFilter = useCallback((filterType) => {
-    console.log('🗑️ Removing filter:', filterType);
     
     let resetValue;
 
@@ -348,7 +327,6 @@ const Shop = () => {
 
   // ✅ Reset all filters
   const clearAllFilters = useCallback(() => {
-    console.log('🔄 Clearing all filters');
     const reset = {
       categories: [],
       minPrice: filterOptions.priceRange.min,
@@ -387,7 +365,6 @@ const Shop = () => {
 
   // ✅ Handle pagination
   const handlePageChange = useCallback((page) => {
-    console.log('📄 Page changed:', page);
     handleFilterChange({ page });
   }, [handleFilterChange]);
 
