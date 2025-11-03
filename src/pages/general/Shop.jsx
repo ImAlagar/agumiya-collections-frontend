@@ -88,6 +88,7 @@ const Shop = () => {
   const [activeFilters, setActiveFilters] = useState([]);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
+  const [urlProcessed, setUrlProcessed] = useState(false);
 
   // ✅ Fetch filter options from backend
   useEffect(() => {
@@ -116,25 +117,42 @@ const Shop = () => {
     fetchFilters();
   }, []);
 
-  // ✅ Read URL parameters for category
+  // ✅ FIX: Read URL parameters for category - CRUCIAL FIX
   useEffect(() => {
     const urlCategory = searchParams.get('category');
-
-    if (urlCategory) {
+    console.log('🛍️ URL Category:', urlCategory);
+    
+    if (urlCategory && !urlProcessed) {
       const decodedCategory = decodeURIComponent(urlCategory);
+      console.log('🛍️ Setting category from URL:', decodedCategory);
       
       setLocalFilters(prev => ({
         ...prev,
         categories: [decodedCategory],
         page: 1
       }));
+      setUrlProcessed(true);
+    }
+  }, [searchParams, urlProcessed]);
+
+  // ✅ Reset URL processed state when category changes
+  useEffect(() => {
+    const urlCategory = searchParams.get('category');
+    if (!urlCategory) {
+      setUrlProcessed(false);
     }
   }, [searchParams]);
 
-  // ✅ Sync with context filters and fetch products when filters change
+  // ✅ Sync with context filters but don't override URL categories
   useEffect(() => {
     if (filters && Object.keys(filters).length > 0) {
-      setLocalFilters(prev => ({ ...prev, ...filters }));
+      console.log('🔄 Context filters received:', filters);
+      // Only sync non-category filters to avoid overriding URL categories
+      const { categories, ...otherFilters } = filters;
+      setLocalFilters(prev => ({ 
+        ...prev, 
+        ...otherFilters 
+      }));
     }
   }, [filters]);
 
@@ -162,56 +180,64 @@ const Shop = () => {
   }, [localFilters, filterOptions]);
 
   // ✅ Fetch products when filters change - DEBOUNCED
-useEffect(() => {
-  setIsFiltering(true);
-  const timeoutId = setTimeout(() => {
-    fetchProducts(localFilters.page, localFilters); // Pass the current page
-    setIsFiltering(false);
-  }, 500);
-  
-  return () => {
-    clearTimeout(timeoutId);
-    setIsFiltering(false);
-  };
-}, [
-  localFilters.categories, 
-  localFilters.minPrice, 
-  localFilters.maxPrice, 
-  localFilters.inStock, 
-  localFilters.limit,
-  localFilters.page // Add page to dependencies
-]);
+  useEffect(() => {
+    setIsFiltering(true);
+    const timeoutId = setTimeout(() => {
+      console.log('🔄 Fetching products with filters:', localFilters);
+      console.log('🔄 Category filter in fetch:', localFilters.categories);
+      fetchProducts(localFilters.page, localFilters);
+      setIsFiltering(false);
+    }, 500);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      setIsFiltering(false);
+    };
+  }, [
+    localFilters.categories, 
+    localFilters.minPrice, 
+    localFilters.maxPrice, 
+    localFilters.inStock, 
+    localFilters.limit,
+    localFilters.page
+  ]);
+
   // ✅ Enhanced auto-scroll for home page navigation
   useEffect(() => {
     const urlCategory = searchParams.get('category');
     
-    if (urlCategory && productsSectionRef.current && !hasScrolled) {
+    if (urlCategory && productsSectionRef.current && !hasScrolled && products.length > 0) {
+      console.log('🎯 Attempting scroll to products');
       
-      const performScroll = () => {
-        if (productsSectionRef.current && products.length > 0) {
-          try {
-            const element = productsSectionRef.current;
-            const headerHeight = 120;
-            const elementTop = element.getBoundingClientRect().top + window.pageYOffset;
-            const scrollPosition = elementTop - headerHeight;
-            
-            window.scrollTo({
-              top: scrollPosition,
-              behavior: 'smooth'
-            });
-            
-            setHasScrolled(true);
-            
-          } catch (error) {
-            console.error('❌ Scroll failed:', error);
-          }
+      const scrollToProducts = () => {
+        try {
+          const element = productsSectionRef.current;
+          const headerHeight = 120;
+          const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+          const offsetPosition = elementPosition - headerHeight;
+
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+          
+          setHasScrolled(true);
+          console.log('✅ Successfully scrolled to products section');
+        } catch (error) {
+          console.error('❌ Scroll failed:', error);
         }
       };
-      
-      // Try scrolling with increasing delays to ensure content is loaded
-      setTimeout(performScroll, 300);
-      setTimeout(performScroll, 800);
-      setTimeout(performScroll, 1500);
+
+      // Try scrolling with different delays
+      const timeout1 = setTimeout(scrollToProducts, 300);
+      const timeout2 = setTimeout(scrollToProducts, 800);
+      const timeout3 = setTimeout(scrollToProducts, 1500);
+
+      return () => {
+        clearTimeout(timeout1);
+        clearTimeout(timeout2);
+        clearTimeout(timeout3);
+      };
     }
   }, [searchParams, hasScrolled, products.length]);
 
@@ -223,50 +249,64 @@ useEffect(() => {
     }
   }, [searchParams.get('category')]);
 
-const handleFilterChange = useCallback((newFilters) => {
-  const updated = {
-    ...localFilters,
-    ...newFilters,
-    page: newFilters.page !== undefined ? newFilters.page : 
-          (newFilters.categories !== undefined || 
-           newFilters.minPrice !== undefined || 
-           newFilters.maxPrice !== undefined || 
-           newFilters.inStock !== undefined || 
-           newFilters.limit !== undefined) ? 1 : localFilters.page
-  };
-  
-  setLocalFilters(updated);
-  
-  // Update URL when category changes
-  if (newFilters.categories !== undefined) {
-    const params = new URLSearchParams();
-    if (newFilters.categories.length > 0) {
-      params.set('category', encodeURIComponent(newFilters.categories[0]));
+  // ✅ Debugging effects
+  useEffect(() => {
+    console.log('🔍 Current Local Filters:', localFilters);
+    console.log('🔍 Active Filters:', activeFilters);
+  }, [localFilters, activeFilters]);
+
+  useEffect(() => {
+    console.log('📦 Products loaded:', products.length);
+    console.log('📦 Current category filter:', localFilters.categories);
+  }, [products, localFilters.categories]);
+
+  const handleFilterChange = useCallback((newFilters) => {
+    console.log('🎛️ Filter change:', newFilters);
+    
+    const updated = {
+      ...localFilters,
+      ...newFilters,
+      page: newFilters.page !== undefined ? newFilters.page : 
+            (newFilters.categories !== undefined || 
+             newFilters.minPrice !== undefined || 
+             newFilters.maxPrice !== undefined || 
+             newFilters.inStock !== undefined || 
+             newFilters.limit !== undefined) ? 1 : localFilters.page
+    };
+    
+    setLocalFilters(updated);
+    
+    // Update URL when category changes
+    if (newFilters.categories !== undefined) {
+      const params = new URLSearchParams();
+      if (newFilters.categories.length > 0) {
+        params.set('category', encodeURIComponent(newFilters.categories[0]));
+        setUrlProcessed(true); // Mark as processed when user changes category
+      }
+      
+      const newUrl = newFilters.categories.length > 0 
+        ? `${window.location.pathname}?${params.toString()}`
+        : window.location.pathname;
+      
+      window.history.replaceState(null, '', newUrl);
     }
     
-    const newUrl = newFilters.categories.length > 0 
-      ? `${window.location.pathname}?${params.toString()}`
-      : window.location.pathname;
-    
-    window.history.replaceState(null, '', newUrl);
-  }
-  
-  // Auto-close mobile sidebar on any filter change
-  if (mobileFiltersOpen && newFilters.page === undefined) {
-    setMobileFiltersOpen(false);
-  }
-}, [localFilters, mobileFiltersOpen]);
+    // Auto-close mobile sidebar on any filter change
+    if (mobileFiltersOpen && newFilters.page === undefined) {
+      setMobileFiltersOpen(false);
+    }
+  }, [localFilters, mobileFiltersOpen]);
 
   // ✅ Handle category change
   const handleCategoryChange = useCallback((selectedCategory) => {
-    
+    console.log('🎯 Category changed:', selectedCategory);
     const categories = selectedCategory ? [selectedCategory] : [];
     handleFilterChange({ categories });
   }, [handleFilterChange]);
 
   // ✅ Handle price range change
   const handlePriceRangeChange = useCallback(([min, max]) => {
-    
+    console.log('💰 Price range changed:', min, max);
     handleFilterChange({ 
       minPrice: min,
       maxPrice: max
@@ -275,17 +315,20 @@ const handleFilterChange = useCallback((newFilters) => {
 
   // ✅ Handle availability change
   const handleAvailabilityChange = useCallback((inStock) => {
+    console.log('📦 Availability changed:', inStock);
     handleFilterChange({ inStock });
   }, [handleFilterChange]);
 
   // ✅ Remove individual filter
   const removeFilter = useCallback((filterType) => {
+    console.log('🗑️ Removing filter:', filterType);
     
     let resetValue;
 
     switch (filterType) {
       case 'categories':
         resetValue = [];
+        setUrlProcessed(false); // Reset URL processing when category is removed
         break;
       case 'minPrice':
         resetValue = filterOptions.priceRange.min;
@@ -305,6 +348,7 @@ const handleFilterChange = useCallback((newFilters) => {
 
   // ✅ Reset all filters
   const clearAllFilters = useCallback(() => {
+    console.log('🔄 Clearing all filters');
     const reset = {
       categories: [],
       minPrice: filterOptions.priceRange.min,
@@ -314,7 +358,11 @@ const handleFilterChange = useCallback((newFilters) => {
       page: 1
     };
     setLocalFilters(reset);
+    setUrlProcessed(false); // Reset URL processing
     setMobileFiltersOpen(false);
+    
+    // Clear URL parameters
+    window.history.replaceState(null, '', window.location.pathname);
   }, [filterOptions]);
 
   // ✅ Apply filters (for mobile)
@@ -326,7 +374,6 @@ const handleFilterChange = useCallback((newFilters) => {
   const formatPriceForDisplay = useCallback((price) => {
     if (price === null || price === undefined) return 'N/A';
     
-
     try {
       const { formatted } = formatPrice(price, userCurrency);
       return formatted;
@@ -340,7 +387,7 @@ const handleFilterChange = useCallback((newFilters) => {
 
   // ✅ Handle pagination
   const handlePageChange = useCallback((page) => {
-
+    console.log('📄 Page changed:', page);
     handleFilterChange({ page });
   }, [handleFilterChange]);
 

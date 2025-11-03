@@ -91,7 +91,7 @@ const ProductDetails = () => {
         model: 'Select Style',
         finish: 'Select Material'
       },
-      displayOrder: ['color', 'size']
+      displayOrder: ['size', 'color']
     },
     
     // Accessories

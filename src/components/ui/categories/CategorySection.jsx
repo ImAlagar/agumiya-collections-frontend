@@ -167,9 +167,10 @@ const CategorySection = ({ category, products, reviewStats, index }) => {
     return category.image;
   };
 
-  const handleProductClick = (product) => {
-    navigate(`/shop?category=${encodeURIComponent(category.value)}`);
-  };
+const handleProductClick = (product) => {
+  // Navigate to shop with category filter and scroll to products
+  navigate(`/shop?category=${encodeURIComponent(category.value)}`);
+};
 
   const handleViewAllClick = () => {
     navigate(`/shop?category=${encodeURIComponent(category.value)}`);
@@ -326,16 +327,17 @@ const CategorySection = ({ category, products, reviewStats, index }) => {
                         const reviewCount = product.reviewStats?.totalReviews || 0;
                         
                         return (
-                          <motion.div
-                            key={product.id}
-                            variants={cardVariants}
-                            initial="hidden"
-                            animate="visible"
-                            exit="exit"
-                            whileHover="hover"
-                            className={`group relative ${styles.card} ${styles.border} rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm cursor-pointer`}
-                            onClick={() => handleProductClick(product)}
-                          >
+                              <motion.div
+                                key={product.id}
+                                variants={cardVariants}
+                                initial="hidden"
+                                animate="visible"
+                                exit="exit"
+                                whileHover="hover"
+                                className={`group relative ${styles.card} ${styles.border} rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm cursor-pointer`}
+                                onClick={() => handleProductClick(product)}
+                                whileTap={{ scale: 0.95 }} // Add tap feedback
+                              >
                             <div className="relative overflow-hidden">
                               <motion.img
                                 src={product.images?.[0] || getCategoryImage()}
