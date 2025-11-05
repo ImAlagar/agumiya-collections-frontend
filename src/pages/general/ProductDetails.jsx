@@ -564,43 +564,66 @@ const handleSizeSelect = (size) => {
     return { savings, savingsPercentage };
   };
 
-  // ✅ FIXED: Add to cart function with null safety
   const handleAddToCart = () => {
-    if (product && selectedVariant) {
-      addToCart({
-        product: {
-          id: product.id,
-          name: product.name,
-          price: product.price || 0,
-          image: product.images?.[0],
-          printifyProductId: product.printifyProductId,
-          printifyVariants: product.printifyVariants,
-          category: product.category,
-          images: product.images
-        },
-        variant: {
-          id: selectedVariant.id,
-          title: selectedVariant.title,
-          price: selectedVariant.price || 0,
-          sku: selectedVariant.sku,
-          isAvailable: selectedVariant.isAvailable,
-          isEnabled: selectedVariant.isEnabled,
-          image: product.images?.[0]
-        },
-        quantity: quantity,
-        selectedColor: selectedColor,
-        selectedSize: selectedSize,
-        selectedModel: selectedModel,
-        selectedFinish: selectedFinish
-      });
-      
-      triggerFlyingAnimation();
-    } else {
-      alert('Please select required options before adding to cart.');
+    if (!product || enabledVariants.length === 0) {
+      alert('This product is currently out of stock.');
+      return;
     }
+
+    const hasRequiredSelections = () => {
+      const config = getCategoryConfig();
+      
+      // Check each available option type and see if selection is required
+      if (availableSizes.length > 0 && !selectedSize) return false;
+      if (availableColors.length > 0 && !selectedColor) return false;
+      if (availableModels.length > 0 && !selectedModel) return false;
+      if (availableFinishes.length > 0 && !selectedFinish) return false;
+      
+      return true;
+    };
+
+    if (!hasRequiredSelections()) {
+      alert('Please select all required options before adding to cart.');
+      return;
+    }
+
+    // Final check if selected variant exists
+    if (!selectedVariant) {
+      alert('Please select valid options for this product.');
+      return;
+    }
+
+    addToCart({
+      product: {
+        id: product.id,
+        name: product.name,
+        price: product.price || 0,
+        image: product.images?.[0],
+        printifyProductId: product.printifyProductId,
+        printifyVariants: product.printifyVariants,
+        category: product.category,
+        images: product.images
+      },
+      variant: {
+        id: selectedVariant.id,
+        title: selectedVariant.title,
+        price: selectedVariant.price || 0,
+        sku: selectedVariant.sku,
+        isAvailable: selectedVariant.isAvailable,
+        isEnabled: selectedVariant.isEnabled,
+        image: product.images?.[0]
+      },
+      quantity: quantity,
+      selectedColor: selectedColor,
+      selectedSize: selectedSize,
+      selectedModel: selectedModel,
+      selectedFinish: selectedFinish
+    });
+    
+    triggerFlyingAnimation();
   };
 
-  const triggerFlyingAnimation = () => {
+    const triggerFlyingAnimation = () => {
     if (!addToCartRef.current || !product) return;
 
     const addToCartRect = addToCartRef.current.getBoundingClientRect();
@@ -627,6 +650,25 @@ const handleSizeSelect = (size) => {
 
     setFlyingItems(prev => [...prev, ...newFlyingItems]);
   };
+
+  const shouldDisableButtons = () => {
+  // If no enabled variants at all, disable buttons
+  if (enabledVariants.length === 0) return true;
+  
+  // Check if required selections are missing based on available options
+  const hasMissingRequiredSelections = () => {
+    if (availableSizes.length > 0 && !selectedSize) return true;
+    if (availableColors.length > 0 && !selectedColor) return true;
+    if (availableModels.length > 0 && !selectedModel) return true;
+    if (availableFinishes.length > 0 && !selectedFinish) return true;
+    
+    return false;
+  };
+  
+  return hasMissingRequiredSelections() || !selectedVariant;
+  };
+
+
 
   const handleFlyingComplete = (itemId) => {
     setFlyingItems(prev => prev.filter(item => item.id !== itemId));
@@ -1278,10 +1320,11 @@ const handleSizeSelect = (size) => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4">
+                {/* Add to Cart Button */}
                   <button
                     ref={addToCartRef}
                     onClick={handleAddToCart}
-                    disabled={enabledVariants.length === 0 || !selectedVariant}
+                    disabled={shouldDisableButtons()}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 px-8 rounded-xl font-semibold text-lg transition-colors flex items-center justify-center space-x-3 relative overflow-hidden"
                   >
                     <motion.span
@@ -1290,8 +1333,12 @@ const handleSizeSelect = (size) => {
                     >
                       <FiShoppingCart size={24} />
                       <span>
-                        {enabledVariants.length === 0 ? 'Out of Stock' : 
-                         !selectedVariant ? 'Select Options' : 'Add to Cart'}
+                        {enabledVariants.length === 0 
+                          ? 'Out of Stock' 
+                          : shouldDisableButtons() 
+                            ? 'Select Options' 
+                            : 'Add to Cart'
+                        }
                       </span>
                     </motion.span>
                     
@@ -1303,12 +1350,13 @@ const handleSizeSelect = (size) => {
                     />
                   </button>
 
+                  {/* Buy Now Button */}
                   <button
                     onClick={handleBuyNow}
-                    disabled={enabledVariants.length === 0 || !selectedVariant}
+                    disabled={shouldDisableButtons()}
                     className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 px-8 rounded-xl font-semibold text-lg transition-colors"
                   >
-                    Buy Now
+                    {shouldDisableButtons() ? 'Select Options' : 'Buy Now'}
                   </button>
                 </div>
               </div>
