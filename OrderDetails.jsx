@@ -10,6 +10,7 @@ import { CreateReviewModal } from '../../components/reviews/CreateReviewModal';
 import { calculationService } from '../../services/api/calculationService';
 import { formatOrderAmount, getCurrencyInfo } from '../../utils/currencyFormatter';
 
+
 const OrderDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -49,70 +50,72 @@ const OrderDetails = () => {
     return location.state?.appliedCoupon || null;
   });
 
+
   // ========== HELPER FUNCTIONS - DEFINED FIRST ==========
 
   // Color name to hex code mapping function
-  const getColorHexCode = (colorName) => {
-    const colorMap = {
-      'black': '#000000',
-      'Black': '#000000',
-      'white': '#FFFFFF',
-      'White': '#FFFFFF',
-      'navy': '#000080',
-      'Navy': '#000080',
-      'red': '#FF0000',
-      'Red': '#FF0000',
-      'blue': '#0000FF',
-      'Blue': '#0000FF',
-      'green': '#008000',
-      'Green': '#008000',
-      'yellow': '#FFFF00',
-      'Yellow': '#FFFF00',
-      'purple': '#800080',
-      'Purple': '#800080',
-      'pink': '#FFC0CB',
-      'Pink': '#FFC0CB',
-      'orange': '#FFA500',
-      'Orange': '#FFA500',
-      'gray': '#808080',
-      'Gray': '#808080',
-      'brown': '#A52A2A',
-      'Brown': '#A52A2A'
-    };
-    
-    return colorMap[colorName] || '#CCCCCC'; // Default gray if color not found
+const getColorHexCode = (colorName) => {
+  const colorMap = {
+    'black': '#000000',
+    'Black': '#000000',
+    'white': '#FFFFFF',
+    'White': '#FFFFFF',
+    'navy': '#000080',
+    'Navy': '#000080',
+    'red': '#FF0000',
+    'Red': '#FF0000',
+    'blue': '#0000FF',
+    'Blue': '#0000FF',
+    'green': '#008000',
+    'Green': '#008000',
+    'yellow': '#FFFF00',
+    'Yellow': '#FFFF00',
+    'purple': '#800080',
+    'Purple': '#800080',
+    'pink': '#FFC0CB',
+    'Pink': '#FFC0CB',
+    'orange': '#FFA500',
+    'Orange': '#FFA500',
+    'gray': '#808080',
+    'Gray': '#808080',
+    'brown': '#A52A2A',
+    'Brown': '#A52A2A'
   };
+  
+  return colorMap[colorName] || '#CCCCCC'; // Default gray if color not found
+};
+    // ENHANCED COUPON FUNCTIONS WITH BETTER CALCULATION
+const getDiscountAmount = () => {
+  // Use explicit discount amount from order
+  if (order?.discountAmount && order.discountAmount > 0) {
+    return order.discountAmount;
+  }
+  
+  // Calculate from totals difference as fallback
+  const itemsTotal = getOrderItems().reduce((sum, item) => 
+    sum + ((item.price || 0) * (item.quantity || 1)), 0
+  );
+  const currentSubtotal = order?.subtotalAmount || 0;
+  
+  if (itemsTotal > currentSubtotal) {
+    return itemsTotal - currentSubtotal;
+  }
+  
+  return 0;
+};
 
-  // ENHANCED COUPON FUNCTIONS WITH BETTER CALCULATION
-  const getDiscountAmount = () => {
-    // Use explicit discount amount from order
-    if (order?.discountAmount && order.discountAmount > 0) {
-      return order.discountAmount;
-    }
-    
-    // Calculate from totals difference as fallback
-    const itemsTotal = getOrderItems().reduce((sum, item) => 
-      sum + ((item.price || 0) * (item.quantity || 1)), 0
-    );
-    const currentSubtotal = order?.subtotalAmount || 0;
-    
-    if (itemsTotal > currentSubtotal) {
-      return itemsTotal - currentSubtotal;
-    }
-    
-    return 0;
-  };
 
-  const getCouponInfo = () => {
-    return {
-      code: order?.couponCode,
-      discountAmount: getDiscountAmount()
-    };
-  };
 
-  const getCouponCode = () => {
-    return order?.couponCode;
+const getCouponInfo = () => {
+  return {
+    code: order?.couponCode,
+    discountAmount: getDiscountAmount()
   };
+};
+
+const getCouponCode = () => {
+  return order?.couponCode;
+};
 
   const getDiscountType = () => {
     return getCouponInfo()?.discountType || order?.discountType || 'FIXED';
@@ -122,12 +125,11 @@ const OrderDetails = () => {
     return getCouponInfo()?.discountValue || order?.discountValue || 0;
   };
 
-  const hasCouponDiscount = () => {
-    const discount = getDiscountAmount();
-    const code = getCouponCode();
-    return discount > 0 || code;
-  };
-
+const hasCouponDiscount = () => {
+  const discount = getDiscountAmount();
+  const code = getCouponCode();
+  return discount > 0 || code;
+};
   const formatCurrency = (amount) => {
     const { formatted } = formatPrice(Math.abs(amount) || 0);
     return amount < 0 ? `-${formatted}` : formatted;
@@ -187,31 +189,33 @@ const OrderDetails = () => {
   };
 
   // Safe data access functions
-  const getOrderNumber = () => {
-    return order?.printifyOrderId || order?.id || 'N/A';
-  };
+const getOrderNumber = () => {
+  return order?.printifyOrderId || order?.id || 'N/A';
+};
 
-  const getOrderDate = () => {
-    return order?.createdAt || new Date();
-  };
 
-  const getOrderStatus = () => {
-    const status = order?.fulfillmentStatus || order?.status || 'unknown';
-    return typeof status === 'string' ? status : 'unknown';
-  };
+const getOrderDate = () => {
+  return order?.createdAt || new Date();
+};
 
-  const getPaymentStatus = () => {
-    const status = order?.paymentStatus || 'pending';
-    return typeof status === 'string' ? status : 'pending';
-  };
+const getOrderStatus = () => {
+  const status = order?.fulfillmentStatus || order?.status || 'unknown';
+  return typeof status === 'string' ? status : 'unknown';
+};
 
-  const getShippingAddress = () => {
-    return order?.shippingAddress || {};
-  };
+const getPaymentStatus = () => {
+  const status = order?.paymentStatus || 'pending';
+  return typeof status === 'string' ? status : 'pending';
+};
 
-  const getOrderItems = () => {
-    return order?.items || [];
-  };
+const getShippingAddress = () => {
+  return order?.shippingAddress || {};
+};
+
+const getOrderItems = () => {
+  return order?.items || [];
+};
+
 
   const formatStatusText = (status) => {
     if (!status || typeof status !== 'string') return 'Unknown';
@@ -224,33 +228,34 @@ const OrderDetails = () => {
   };
 
   // Use calculated totals or fallback to stored values
-  const getDisplayTotals = () => {
-    // Priority 1: Use real-time calculated totals
-    if (calculatedTotals && !calculating) {
-      return {
-        subtotal: calculatedTotals.subtotal,
-        shipping: calculatedTotals.shipping,
-        tax: calculatedTotals.tax,
-        taxRate: calculatedTotals.taxRate,
-        discount: calculatedTotals.discount,
-        total: calculatedTotals.finalTotal,
-        currency: calculatedTotals.currency,
-        isFreeShipping: calculatedTotals.isFreeShipping,
-        estimatedDelivery: calculatedTotals.estimatedDelivery
-      };
-    }
-
-    // Priority 2: Use stored calculated values from database
+// Update getDisplayTotals to use dynamic calculations
+const getDisplayTotals = () => {
+  // Priority 1: Use real-time calculated totals
+  if (calculatedTotals && !calculating) {
     return {
-      subtotal: order?.subtotalAmount || order?.subtotal || 0,
-      shipping: order?.shippingCost || order?.shippingFee || 0,
-      tax: order?.taxAmount || order?.tax || 0,
-      taxRate: order?.taxRate || 0,
-      discount: getDiscountAmount(),
-      total: order?.totalAmount || order?.finalAmount || 0,
-      currency: order?.currency || 'USD'
+      subtotal: calculatedTotals.subtotal,
+      shipping: calculatedTotals.shipping,
+      tax: calculatedTotals.tax,
+      taxRate: calculatedTotals.taxRate,
+      discount: calculatedTotals.discount,
+      total: calculatedTotals.finalTotal,
+      currency: calculatedTotals.currency,
+      isFreeShipping: calculatedTotals.isFreeShipping,
+      estimatedDelivery: calculatedTotals.estimatedDelivery
     };
+  }
+
+  // Priority 2: Use stored calculated values from database
+  return {
+    subtotal: order?.subtotalAmount || order?.subtotal || 0,
+    shipping: order?.shippingCost || order?.shippingFee || 0,
+    tax: order?.taxAmount || order?.tax || 0,
+    taxRate: order?.taxRate || 0,
+    discount: getDiscountAmount(),
+    total: order?.totalAmount || order?.finalAmount || 0,
+    currency: order?.currency || 'USD'
   };
+};
 
   // Check if we should show discount info (even if no explicit coupon data)
   const shouldShowDiscountInfo = () => {
@@ -264,37 +269,6 @@ const OrderDetails = () => {
     }
     
     return false;
-  };
-
-  // FIXED: Proper variant ID extraction function
-  const getValidVariantId = (item) => {
-    // Try multiple possible variant ID fields
-    const variantId = item.variantId || item.variant?.id || item.printifyVariantId;
-    
-    if (!variantId || variantId === 'default' || variantId === 'NaN') {
-      console.warn('⚠️ Invalid variant ID found, using fallback:', variantId);
-      
-      // Try to find a valid variant from product data
-      if (item.product?.printifyVariants && item.product.printifyVariants.length > 0) {
-        return item.product.printifyVariants[0].id;
-      }
-      
-      // Return a safe fallback
-      return 'default-variant';
-    }
-    
-    // Ensure variantId is properly parsed if it's a string
-    if (typeof variantId === 'string') {
-      // Handle string variant IDs that should be numbers
-      if (variantId.includes('-')) {
-        return variantId; // Keep as string if it contains hyphens
-      }
-      
-      const parsed = parseInt(variantId);
-      return isNaN(parsed) ? variantId : parsed;
-    }
-    
-    return variantId;
   };
 
   // Check for payment success
@@ -335,74 +309,48 @@ const OrderDetails = () => {
     }
   }, [order?.status, showCancelModal]);
 
-  // FIXED: Calculate totals with proper variant ID handling
-  useEffect(() => {
-    const calculateOrderTotals = async () => {
-      if (!order?.items || order.items.length === 0) {
-        setCalculatedTotals(null);
-        return;
-      }
+  // Calculate totals using the API when order loads
+// OrderDetails.js - Replace the calculation useEffect with this:
 
-      setCalculating(true);
-      try {
-        // Prepare items with proper variant IDs
-        const calculationItems = order.items.map(item => {
-          const variantId = getValidVariantId(item);
-          
-          console.log('🔍 Preparing item for calculation:', {
-            productId: item.productId || item.id,
-            variantId: variantId,
-            productName: item.product?.name || item.name,
-            hasValidVariant: variantId && variantId !== 'default-variant'
-          });
+useEffect(() => {
+  const calculateOrderTotals = async () => {
+    if (!order?.items || order.items.length === 0) {
+      setCalculatedTotals(null);
+      return;
+    }
 
-          return {
-            productId: item.productId || item.id,
-            variantId: variantId,
-            quantity: item.quantity,
-            price: item.price,
-            name: item.product?.name || item.name
-          };
+    setCalculating(true);
+    try {
+      // Use the SAME calculation service as checkout
+      const result = await calculationService.calculateCartTotals(
+        order.items.map(item => ({
+          productId: item.productId || item.id,
+          variantId: item.variantId,
+          quantity: item.quantity,
+          price: item.price,
+          name: item.product?.name || item.name
+        })),
+        order.shippingAddress || {}, // Use order's shipping address
+        order.couponCode || '' // Use order's coupon code
+      );
+
+      if (result && result.success) {
+        
+        setCalculatedTotals({
+          subtotal: result.amounts?.subtotalUSD || 0,
+          shipping: result.amounts?.shippingUSD || 0,
+          tax: result.amounts?.taxUSD || 0,
+          taxRate: result.breakdown?.taxRate || 0,
+          discount: result.amounts?.discountUSD || 0,
+          finalTotal: result.amounts?.totalUSD || 0,
+          currency: result.currency || 'USD',
+          // Include additional details from calculation
+          isFreeShipping: result.breakdown?.isFreeShipping,
+          estimatedDelivery: result.breakdown?.estimatedDelivery
         });
-
-        // Use the SAME calculation service as checkout
-        const result = await calculationService.calculateCartTotals(
-          calculationItems,
-          order.shippingAddress || {}, // Use order's shipping address
-          order.couponCode || '' // Use order's coupon code
-        );
-
-        if (result && result.success) {
-          console.log('✅ ORDER DETAILS - Calculation successful:', result);
-          
-          setCalculatedTotals({
-            subtotal: result.amounts?.subtotalUSD || 0,
-            shipping: result.amounts?.shippingUSD || 0,
-            tax: result.amounts?.taxUSD || 0,
-            taxRate: result.breakdown?.taxRate || 0,
-            discount: result.amounts?.discountUSD || 0,
-            finalTotal: result.amounts?.totalUSD || 0,
-            currency: result.currency || 'USD',
-            // Include additional details from calculation
-            isFreeShipping: result.breakdown?.isFreeShipping,
-            estimatedDelivery: result.breakdown?.estimatedDelivery
-          });
-        } else {
-          console.warn('❌ ORDER DETAILS - Using fallback calculation');
-          // Fallback to stored values from database
-          setCalculatedTotals({
-            subtotal: order.subtotalAmount || order.subtotal || 0,
-            shipping: order.shippingCost || 0,
-            tax: order.taxAmount || 0,
-            taxRate: order.taxRate || 0,
-            discount: order.discountAmount || 0,
-            finalTotal: order.totalAmount || order.finalAmount || 0,
-            currency: order.currency || 'USD'
-          });
-        }
-      } catch (error) {
-        console.error('❌ ORDER DETAILS - Calculation failed:', error);
-        // Fallback to stored values
+      } else {
+        console.warn('❌ ORDER DETAILS - Using fallback calculation');
+        // Fallback to stored values from database
         setCalculatedTotals({
           subtotal: order.subtotalAmount || order.subtotal || 0,
           shipping: order.shippingCost || 0,
@@ -412,15 +360,28 @@ const OrderDetails = () => {
           finalTotal: order.totalAmount || order.finalAmount || 0,
           currency: order.currency || 'USD'
         });
-      } finally {
-        setCalculating(false);
       }
-    };
-
-    if (order) {
-      calculateOrderTotals();
+    } catch (error) {
+      console.error('❌ ORDER DETAILS - Calculation failed:', error);
+      // Fallback to stored values
+      setCalculatedTotals({
+        subtotal: order.subtotalAmount || order.subtotal || 0,
+        shipping: order.shippingCost || 0,
+        tax: order.taxAmount || 0,
+        taxRate: order.taxRate || 0,
+        discount: order.discountAmount || 0,
+        finalTotal: order.totalAmount || order.finalAmount || 0,
+        currency: order.currency || 'USD'
+      });
+    } finally {
+      setCalculating(false);
     }
-  }, [order]);
+  };
+
+  if (order) {
+    calculateOrderTotals();
+  }
+}, [order]);
 
   const displayTotals = getDisplayTotals();
 
@@ -1024,263 +985,262 @@ const OrderDetails = () => {
                     )}
 
                     {/* DETAILS TAB - UPDATED WITH API CALCULATED TOTALS */}
-                    {activeTab === 'details' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="space-y-6"
-                      >
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {/* Order Summary */}
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                              Order Summary
-                            </h3>
-                            <div className="space-y-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                              {/* Subtotal */}
-                              <div className="flex justify-between">
-                                <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {formatCurrency(order?.subtotalAmount || 0)}
-                                </span>
-                              </div>
-
-                              {/* Shipping */}
-                              <div className="flex justify-between">
-                                <span className="text-gray-600 dark:text-gray-400">Shipping</span>
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {order?.shippingCost === 0 ? 'FREE' : formatCurrency(order?.shippingCost || 0)}
-                                </span>
-                              </div>
-
-                              {/* Tax */}
-                              <div className="flex justify-between">
-                                <span className="text-gray-600 dark:text-gray-400">
-                                  Tax ({order?.taxRate ? `${(order.taxRate * 100)}%` : 'Included'})
-                                </span>
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {formatCurrency(order?.taxAmount || 0)}
-                                </span>
-                              </div>
-
-                              {/* Discount */}
-                              {hasCouponDiscount() && (
-                                <div className="flex justify-between text-green-600 dark:text-green-400">
-                                  <span className="flex items-center">
-                                    🎉 Discount
-                                    {getCouponCode() && (
-                                      <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
-                                        {getCouponCode()}
-                                      </span>
-                                    )}
-                                  </span>
-                                  <span className="font-medium">
-                                    -{formatCurrency(getDiscountAmount())}
-                                  </span>
-                                </div>
-                              )}
-
-                              {/* Total */}
-                              <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-3">
-                                <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                                  Total
-                                </span>
-                                <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
-                                  {formatOrderAmount(order?.totalAmount || 0, order?.currency)}
-                                </span>
-                              </div>
-
-                              {/* Currency Info */}
-                              <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-600">
-                                Currency: {order?.currency || 'USD'}
-                              </div>
+                  {activeTab === 'details' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="space-y-6"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Order Summary */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            Order Summary
+                          </h3>
+                          <div className="space-y-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                            {/* Subtotal */}
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {formatCurrency(order?.subtotalAmount || 0)}
+                              </span>
                             </div>
+
+                            {/* Shipping */}
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Shipping</span>
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {order?.shippingCost === 0 ? 'FREE' : formatCurrency(order?.shippingCost || 0)}
+                              </span>
+                            </div>
+
+                            {/* Tax */}
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">
+                                Tax ({order?.taxRate ? `${(order.taxRate * 100)}%` : 'Included'})
+                              </span>
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {formatCurrency(order?.taxAmount || 0)}
+                              </span>
+                            </div>
+
+                            {/* Discount */}
+                            {hasCouponDiscount() && (
+                              <div className="flex justify-between text-green-600 dark:text-green-400">
+                                <span className="flex items-center">
+                                  🎉 Discount
+                                  {getCouponCode() && (
+                                    <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
+                                      {getCouponCode()}
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="font-medium">
+                                  -{formatCurrency(getDiscountAmount())}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Total */}
+                          <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-3">
+                            <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                              Total
+                            </span>
+                            <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                              {formatOrderAmount(order?.totalAmount || 0, order?.currency)}
+                            </span>
                           </div>
 
-                          {/* Payment Information */}
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                              Payment Information
-                            </h3>
-                            <div className="space-y-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                              <div>
-                                <span className="text-gray-600 dark:text-gray-400">Status</span>
-                                <p className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold mt-1 ${getPaymentStatusColor(getPaymentStatus())}`}>
-                                  {formatStatusText(getPaymentStatus())}
-                                </p>
-                              </div>
-                              
+                            {/* Currency Info */}
+                            <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-600">
+                              Currency: {order?.currency || 'USD'}
                             </div>
                           </div>
                         </div>
-                      </motion.div>
-                    )}
 
-                    {/* ITEMS TAB - UPDATED WITH BETTER REVIEW INTEGRATION */}
-                    {activeTab === 'items' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-                          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2 sm:mb-0">
-                            Order Items
+                        {/* Payment Information */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            Payment Information
                           </h3>
-                          
-                          {/* Review Stats */}
-                          {hasReviewableProducts() && (
-                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
-                              <p className="text-blue-700 dark:text-blue-300 text-sm">
-                                {getReviewableProductsCount()} product{getReviewableProductsCount() > 1 ? 's' : ''} available for review
+                          <div className="space-y-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                            <div>
+                              <span className="text-gray-600 dark:text-gray-400">Status</span>
+                              <p className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold mt-1 ${getPaymentStatusColor(getPaymentStatus())}`}>
+                                {formatStatusText(getPaymentStatus())}
                               </p>
                             </div>
-                          )}
-                        </div>
-                        
-                        {/* Coupon Summary Banner */}
-                        {shouldShowDiscountInfo() && (
-                          <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-3 sm:p-4 border border-green-200 dark:border-green-800 mb-4 sm:mb-6">
-                            <div className="flex items-center space-x-2 sm:space-x-3">
-                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center flex-shrink-0">
-                                <span className="text-green-600 dark:text-green-400 text-sm sm:text-lg">🎉</span>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-green-800 dark:text-green-200 text-sm sm:text-base truncate">
-                                  {getCouponCode() ? 'Coupon Applied Successfully!' : 'Special Discount Applied!'}
-                                </h4>
-                                <p className="text-green-700 dark:text-green-300 text-xs sm:text-sm truncate">
-                                  You saved {formatCurrency(displayTotals.discount)} 
-                                  {getCouponCode() && ` with code ${getCouponCode()}`}
-                                </p>
-                              </div>
-                            </div>
+                            
                           </div>
-                        )}
-                        
-                        <div className="space-y-3 sm:space-y-4">
-                          {order.items?.length > 0 ? (
-                            order.items.map((item, index) => {
-                              // FIXED: Use the actual product ID from the product object
-                              const productId = getProductIdFromItem(item);
-                              const canReview = canReviewProduct(productId);
-                              const alreadyReviewed = alreadyReviewedProducts.includes(productId);
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                    {/* ITEMS TAB - UPDATED WITH BETTER REVIEW INTEGRATION */}
+                        {activeTab === 'items' && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+                              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2 sm:mb-0">
+                                Order Items
+                              </h3>
                               
-                              // CORRECT COLOR AND SIZE EXTRACTION
-                              const itemColor = item.color || item.selections?.color || 'Default Color';
-                              const itemSize = item.size || item.selections?.size || 'Standard Size';
-                              const displayText = item.displayText || item.selections?.displayText || 'Standard';
-                              
-                              return (
-                                <div
-                                  key={index}
-                                  className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
-                                >
-                                  {item.product?.images?.[0] && (
-                                    <img
-                                      src={item.product.images[0]}
-                                      alt={item.name}
-                                      className="w-16 h-16 object-cover rounded-lg flex-shrink-0 mx-auto sm:mx-0"
-                                    />
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base truncate">
-                                      {item.product?.name || item.name || 'Product'}
-                                    </h4>
-                                    
-                                    {/* CORRECT COLOR AND SIZE DISPLAY */}
-                                    <div className="space-y-1 mt-2">
-                                      {/* Color */}
-                                      <div className="flex items-center space-x-2">
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">Color:</span>
-                                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                          {itemColor}
-                                        </span>
-                                        {itemColor !== 'Default Color' && itemColor !== 'Default' && (
-                                          <div 
-                                            className="w-3 h-3 rounded-full border border-gray-300"
-                                            style={{
-                                              backgroundColor: getColorHexCode(itemColor),
-                                              display: 'inline-block'
-                                            }}
-                                            title={itemColor}
-                                          />
-                                        )}
-                                      </div>
-                                      
-                                      {/* Size */}
-                                      <div className="flex items-center space-x-2">
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">Size:</span>
-                                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                          {itemSize}
-                                        </span>
-                                      </div>
-                                      
-                                      {/* Display Text (if available) */}
-                                      {displayText && displayText !== 'Standard' && (
-                                        <div className="flex items-center space-x-2">
-                                          <span className="text-xs text-gray-500 dark:text-gray-400">Type:</span>
-                                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                            {displayText}
-                                          </span>
-                                        </div>
-                                      )}
-                                      
-                                      {/* Quantity */}
-                                      <div className="flex items-center space-x-2">
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">Quantity:</span>
-                                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                          {item.quantity || 1}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    
-                                    {/* Review Status */}
-                                    <div className="mt-3">
-                                      {canReview && (
-                                        <button
-                                          onClick={() => {
-                                            handleOpenReviewModal(item);
-                                          }}
-                                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs sm:text-sm font-medium transition-colors"
-                                        >
-                                          ✍️ Write Review
-                                        </button>
-                                      )}
-                                      
-                                      {alreadyReviewed && (
-                                        <span className="text-green-600 dark:text-green-400 text-xs sm:text-sm font-medium">
-                                          ✅ Review Submitted
-                                        </span>
-                                      )}
-                                      
-                                      {!canReview && !alreadyReviewed && getOrderStatus().toUpperCase() !== 'DELIVERED' && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                                          Review available after delivery
-                                        </p>
-                                      )}
-                                    </div>
+                              {/* Review Stats */}
+                              {hasReviewableProducts() && (
+                                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
+                                  <p className="text-blue-700 dark:text-blue-300 text-sm">
+                                    {getReviewableProductsCount()} product{getReviewableProductsCount() > 1 ? 's' : ''} available for review
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Coupon Summary Banner */}
+                            {shouldShowDiscountInfo() && (
+                              <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-3 sm:p-4 border border-green-200 dark:border-green-800 mb-4 sm:mb-6">
+                                <div className="flex items-center space-x-2 sm:space-x-3">
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <span className="text-green-600 dark:text-green-400 text-sm sm:text-lg">🎉</span>
                                   </div>
-                                  <div className="text-right flex-shrink-0">
-                                    <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
-                                      {formatCurrency(item.price || 0)}
-                                    </p>
-                                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                      {formatItemPrice(item.price || 0, item.quantity || 1)}
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-semibold text-green-800 dark:text-green-200 text-sm sm:text-base truncate">
+                                      {getCouponCode() ? 'Coupon Applied Successfully!' : 'Special Discount Applied!'}
+                                    </h4>
+                                    <p className="text-green-700 dark:text-green-300 text-xs sm:text-sm truncate">
+                                      You saved {formatCurrency(displayTotals.discount)} 
+                                      {getCouponCode() && ` with code ${getCouponCode()}`}
                                     </p>
                                   </div>
                                 </div>
-                              );
-                            })
-                          ) : (
-                            <p className="text-gray-500 dark:text-gray-400 text-center py-6 sm:py-8">
-                                No items found for this order.
-                            </p>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
+                              </div>
+                            )}
+                            
+                            <div className="space-y-3 sm:space-y-4">
+                              {order.items?.length > 0 ? (
+                                order.items.map((item, index) => {
+                                  // FIXED: Use the actual product ID from the product object
+                                  const productId = getProductIdFromItem(item);
+                                  const canReview = canReviewProduct(productId);
+                                  const alreadyReviewed = alreadyReviewedProducts.includes(productId);
+                                  
+                                  // CORRECT COLOR AND SIZE EXTRACTION
+                                  const itemColor = item.color || item.selections?.color || 'Default Color';
+                                  const itemSize = item.size || item.selections?.size || 'Standard Size';
+                                  const displayText = item.displayText || item.selections?.displayText || 'Standard';
+                                  
+                                  return (
+                                    <div
+                                      key={index}
+                                      className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                                    >
+                                      {item.product?.images?.[0] && (
+                                        <img
+                                          src={item.product.images[0]}
+                                          alt={item.name}
+                                          className="w-16 h-16 object-cover rounded-lg flex-shrink-0 mx-auto sm:mx-0"
+                                        />
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                          {item.product?.name || item.name || 'Product'}
+                                        </h4>
+                                        
+                                        {/* CORRECT COLOR AND SIZE DISPLAY */}
+                                        <div className="space-y-1 mt-2">
+                                          {/* Color */}
+                                          <div className="flex items-center space-x-2">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">Color:</span>
+                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                              {itemColor}
+                                            </span>
+                                            {itemColor !== 'Default Color' && itemColor !== 'Default' && (
+                                              <div 
+                                                className="w-3 h-3 rounded-full border border-gray-300"
+                                                style={{
+                                                  backgroundColor: getColorHexCode(itemColor),
+                                                  display: 'inline-block'
+                                                }}
+                                                title={itemColor}
+                                              />
+                                            )}
+                                          </div>
+                                          
+                                          {/* Size */}
+                                          <div className="flex items-center space-x-2">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">Size:</span>
+                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                              {itemSize}
+                                            </span>
+                                          </div>
+                                          
+                                          {/* Display Text (if available) */}
+                                          {displayText && displayText !== 'Standard' && (
+                                            <div className="flex items-center space-x-2">
+                                              <span className="text-xs text-gray-500 dark:text-gray-400">Type:</span>
+                                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                                {displayText}
+                                              </span>
+                                            </div>
+                                          )}
+                                          
+                                          {/* Quantity */}
+                                          <div className="flex items-center space-x-2">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">Quantity:</span>
+                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                              {item.quantity || 1}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Review Status */}
+                                        <div className="mt-3">
+                                          {canReview && (
+                                            <button
+                                              onClick={() => {
+                                                handleOpenReviewModal(item);
+                                              }}
+                                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs sm:text-sm font-medium transition-colors"
+                                            >
+                                              ✍️ Write Review
+                                            </button>
+                                          )}
+                                          
+                                          {alreadyReviewed && (
+                                            <span className="text-green-600 dark:text-green-400 text-xs sm:text-sm font-medium">
+                                              ✅ Review Submitted
+                                            </span>
+                                          )}
+                                          
+                                          {!canReview && !alreadyReviewed && getOrderStatus().toUpperCase() !== 'DELIVERED' && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                              Review available after delivery
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="text-right flex-shrink-0">
+                                        <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                                          {formatCurrency(item.price || 0)}
+                                        </p>
+                                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                          {formatItemPrice(item.price || 0, item.quantity || 1)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <p className="text-gray-500 dark:text-gray-400 text-center py-6 sm:py-8">
+                                  No items found for this order.
+                                </p>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
 
                     {/* SHIPPING TAB */}
                     {activeTab === 'shipping' && (

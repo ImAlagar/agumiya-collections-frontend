@@ -9,7 +9,6 @@ import { calculationService } from '../../services/api/calculationService';
 import { couponService } from '../../services/api/couponService';
 import CountryDropdown from '../../components/common/CountryDropdown';
 
-
 const determineProductType = (item) => {
   const category = item.category?.toLowerCase() || '';
   const productName = item.name?.toLowerCase() || '';
@@ -153,6 +152,11 @@ const Checkout = () => {
   const [paymentStatus, setPaymentStatus] = useState('idle');
   const [paymentError, setPaymentError] = useState('');
   
+  // ==================== THANK YOU PAGE STATE ====================
+  const [showThankYouPage, setShowThankYouPage] = useState(false);
+  const [orderDetails, setOrderDetails] = useState(null);
+  const [redirectTimer, setRedirectTimer] = useState(5); // 5 seconds countdown
+
   // Available coupons state
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [showAvailableCoupons, setShowAvailableCoupons] = useState(false);
@@ -165,6 +169,7 @@ const Checkout = () => {
   const paymentInProgressRef = useRef(false);
   const razorpayInstanceRef = useRef(null);
   const paymentVerificationTimeoutRef = useRef(null);
+  const thankYouTimerRef = useRef(null);
 
   // ==================== SHIPPING ADDRESS FORM STATE ====================
   const [shippingAddress, setShippingAddress] = useState({
@@ -183,6 +188,10 @@ const Checkout = () => {
   const [couponCode, setCouponCode] = useState('');
   const [orderNotes, setOrderNotes] = useState('');
 
+  // Calculate finalTotal early to avoid reference errors
+  const displayCurrency = calculations?.currency || userCurrency;
+  const finalTotal = calculations?.finalTotal || cartTotal;
+
   // Update refs when values change
   useEffect(() => {
     calculationsRef.current = calculations;
@@ -197,9 +206,42 @@ const Checkout = () => {
       if (paymentVerificationTimeoutRef.current) {
         clearTimeout(paymentVerificationTimeoutRef.current);
       }
+      if (thankYouTimerRef.current) {
+        clearInterval(thankYouTimerRef.current);
+      }
       paymentInProgressRef.current = false;
     };
   }, []);
+
+  // ==================== THANK YOU PAGE TIMER ====================
+  useEffect(() => {
+    if (showThankYouPage && redirectTimer > 0) {
+      thankYouTimerRef.current = setInterval(() => {
+        setRedirectTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(thankYouTimerRef.current);
+            // Redirect to order details page
+            navigate(`/profile?tab=orders`, {
+              state: {
+                paymentSuccess: true,
+                paymentId: orderDetails?.paymentId,
+                orderId: orderDetails?.orderId
+              },
+              replace: true
+            });
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (thankYouTimerRef.current) {
+        clearInterval(thankYouTimerRef.current);
+      }
+    };
+  }, [showThankYouPage, redirectTimer, orderDetails, navigate]);
 
   // ==================== REDIRECT IF NOT AUTHENTICATED OR CART EMPTY ====================
   useEffect(() => {
@@ -208,11 +250,11 @@ const Checkout = () => {
       return;
     }
     
-    if (cartItems.length === 0) {
+    if (cartItems.length === 0 && !showThankYouPage) {
       navigate('/cart', { replace: true });
       return;
     }
-  }, [isAuthenticated, cartItems, navigate]);
+  }, [isAuthenticated, cartItems, navigate, showThankYouPage]);
 
   // ==================== LOAD AVAILABLE COUPONS ====================
   const loadAvailableCoupons = useCallback(async () => {
@@ -259,40 +301,51 @@ const Checkout = () => {
   }, [cartItems, calculations, cartTotal, user, couponsLoading]);
 
   // ==================== SHIPPING & TAX CALCULATION ====================
-useEffect(() => {
-  const calculateTotals = async () => {
-    if (cartItems.length === 0) return;
-    
-    setCalculating(true);
-    try {
-      const result = await calculationService.calculateCartTotals(
-        cartItems.map(item => ({
-          productId: item.id,
-          variantId: item.variantId,
-          quantity: item.quantity,
-          price: item.price,
-          name: item.name
-        })),
-        shippingAddress, // Use full shipping address for accurate calculation
-        appliedCoupon?.code || ''
-      );
+  useEffect(() => {
+    const calculateTotals = async () => {
+      if (cartItems.length === 0) return;
+      
+      setCalculating(true);
+      try {
+        const result = await calculationService.calculateCartTotals(
+          cartItems.map(item => ({
+            productId: item.id,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            price: item.price,
+            name: item.name
+          })),
+          shippingAddress, // Use full shipping address for accurate calculation
+          appliedCoupon?.code || ''
+        );
 
-      if (result && result.success) {
-        
-        setCalculations({
-          subtotal: result.amounts.subtotalUSD,
-          shipping: result.amounts.shippingUSD,
-          tax: result.amounts.taxUSD,
-          finalTotal: result.amounts.totalUSD,
-          taxRate: result.breakdown.taxRate,
-          discount: result.breakdown.discount || discountAmount,
-          currency: result.currency || 'USD',
-          // Include additional details
-          isFreeShipping: result.breakdown.isFreeShipping,
-          estimatedDelivery: result.breakdown.estimatedDelivery
-        });
-      } else {
-        console.error('❌ CHECKOUT - Invalid response from real calculation');
+        if (result && result.success) {
+          setCalculations({
+            subtotal: result.amounts.subtotalUSD,
+            shipping: result.amounts.shippingUSD,
+            tax: result.amounts.taxUSD,
+            finalTotal: result.amounts.totalUSD,
+            taxRate: result.breakdown.taxRate,
+            discount: result.breakdown.discount || discountAmount,
+            currency: result.currency || 'USD',
+            // Include additional details
+            isFreeShipping: result.breakdown.isFreeShipping,
+            estimatedDelivery: result.breakdown.estimatedDelivery
+          });
+        } else {
+          console.error('❌ CHECKOUT - Invalid response from real calculation');
+          setCalculations({
+            subtotal: cartTotal,
+            shipping: 0,
+            tax: 0,
+            finalTotal: cartTotal,
+            taxRate: 0,
+            discount: discountAmount,
+            currency: userCurrency
+          });
+        }
+      } catch (error) {
+        console.error('❌ CHECKOUT - Real calculation error:', error);
         setCalculations({
           subtotal: cartTotal,
           shipping: 0,
@@ -302,69 +355,55 @@ useEffect(() => {
           discount: discountAmount,
           currency: userCurrency
         });
+      } finally {
+        setCalculating(false);
       }
-    } catch (error) {
-      console.error('❌ CHECKOUT - Real calculation error:', error);
-      setCalculations({
-        subtotal: cartTotal,
-        shipping: 0,
-        tax: 0,
-        finalTotal: cartTotal,
-        taxRate: 0,
-        discount: discountAmount,
-        currency: userCurrency
-      });
-    } finally {
-      setCalculating(false);
-    }
-  };
+    };
 
-  calculateTotals();
-}, [cartItems, shippingAddress, appliedCoupon, discountAmount, cartTotal, userCurrency]);
+    calculateTotals();
+  }, [cartItems, shippingAddress, appliedCoupon, discountAmount, cartTotal, userCurrency]);
 
-
-// In Checkout.jsx - Add this effect
-useEffect(() => {
-  // Recalculate when shipping address changes (with debounce)
-  const timeoutId = setTimeout(() => {
-    if (cartItems.length > 0 && shippingAddress.country) {
-      // Trigger recalculation by updating a dependency
-      const recalc = async () => {
-        setCalculating(true);
-        try {
-          const result = await calculationService.calculateCartTotals(
-            cartItems.map(item => ({
-              productId: item.id,
-              variantId: item.variantId,
-              quantity: item.quantity,
-              price: item.price
-            })),
-            shippingAddress,
-            appliedCoupon?.code || ''
-          );
-          
-          if (result && result.success) {
-            setCalculations(prev => ({
-              ...prev,
-              shipping: result.amounts.shippingUSD,
-              tax: result.amounts.taxUSD,
-              taxRate: result.breakdown.taxRate,
-              finalTotal: result.amounts.totalUSD
-            }));
+  // Recalculate when shipping address changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (cartItems.length > 0 && shippingAddress.country) {
+        const recalc = async () => {
+          setCalculating(true);
+          try {
+            const result = await calculationService.calculateCartTotals(
+              cartItems.map(item => ({
+                productId: item.id,
+                variantId: item.variantId,
+                quantity: item.quantity,
+                price: item.price
+              })),
+              shippingAddress,
+              appliedCoupon?.code || ''
+            );
+            
+            if (result && result.success) {
+              setCalculations(prev => ({
+                ...prev,
+                shipping: result.amounts.shippingUSD,
+                tax: result.amounts.taxUSD,
+                taxRate: result.breakdown.taxRate,
+                finalTotal: result.amounts.totalUSD
+              }));
+            }
+          } catch (error) {
+            console.warn('Recalculation failed:', error);
+          } finally {
+            setCalculating(false);
           }
-        } catch (error) {
-          console.warn('Recalculation failed:', error);
-        } finally {
-          setCalculating(false);
-        }
-      };
-      
-      recalc();
-    }
-  }, 1000); // 1 second debounce
+        };
+        
+        recalc();
+      }
+    }, 1000); // 1 second debounce
 
-  return () => clearTimeout(timeoutId);
-}, [shippingAddress.country, shippingAddress.region, shippingAddress.zipCode]);
+    return () => clearTimeout(timeoutId);
+  }, [shippingAddress.country, shippingAddress.region, shippingAddress.zipCode]);
+
   // Load coupons after calculations are ready
   useEffect(() => {
     if (calculations && !couponsLoadedRef.current) {
@@ -445,6 +484,17 @@ useEffect(() => {
     }
     
     return true;
+  };
+
+  // ==================== THANK YOU PAGE HANDLER ====================
+  const showThankYouAndRedirect = (orderData) => {
+    setOrderDetails({
+      orderId: orderData.orderId,
+      paymentId: orderData.paymentId,
+      finalTotal: finalTotal
+    });
+    setShowThankYouPage(true);
+    setPaymentStatus('success');
   };
 
   // ==================== ORDER CREATION & PAYMENT FLOW ====================
@@ -605,7 +655,7 @@ useEffect(() => {
             }
             
             // 🔥 STEP 1: CLEAR THE COUPON FIRST
-            removeCoupon(); // ADD THIS LINE
+            removeCoupon();
             
             // 🔥 STEP 2: THEN CLEAR THE CART
             clearCart();
@@ -614,15 +664,12 @@ useEffect(() => {
             paymentInProgressRef.current = false;
             razorpayInstanceRef.current = null;
             
-            // Redirect to order details page
-            navigate(`/orders/${orderId}`, {
-              state: {
-                paymentSuccess: true,
-                paymentId: response.razorpay_payment_id,
-                orderId: orderId
-              },
-              replace: true
+            // 🔥 STEP 3: SHOW THANK YOU PAGE INSTEAD OF DIRECT REDIRECT
+            showThankYouAndRedirect({
+              orderId: orderId,
+              paymentId: response.razorpay_payment_id
             });
+            
           } else {
             throw new Error(verificationResult.message || 'Payment verification failed');
           }
@@ -638,19 +685,15 @@ useEffect(() => {
             errorMessage = '✅ Payment successful! Order is being processed. Please check your orders page in a few minutes.';
             setPaymentStatus('success');
             
-            // 🔥 STEP 3: CLEAR COUPON ON TIMEOUT TOO
-            removeCoupon(); // ADD THIS LINE
+            // 🔥 STEP 4: CLEAR COUPON ON TIMEOUT TOO
+            removeCoupon();
             clearCart();
             
-            // Redirect to orders page with success message
-            setTimeout(() => {
-              navigate('/orders', {
-                state: {
-                  processing: true,
-                  message: 'Your order is being processed and will appear shortly.'
-                }
-              });
-            }, 2000);
+            // Show thank you page even on timeout
+            showThankYouAndRedirect({
+              orderId: 'processing',
+              paymentId: response.razorpay_payment_id
+            });
             return;
           }
           
@@ -752,12 +795,111 @@ useEffect(() => {
     }
   };
 
+  // ==================== THANK YOU PAGE COMPONENT ====================
+  const ThankYouPage = () => (
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center py-8">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-green-200 dark:border-green-800 p-8 md:p-12">
+          {/* Success Icon */}
+          <div className="w-24 h-24 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-12 h-12 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          
+          {/* Title */}
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            Thank You!
+          </h1>
+          
+          {/* Message */}
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-6">
+            Your order has been placed successfully
+          </p>
+          
+          {/* Order Details */}
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6 mb-8">
+            <div className="grid grid-cols-2 gap-4 text-left">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Order ID</p>
+                <p className="font-semibold text-gray-900 dark:text-white">
+                  #{orderDetails?.orderId || 'Processing...'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Payment ID</p>
+                <p className="font-semibold text-gray-900 dark:text-white">
+                  {orderDetails?.paymentId || 'Processing...'}
+                </p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Amount Paid</p>
+                <p className="font-bold text-2xl text-green-600 dark:text-green-400">
+                  {formatPriceSimple(orderDetails?.finalTotal || finalTotal)}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Redirect Timer */}
+          <div className="mb-8">
+            <p className="text-gray-500 dark:text-gray-400 mb-2">
+              Redirecting to order details in {redirectTimer} seconds...
+            </p>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div 
+                className="bg-green-600 h-2 rounded-full transition-all duration-1000 ease-linear"
+                style={{ width: `${((5 - redirectTimer) / 5) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => navigate(`/orders/${orderDetails?.orderId}`, { 
+                state: { 
+                  paymentSuccess: true,
+                  paymentId: orderDetails?.paymentId,
+                  orderId: orderDetails?.orderId
+                },
+                replace: true 
+              })}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105"
+            >
+              View Order Details Now
+            </button>
+            <button
+              onClick={() => navigate('/shop', { replace: true })}
+              className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-3 px-8 rounded-xl transition-all duration-200"
+            >
+              Continue Shopping
+            </button>
+          </div>
+          
+          {/* Confirmation Email */}
+          <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center justify-center gap-2 text-blue-700 dark:text-blue-300">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span className="text-sm font-medium">
+                A confirmation email has been sent to {shippingAddress.email}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (showThankYouPage) {
+    return <ThankYouPage />;
+  }
+
   if (!isAuthenticated || cartItems.length === 0) {
     return null;
   }
-
-  const displayCurrency = calculations?.currency || userCurrency;
-  const finalTotal = calculations?.finalTotal || cartTotal;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8">
