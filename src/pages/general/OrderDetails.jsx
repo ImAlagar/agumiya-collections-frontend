@@ -348,14 +348,6 @@ const OrderDetails = () => {
         // Prepare items with proper variant IDs
         const calculationItems = order.items.map(item => {
           const variantId = getValidVariantId(item);
-          
-          console.log('🔍 Preparing item for calculation:', {
-            productId: item.productId || item.id,
-            variantId: variantId,
-            productName: item.product?.name || item.name,
-            hasValidVariant: variantId && variantId !== 'default-variant'
-          });
-
           return {
             productId: item.productId || item.id,
             variantId: variantId,
@@ -373,7 +365,6 @@ const OrderDetails = () => {
         );
 
         if (result && result.success) {
-          console.log('✅ ORDER DETAILS - Calculation successful:', result);
           
           setCalculatedTotals({
             subtotal: result.amounts?.subtotalUSD || 0,
