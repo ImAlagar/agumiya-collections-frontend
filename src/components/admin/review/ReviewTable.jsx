@@ -297,20 +297,24 @@ const getProductName = (review) => {
         animate="visible"
         className="overflow-hidden"
       >
+      {/* Page Size Selector */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+        {/* Left Text */}
+        <div className="text-sm text-gray-600 dark:text-gray-400 text-center sm:text-left">
+          {pagination ? (
+            <>
+              Showing {showingRange.start}-{showingRange.end} of {showingRange.total} reviews
+            </>
+          ) : (
+            `Total: ${safeReviews.length} reviews`
+          )}
+        </div>
+
         {/* Page Size Selector */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            {pagination ? (
-              <>
-                Showing {showingRange.start}-{showingRange.end} of {showingRange.total} reviews
-              </>
-            ) : (
-              `Total: ${safeReviews.length} reviews`
-            )}
-          </div>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <div className="flex justify-center sm:justify-start items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">Show:</span>
-            <select 
+            <select
               value={pagination?.limit || 5}
               onChange={(e) => handlePageSizeChange(Number(e.target.value))}
               className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -320,9 +324,13 @@ const getProductName = (review) => {
               <option value={25}>25</option>
               <option value={50}>50</option>
             </select>
-            <span className="text-sm text-gray-600 dark:text-gray-400">per page</span>
           </div>
+          <span className="text-sm text-center sm:text-left text-gray-600 dark:text-gray-400">
+            per page
+          </span>
         </div>
+      </div>
+
 
         {/* Desktop Table */}
         <div className="hidden md:block">
@@ -511,12 +519,12 @@ const getProductName = (review) => {
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="w-full overflow-hidden">
+          <div className="w-full">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700 gap-4 overflow-x-auto"
+              className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-t border-gray-200 dark:border-gray-700"
             >
               {/* Showing Range Info */}
               <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
@@ -525,24 +533,24 @@ const getProductName = (review) => {
 
               {/* Pagination Buttons */}
               <div className="flex items-center gap-2 overflow-x-auto max-w-full scrollbar-hide px-1">
-                
+
                 {/* Previous Button */}
                 <button
                   onClick={() => handlePageChange(pagination.currentPage - 1)}
                   disabled={pagination.currentPage === 1}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium shrink-0"
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Previous
                 </button>
 
                 {/* Page Numbers */}
-                <div className="flex gap-1 overflow-x-auto max-w-full scrollbar-hide">
+                <div className="flex gap-1 overflow-x-auto scrollbar-hide">
                   {pageNumbers.map((page, index) =>
                     page === '...' ? (
                       <span
                         key={`ellipsis-${index}`}
-                        className="px-2 text-gray-500 flex items-center"
+                        className="px-2 text-gray-500 flex items-center shrink-0"
                       >
                         ...
                       </span>
@@ -566,7 +574,7 @@ const getProductName = (review) => {
                 <button
                   onClick={() => handlePageChange(pagination.currentPage + 1)}
                   disabled={pagination.currentPage === pagination.totalPages}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium shrink-0"
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0"
                 >
                   Next
                   <ChevronRight className="w-4 h-4" />
@@ -575,6 +583,7 @@ const getProductName = (review) => {
             </motion.div>
           </div>
         )}
+
       </motion.div>
 
       {/* Review Details Sidebar */}

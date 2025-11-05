@@ -339,45 +339,52 @@ const handleProcessRefund = async (orderId) => {
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className={`flex space-x-2 pt-3 border-t ${getBorderClass()}`}>
-        {order.refundStatus === 'PENDING' && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedOrder(order);
-              setShowRefundModal(true);
-            }}
-            disabled={loadingAction}
-            className="flex-1 bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
-          >
-            Process Refund
-          </button>
-        )}
-        
-        {order.refundStatus === 'FAILED' && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRetryRefund(order.id);
-            }}
-            disabled={loadingAction === `retry-${order.id}`}
-            className="flex-1 bg-yellow-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-yellow-700 disabled:opacity-50 transition-colors"
-          >
-            {loadingAction === `retry-${order.id}` ? 'Retrying...' : 'Retry Refund'}
-          </button>
-        )}
-        
+    {/* Action Buttons */}
+    <div
+      className={`flex flex-col sm:flex-row gap-2 pt-3 border-t ${getBorderClass()}`}
+    >
+      {order.refundStatus === 'PENDING' && (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            {/* Navigate to order details */}
+            setSelectedOrder(order);
+            setShowRefundModal(true);
           }}
-          className={`flex-1 border ${theme === 'light' ? 'border-gray-300 text-gray-700 hover:bg-gray-50' : 'border-gray-600 text-gray-300 hover:bg-gray-700'} py-2 px-3 rounded-lg text-sm font-medium transition-colors`}
+          disabled={loadingAction}
+          className="w-full sm:flex-1 bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
         >
-          View Details
+          Process Refund
         </button>
-      </div>
+      )}
+
+      {order.refundStatus === 'FAILED' && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRetryRefund(order.id);
+          }}
+          disabled={loadingAction === `retry-${order.id}`}
+          className="w-full sm:flex-1 bg-yellow-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-yellow-700 disabled:opacity-50 transition-colors"
+        >
+          {loadingAction === `retry-${order.id}` ? 'Retrying...' : 'Retry Refund'}
+        </button>
+      )}
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          // Navigate to order details
+        }}
+        className={`w-full sm:flex-1 border ${
+          theme === 'light'
+            ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
+            : 'border-gray-600 text-gray-300 hover:bg-gray-700'
+        } py-2 px-3 rounded-lg text-sm font-medium transition-colors`}
+      >
+        View Details
+      </button>
+    </div>
+
     </motion.div>
   );
 
@@ -730,67 +737,82 @@ const handleProcessRefund = async (orderId) => {
             )}
           </div>
 
-          {/* Pagination */}
-          {cancelledOrders.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className={`flex flex-col sm:flex-row justify-between items-center p-4 border-t ${getBorderClass()} gap-4`}
-            >
-              <div className={`text-sm ${getMutedTextClass()}`}>
-                Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalCount)} of {totalCount} orders
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`flex items-center gap-1 px-3 py-2 rounded-lg border ${theme === 'light' ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-600 hover:bg-gray-700'} disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium ${getTextClass()}`}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </button>
-                
-                <div className="flex gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => handlePageChange(pageNum)}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
-                          currentPage === pageNum
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                            : `border ${theme === 'light' ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-600 hover:bg-gray-700'} ${getTextClass()}`
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
+            {/* Pagination */}
+            {cancelledOrders.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className={`flex flex-col sm:flex-row justify-between items-center p-4 border-t ${getBorderClass()} gap-4`}
+              >
+                {/* Left Text */}
+                <div className={`text-sm text-center sm:text-left ${getMutedTextClass()}`}>
+                  Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalCount)} of {totalCount} orders
                 </div>
 
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= totalPages}
-                  className={`flex items-center gap-1 px-3 py-2 rounded-lg border ${theme === 'light' ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-600 hover:bg-gray-700'} disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium ${getTextClass()}`}
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </motion.div>
-          )}
+                {/* Pagination Buttons */}
+                <div className="flex items-center gap-2 flex-wrap justify-center">
+                  
+                  {/* Previous Button */}
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg border ${
+                      theme === 'light' ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-600 hover:bg-gray-700'
+                    } disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium ${getTextClass()}`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Previous</span>
+                  </button>
+
+                  {/* Page Numbers (Scrollable on Mobile) */}
+                  <div className="flex gap-1 max-w-full overflow-x-auto scrollbar-hide">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`px-3 py-1 rounded-lg text-sm font-medium min-w-[40px] transition-all duration-200 ${
+                            currentPage === pageNum
+                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                              : `border ${
+                                  theme === 'light'
+                                    ? 'border-gray-300 hover:bg-gray-50'
+                                    : 'border-gray-600 hover:bg-gray-700'
+                                } ${getTextClass()}`
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Next Button */}
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg border ${
+                      theme === 'light' ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-600 hover:bg-gray-700'
+                    } disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium ${getTextClass()}`}
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
         </div>
       </div>
     </>

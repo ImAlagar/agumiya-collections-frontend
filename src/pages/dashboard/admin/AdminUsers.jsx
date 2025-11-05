@@ -143,44 +143,56 @@ const AdminUsers = () => {
       {/* Header */}
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center space-x-3 mb-4 sm:mb-0">
-            <div className={`p-2 rounded-lg ${
-              theme === 'dark' ? 'bg-blue-900/20' : 
-              theme === 'smokey' ? 'bg-blue-800/10' : 'bg-blue-100'
-            }`}>
-              <Users className={`w-6 h-6 ${
-                theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-              }`} />
+
+          {/* Left Section - Title & Icon */}
+          <div className="flex items-center space-x-3 w-full sm:w-auto">
+            <div
+              className={`p-2 rounded-lg ${
+                theme === "dark"
+                  ? "bg-blue-900/20"
+                  : theme === "smokey"
+                  ? "bg-blue-800/10"
+                  : "bg-blue-100"
+              }`}
+            >
+              <Users
+                className={`w-6 h-6 ${
+                  theme === "dark" ? "text-blue-400" : "text-blue-600"
+                }`}
+              />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                 User Management
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Manage and monitor platform users
               </p>
             </div>
           </div>
-          
-          <div className="flex space-x-3">
+
+          {/* Right Section - Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <button
               onClick={handleExportUsers}
-              className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <Download className="w-4 h-4" />
               <span>Export</span>
             </button>
+
             <button
               onClick={handleRefresh}
               disabled={isLoading}
-              className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
             >
-              <RefreshCwIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCwIcon className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
               Refresh
             </button>
           </div>
         </div>
       </div>
+
 
       {/* Error Alert */}
       {error && (

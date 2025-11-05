@@ -137,23 +137,27 @@ const UserTable = ({
         className="overflow-hidden"
       >
         {/* Page Size Selector */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+
+          {/* Total Count */}
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Total: {pagination?.totalCount || 0} users
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Page Size Dropdown */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <span className="text-sm text-gray-600 dark:text-gray-400">Show:</span>
-            <select 
+            <select
               value={pagination?.limit || 5}
               onChange={(e) => onPageSizeChange && onPageSizeChange(Number(e.target.value))}
-              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 sm:flex-none px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value={5}>5</option>
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
             </select>
-            <span className="text-sm text-gray-600 dark:text-gray-400">per page</span>
+            <span className="hidden sm:block text-sm text-gray-600 dark:text-gray-400">per page</span>
           </div>
         </div>
 
@@ -235,77 +239,95 @@ const UserTable = ({
           </table>
         </div>
 
-        {/* Mobile Cards */}
-        <div className="md:hidden space-y-3 p-4">
-          {users.map((user) => (
-            <motion.div
-              key={user.id}
-              variants={itemVariants}
-              className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:shadow-md transition-all duration-200"
-              onClick={() => handleRowClick(user)}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 rounded-full flex items-center justify-center">
-                      <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full border border-white dark:border-gray-800 ${
-                      user.isActive ? 'bg-green-500' : 'bg-red-500'
-                    }`} />
+      {/* ✅ Better Mobile Cards (Responsive below md) */}
+      <div className="md:hidden space-y-4 px-3 py-4">
+        {users.map((user) => (
+          <motion.div
+            key={user.id}
+            variants={itemVariants}
+            onClick={() => handleRowClick(user)}
+            className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all cursor-pointer"
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            {/* Top Section */}
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Avatar */}
+                <div className="relative">
+                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 flex items-center justify-center">
+                    <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
-                      {user.name}
-                    </div>
-                    <div className="text-xs text-gray-500">{user.email}</div>
-                  </div>
+                  <div
+                    className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 ${
+                      theme === "dark" ? "border-gray-800" : "border-white"
+                    } ${user.isActive ? "bg-green-500" : "bg-red-500"}`}
+                  />
                 </div>
-                <div className="text-right">
-                  {getStatusBadge(user.isActive)}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm mb-3">
 
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400">Orders</div>
-                  <div className="font-medium flex items-center gap-1">
-                    <ShoppingCart className="w-3 h-3" />
-                    {user.orders?.length || 0}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400">User ID</div>
-                  <div className="font-medium text-xs text-gray-500 truncate">
-                    {formatUserId(user.id)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400">Status</div>
-                  <div className={`font-medium text-xs ${
-                    user.isActive ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {user.isActive ? 'Active' : 'Inactive'}
-                  </div>
+                {/* Name & Email */}
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-900 dark:text-white truncate">
+                    {user.name}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate break-all max-w-[170px]">
+                    {user.email}
+                  </p>
                 </div>
               </div>
-              
-              <div className="flex justify-between items-center pt-3 border-t border-gray-100 dark:border-gray-700">
-                <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  Joined {formatDate(user.createdAt)}
-                </div>
-                <div className="text-blue-600 dark:text-blue-400 text-xs font-medium flex items-center gap-1">
-                  <Eye className="w-3 h-3" />
-                  View details
-                </div>
+
+              {/* Status Badge */}
+              {getStatusBadge(user.isActive)}
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-gray-200 dark:border-gray-700 my-3"></div>
+
+            {/* Info Section */}
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500 dark:text-gray-400 text-xs">Orders</p>
+                <p className="font-medium flex items-center gap-1">
+                  <ShoppingCart className="w-3 h-3" /> {user.orders?.length || 0}
+                </p>
               </div>
-            </motion.div>
-          ))}
-        </div>
+
+              <div>
+                <p className="text-gray-500 dark:text-gray-400 text-xs">User ID</p>
+                <p className="font-medium text-xs text-gray-600 dark:text-gray-300 truncate">
+                  {formatUserId(user.id)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-gray-500 dark:text-gray-400 text-xs">Status</p>
+                <p
+                  className={`font-medium text-xs ${
+                    user.isActive ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {user.isActive ? "Active" : "Inactive"}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer Section */}
+            <div className="flex justify-between items-center pt-3 mt-2 border-t border-gray-200 dark:border-gray-700">
+              <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                Joined {formatDate(user.createdAt)}
+              </div>
+
+              <div className="text-xs text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1">
+                <Eye className="w-3 h-3" />
+                View details
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
@@ -315,22 +337,31 @@ const UserTable = ({
             transition={{ duration: 0.4 }}
             className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700 gap-4"
           >
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of {pagination.totalCount} users
+            {/* Info Text */}
+            <div className="text-sm text-gray-600 dark:text-gray-400 text-center sm:text-left">
+              Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to{' '}
+              {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of{' '}
+              {pagination.totalCount} users
             </div>
-            <div className="flex items-center gap-2">
+
+            {/* Pagination Buttons */}
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+
+              {/* Previous */}
               <button
                 onClick={() => onPageChange(pagination.currentPage - 1)}
                 disabled={!pagination.hasPrev}
                 className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
               >
                 <ChevronLeft className="w-4 h-4" />
-                Previous
+                <span className="hidden sm:inline">Previous</span>
               </button>
-              
-              <div className="flex gap-1">
+
+              {/* Page Numbers */}
+              <div className="flex gap-1 max-w-full overflow-x-auto scrollbar-hide">
                 {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                   let pageNum;
+
                   if (pagination.totalPages <= 5) {
                     pageNum = i + 1;
                   } else if (pagination.currentPage <= 3) {
@@ -357,17 +388,19 @@ const UserTable = ({
                 })}
               </div>
 
+              {/* Next */}
               <button
                 onClick={() => onPageChange(pagination.currentPage + 1)}
                 disabled={!pagination.hasNext}
                 className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
               >
-                Next
+                <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </motion.div>
         )}
+
       </motion.div>
 
       {/* User Details Sidebar */}

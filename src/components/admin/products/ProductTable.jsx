@@ -339,120 +339,111 @@ const handleConfirmDelete = async () => {
           ))}
         </div>
 
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700 gap-4"
-          >
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to{' '}
-              {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of{' '}
-              {pagination.totalCount} products
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handlePageChangeClick(pagination.currentPage - 1)}
-                disabled={!pagination.hasPrev}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </button>
-              
-              <div className="flex gap-1">
-                {(() => {
-                  const pages = [];
-                  const totalPages = pagination.totalPages;
-                  const currentPage = pagination.currentPage;
-                  
-                  // Always show first page
-                  pages.push(
-                    <button
-                      key={1}
-                      onClick={() => handlePageChangeClick(1)}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
-                        currentPage === 1
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                          : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      1
-                    </button>
-                  );
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700 gap-4"
+            >
+              {/* Left Info Section */}
+              <div className="text-sm text-gray-600 dark:text-gray-400 text-center sm:text-left">
+                Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to{' '}
+                {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of{' '}
+                {pagination.totalCount} products
+              </div>
 
-                  // Show ellipsis if needed
-                  if (currentPage > 3) {
-                    pages.push(
-                      <span key="ellipsis1" className="px-2 text-gray-500">
-                        ...
-                      </span>
-                    );
-                  }
+              {/* Pagination Buttons */}
+              <div className="flex items-center gap-2 flex-wrap justify-center">
+                {/* Previous Button */}
+                <button
+                  onClick={() => handlePageChangeClick(pagination.currentPage - 1)}
+                  disabled={!pagination.hasPrev}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Previous</span>
+                </button>
 
-                  // Show pages around current page
-                  for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
-                    if (i !== 1 && i !== totalPages) {
-                      pages.push(
-                        <button
-                          key={i}
-                          onClick={() => handlePageChangeClick(i)}
-                          className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
-                            currentPage === i
-                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                              : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                          }`}
-                        >
-                          {i}
-                        </button>
-                      );
-                    }
-                  }
+                {/* Page Numbers */}
+                <div className="flex gap-1 max-w-full overflow-x-auto scrollbar-hide">
+                  {(() => {
+                    const pages = [];
+                    const totalPages = pagination.totalPages;
+                    const currentPage = pagination.currentPage;
 
-                  // Show ellipsis if needed
-                  if (currentPage < totalPages - 2) {
-                    pages.push(
-                      <span key="ellipsis2" className="px-2 text-gray-500">
-                        ...
-                      </span>
-                    );
-                  }
-
-                  // Always show last page if there is more than one page
-                  if (totalPages > 1) {
+                    // Always show first page
                     pages.push(
                       <button
-                        key={totalPages}
-                        onClick={() => handlePageChangeClick(totalPages)}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
-                          currentPage === totalPages
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
+                        key={1}
+                        onClick={() => handlePageChangeClick(1)}
+                        className={`px-3 py-1 rounded-lg text-sm font-medium min-w-[36px] ${
+                          currentPage === 1
+                            ? 'bg-blue-600 text-white shadow-md'
                             : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                         }`}
                       >
-                        {totalPages}
+                        1
                       </button>
                     );
-                  }
 
-                  return pages;
-                })()}
+                    if (currentPage > 3)
+                      pages.push(<span key="ellipsis1" className="px-2 text-gray-500 hidden sm:inline">...</span>);
+
+                    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                      if (i !== 1 && i !== totalPages) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => handlePageChangeClick(i)}
+                            className={`px-3 py-1 rounded-lg text-sm font-medium min-w-[36px] ${
+                              currentPage === i
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+                    }
+
+                    if (currentPage < totalPages - 2)
+                      pages.push(<span key="ellipsis2" className="px-2 text-gray-500 hidden sm:inline">...</span>);
+
+                    if (totalPages > 1)
+                      pages.push(
+                        <button
+                          key={totalPages}
+                          onClick={() => handlePageChangeClick(totalPages)}
+                          className={`px-3 py-1 rounded-lg text-sm font-medium min-w-[36px] ${
+                            currentPage === totalPages
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {totalPages}
+                        </button>
+                      );
+
+                    return pages;
+                  })()}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() => handlePageChangeClick(pagination.currentPage + 1)}
+                  disabled={!pagination.hasNext}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
+            </motion.div>
+          )}
 
-              <button
-                onClick={() => handlePageChangeClick(pagination.currentPage + 1)}
-                disabled={!pagination.hasNext}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </motion.div>
-        )}
       </motion.div>
 
       {/* Delete Confirmation Modal */}

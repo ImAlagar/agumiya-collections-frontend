@@ -148,26 +148,32 @@ const ContactTable = ({
         animate="visible"
         className="overflow-hidden"
       >
-        {/* Page Size Selector */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Total: {pagination?.totalCount || 0} contacts
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Show:</span>
-            <select 
-              value={pagination?.limit || 5}
-              onChange={(e) => onPageSizeChange && onPageSizeChange(Number(e.target.value))}
-              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-            <span className="text-sm text-gray-600 dark:text-gray-400">per page</span>
-          </div>
-        </div>
+    {/* ✅ Responsive Page Size Selector */}
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+
+      {/* Total Count */}
+      <div className="text-sm text-gray-600 dark:text-gray-400">
+        Total: {pagination?.totalCount || 0} contacts
+      </div>
+
+      {/* Page Size Dropdown */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-600 dark:text-gray-400">Show:</span>
+        <select
+          value={pagination?.limit || 5}
+          onChange={(e) => onPageSizeChange && onPageSizeChange(Number(e.target.value))}
+          className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value={5}>5</option>
+          <option value={10}>10</option>
+          <option value={25}>25</option>
+          <option value={50}>50</option>
+        </select>
+        <span className="text-sm text-gray-600 dark:text-gray-400">per page</span>
+      </div>
+
+    </div>
+
 
         {/* Desktop Table */}
         <div className="hidden md:block">
@@ -237,80 +243,90 @@ const ContactTable = ({
           </table>
         </div>
 
-        {/* Mobile Cards */}
-        <div className="md:hidden space-y-3 p-4">
+        {/* Mobile Cards - Responsive */}
+        <div className="md:hidden space-y-4 p-4">
           {contacts.map((contact) => (
             <motion.div
               key={contact.id}
               variants={itemVariants}
-              className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:shadow-md transition-all duration-200"
-              onClick={() => handleRowClick(contact)}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
+              onClick={() => handleRowClick(contact)}
+              className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 transition-all cursor-pointer hover:shadow-md"
             >
+              {/* Header: Name + Status */}
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 rounded-full flex items-center justify-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-full flex items-center justify-center">
                     <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
+                  <div className="max-w-[70%]">
+                    <div className="font-semibold text-gray-900 dark:text-white truncate">
                       {contact.name}
                     </div>
-                    <div className="text-xs text-gray-500">{contact.email}</div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {contact.email}
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  {getStatusBadge(contact.status)}
-                </div>
+                <div>{getStatusBadge(contact.status)}</div>
               </div>
-              
-              <div className="mb-3">
+
+              {/* Subject + Message Preview */}
+              <div className="mb-4">
                 <div className="font-medium text-gray-900 dark:text-white text-sm mb-1">
                   {contact.subject}
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                <div className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 break-words">
                   {contact.message}
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
-                  <div className="text-gray-600 dark:text-gray-400">Type</div>
+                  <div className="text-gray-600 dark:text-gray-400 text-xs">Type</div>
                   {getInquiryTypeBadge(contact.inquiryType)}
                 </div>
+
                 <div>
-                  <div className="text-gray-600 dark:text-gray-400">Callback</div>
+                  <div className="text-gray-600 dark:text-gray-400 text-xs">Callback</div>
                   <div className={`font-medium ${
-                    contact.scheduleCallback 
-                      ? 'text-green-600 dark:text-green-400' 
+                    contact.scheduleCallback
+                      ? 'text-green-600 dark:text-green-400'
                       : 'text-gray-500 dark:text-gray-400'
                   }`}>
                     {contact.scheduleCallback ? 'Requested' : 'No'}
                   </div>
                 </div>
+
                 <div>
-                  <div className="text-gray-600 dark:text-gray-400">Contact ID</div>
+                  <div className="text-gray-600 dark:text-gray-400 text-xs">Contact ID</div>
                   <div className="font-medium text-xs text-gray-500 truncate">
                     {formatId(contact.id)}
                   </div>
                 </div>
+
                 <div>
-                  <div className="text-gray-600 dark:text-gray-400">Priority</div>
+                  <div className="text-gray-600 dark:text-gray-400 text-xs">Priority</div>
                   <div className={`font-medium text-xs ${
-                    contact.inquiryType === 'COMPLAINT' 
-                      ? 'text-red-600' 
+                    contact.inquiryType === 'COMPLAINT'
+                      ? 'text-red-600'
                       : contact.inquiryType === 'ORDER_SUPPORT'
                       ? 'text-yellow-600'
-                      : 'text-gray-600'
+                      : 'text-gray-600 dark:text-gray-400'
                   }`}>
-                    {contact.inquiryType === 'COMPLAINT' ? 'High' : 
-                     contact.inquiryType === 'ORDER_SUPPORT' ? 'Medium' : 'Normal'}
+                    {contact.inquiryType === 'COMPLAINT'
+                      ? 'High'
+                      : contact.inquiryType === 'ORDER_SUPPORT'
+                      ? 'Medium'
+                      : 'Normal'}
                   </div>
                 </div>
               </div>
-              
-              <div className="flex justify-between items-center pt-3 border-t border-gray-100 dark:border-gray-700">
+
+              {/* Footer */}
+              <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700">
                 <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   {formatDate(contact.createdAt)}
@@ -324,67 +340,82 @@ const ContactTable = ({
           ))}
         </div>
 
+
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="flex flex-col sm:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700 gap-4"
+            className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-t border-gray-200 dark:border-gray-700"
           >
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of {pagination.totalCount} contacts
+            {/* Showing X to Y of Z text */}
+            <div className="text-sm text-gray-600 dark:text-gray-400 text-center sm:text-left">
+              Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to{" "}
+              {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of{" "}
+              {pagination.totalCount} contacts
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onPageChange(pagination.currentPage - 1)}
-                disabled={!pagination.hasPrev}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </button>
-              
-              <div className="flex gap-1">
-                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (pagination.totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (pagination.currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (pagination.currentPage >= pagination.totalPages - 2) {
-                    pageNum = pagination.totalPages - 4 + i;
-                  } else {
-                    pageNum = pagination.currentPage - 2 + i;
-                  }
 
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => onPageChange(pageNum)}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-w-[40px] ${
-                        pagination.currentPage === pageNum
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                          : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+
+              {/* Prev + Page Numbers + Next */}
+              <div className="flex items-center gap-2">
+                {/* Previous Button */}
+                <button
+                  onClick={() => onPageChange(pagination.currentPage - 1)}
+                  disabled={!pagination.hasPrev}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Previous</span>
+                </button>
+
+                {/* Page Numbers */}
+                <div className="flex gap-1 flex-wrap justify-center">
+                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (pagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.currentPage >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = pagination.currentPage - 2 + i;
+                    }
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => onPageChange(pageNum)}
+                        className={`px-3 py-1 min-w-[36px] rounded-lg text-sm font-medium transition-all duration-200 
+                          ${
+                            pagination.currentPage === pageNum
+                              ? "bg-blue-600 text-white shadow-lg shadow-blue-500/25"
+                              : "border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() => onPageChange(pagination.currentPage + 1)}
+                  disabled={!pagination.hasNext}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-
-              <button
-                onClick={() => onPageChange(pagination.currentPage + 1)}
-                disabled={!pagination.hasNext}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </button>
             </div>
           </motion.div>
         )}
+
       </motion.div>
 
       {/* Contact Details Sidebar */}
