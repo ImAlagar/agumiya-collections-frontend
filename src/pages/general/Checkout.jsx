@@ -205,7 +205,6 @@ const Checkout = () => {
     };
   }, []);
 
-
   // ==================== REDIRECT IF NOT AUTHENTICATED OR CART EMPTY ====================
   useEffect(() => {
     if (!isAuthenticated) {
@@ -278,7 +277,7 @@ const Checkout = () => {
             price: item.price,
             name: item.name
           })),
-          shippingAddress, // Use full shipping address for accurate calculation
+          shippingAddress,
           appliedCoupon?.code || ''
         );
 
@@ -291,7 +290,6 @@ const Checkout = () => {
             taxRate: result.breakdown.taxRate,
             discount: result.breakdown.discount || discountAmount,
             currency: result.currency || 'USD',
-            // Include additional details
             isFreeShipping: result.breakdown.isFreeShipping,
             estimatedDelivery: result.breakdown.estimatedDelivery
           });
@@ -362,7 +360,7 @@ const Checkout = () => {
         
         recalc();
       }
-    }, 1000); // 1 second debounce
+    }, 1000);
 
     return () => clearTimeout(timeoutId);
   }, [shippingAddress.country, shippingAddress.region, shippingAddress.zipCode]);
@@ -501,7 +499,7 @@ const Checkout = () => {
             throw new Error(`Invalid variantId: ${item.variantId}. Please select a valid product variant.`);
           }
           
-          // 🔥 USE FRONTEND DTO LOGIC TO EXTRACT SELECTIONS
+          // Extract selections
           const selections = extractSelectionsByProductType({
             ...item,
             variantTitle: item.variantTitle || item.variant?.title,
@@ -509,15 +507,13 @@ const Checkout = () => {
             name: item.name
           });
 
-          // ✅ SEND ALL EXTRACTED SELECTIONS TO BACKEND
+          // Create order item
           const orderItem = {
             productId: productId,
             quantity: item.quantity,
             variantId: variantId,
             price: item.price,
             variantTitle: item.variantTitle || item.variant?.title,
-            
-            // ✅ SEND EXTRACTED SELECTIONS
             size: selections.size,
             color: selections.color,
             phoneModel: selections.phoneModel,
@@ -526,7 +522,7 @@ const Checkout = () => {
             productType: selections.productType
           };
 
-          // ✅ REMOVE EMPTY/UNDEFINED FIELDS
+          // Remove empty/undefined fields
           Object.keys(orderItem).forEach(key => {
             if (orderItem[key] === undefined || orderItem[key] === null) {
               delete orderItem[key];
@@ -539,18 +535,15 @@ const Checkout = () => {
         couponCode: appliedCoupon?.code || ''
       };
 
-      
-      // 🔥 STEP 1: Create Razorpay order directly
+      // Create Razorpay order
       const paymentResult = await paymentService.createPaymentOrder(orderData);
 
       if (paymentResult.success) {
-        // 🔥 ADDITIONAL VALIDATION
         if (!paymentResult.data || !paymentResult.data.id) {
           throw new Error('Failed to create payment order. Please try again.');
         }
         
-        
-        // 🔥 STEP 2: Open Razorpay checkout
+        // Open Razorpay checkout
         await openRazorpayCheckout(paymentResult.data);
       } else {
         throw new Error(paymentResult.error || 'Payment initialization failed');
@@ -565,54 +558,63 @@ const Checkout = () => {
   };
 
   // ==================== PAYMENT SUCCESS HANDLER ====================
-const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
-  try {
+  const handlePaymentSuccess = async (verificationData, razorpayResponse) => {
+    try {
+      console.log('✅ PAYMENT SUCCESS: Starting cleanup...', {
+        verificationData,
+        razorpayResponse: {
+          paymentId: razorpayResponse.razorpay_payment_id,
+          orderId: razorpayResponse.razorpay_order_id
+        }
+      });
 
-    const orderId = verificationResult.orderId;
-    
-    // 🔥 CLEANUP REGARDLESS OF ORDER ID
-    if (appliedCoupon) {
-      removeCoupon();
+      const orderId = verificationData.orderId;
+      
+      // Cleanup regardless of order ID
+      if (appliedCoupon) {
+        removeCoupon();
+      }
+      
+      clearCart();
+      
+      paymentInProgressRef.current = false;
+      razorpayInstanceRef.current = null;
+
+      console.log('🚀 Navigating to thank you page with order:', orderId);
+
+      // Navigate to thank you page with any order ID
+      setTimeout(() => {
+        navigate('/thank-you', {
+          state: {
+            orderId: orderId || 'processing',
+            paymentId: razorpayResponse.razorpay_payment_id,
+            finalTotal: finalTotal,
+            email: shippingAddress.email
+          },
+          replace: true
+        });
+      }, 100);
+      
+    } catch (error) {
+      console.error('❌ Payment success handling failed:', error);
+      
+      // Emergency cleanup - still navigate
+      if (appliedCoupon) removeCoupon();
+      clearCart();
+      
+      setTimeout(() => {
+        navigate('/thank-you', {
+          state: {
+            orderId: 'processing',
+            paymentId: razorpayResponse.razorpay_payment_id,
+            finalTotal: finalTotal,
+            email: shippingAddress.email
+          },
+          replace: true
+        });
+      }, 100);
     }
-    
-    clearCart();
-    
-    paymentInProgressRef.current = false;
-    razorpayInstanceRef.current = null;
-
-    // 🔥 NAVIGATE TO THANK YOU PAGE WITH ANY ORDER ID
-    setTimeout(() => {
-      navigate('/thank-you', {
-        state: {
-          orderId: orderId || 'processing',
-          paymentId: razorpayResponse.razorpay_payment_id,
-          finalTotal: finalTotal,
-          email: shippingAddress.email
-        },
-        replace: true
-      });
-    }, 100);
-    
-  } catch (error) {
-    console.error('❌ Payment success handling failed:', error);
-    
-    // 🔥 EMERGENCY CLEANUP - STILL NAVIGATE
-    if (appliedCoupon) removeCoupon();
-    clearCart();
-    
-    setTimeout(() => {
-      navigate('/thank-you', {
-        state: {
-          orderId: 'processing',
-          paymentId: razorpayResponse.razorpay_payment_id,
-          finalTotal: finalTotal,
-          email: shippingAddress.email
-        },
-        replace: true
-      });
-    }, 100);
-  }
-};
+  };
 
   // ==================== OPTIMIZED RAZORPAY CHECKOUT INTEGRATION ====================
   const openRazorpayCheckout = async (paymentData) => {
@@ -621,6 +623,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
     }
 
     paymentInProgressRef.current = true;
+    setOrderProcessing(true);
     
     const options = {
       key: import.meta.env.VITE_APP_RAZORPAY_KEY_ID,
@@ -633,41 +636,65 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
         setPaymentStatus('verifying');
         
         try {
+          console.log('🔍 Razorpay Response:', response);
+          
           // Validate Razorpay response
           if (!response.razorpay_payment_id || !response.razorpay_order_id || !response.razorpay_signature) {
             throw new Error('Incomplete payment response from Razorpay');
           }
 
+          console.log('🔄 Calling payment verification API...');
+
           // Handle payment verification
-          const verificationResult = await paymentService.verifyPayment({
+          const verificationResponse = await paymentService.verifyPayment({
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_order_id: response.razorpay_order_id,
             razorpay_signature: response.razorpay_signature
           });
 
-          if (verificationResult.success) {
-            // 🔥 USE THE handlePaymentSuccess FUNCTION INSTEAD OF DUPLICATE CODE
-            await handlePaymentSuccess(verificationResult, response);
+          console.log('📋 Full Verification Response:', verificationResponse);
+
+          // Handle different response structures
+          if (verificationResponse.success) {
+            let orderId;
+            
+            // Try different possible response structures
+            if (verificationResponse.data && verificationResponse.data.orderId) {
+              orderId = verificationResponse.data.orderId;
+            } else if (verificationResponse.orderId) {
+              orderId = verificationResponse.orderId;
+            } else if (verificationResponse.data && verificationResponse.data.id) {
+              orderId = verificationResponse.data.id;
+            } else {
+              console.warn('⚠️ No order ID found in response, using processing state');
+              orderId = 'processing';
+            }
+            
+            console.log('🎯 Extracted Order ID:', orderId);
+            
+            await handlePaymentSuccess({
+              orderId: orderId,
+              paymentId: response.razorpay_payment_id
+            }, response);
           } else {
-            throw new Error(verificationResult.message || 'Payment verification failed');
+            throw new Error(verificationResponse.message || 'Payment verification failed');
           }
         } catch (error) {
           console.error('❌ Payment verification failed:', error);
           setPaymentStatus('failed');
           paymentInProgressRef.current = false;
+          setOrderProcessing(false);
           
           let errorMessage = error.message || 'Payment verification failed';
           
           // Handle timeout gracefully
           if (error.message.includes('longer than expected') || error.message.includes('timeout')) {
-            errorMessage = '✅ Payment successful! Order is being processed. Please check your orders page in a few minutes.';
+            errorMessage = '✅ Payment successful! Order is being processed. Please check your orders page.';
             setPaymentStatus('success');
             
-            // 🔥 EVEN ON TIMEOUT, USE THE SUCCESS HANDLER
             removeCoupon();
             clearCart();
             
-            // Navigate to thank you page even on timeout
             setTimeout(() => {
               navigate('/thank-you', {
                 state: {
@@ -683,7 +710,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
           }
           
           setPaymentError(errorMessage);
-          alert(errorMessage);
+          alert(`Payment Error: ${errorMessage}`);
         }
       },
       prefill: {
@@ -714,7 +741,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
     };
 
     try {
-      // 🔥 FIX: Check if Razorpay is available and handle ad-blocker issues
+      // Check if Razorpay is available
       if (typeof window.Razorpay === 'undefined') {
         throw new Error('Razorpay payment gateway not loaded. Please check if it\'s blocked by your browser or ad-blocker.');
       }
@@ -807,7 +834,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
             </div>
           </div>
           
-          {/* ==================== PAYMENT STATUS INDICATOR ==================== */}
+          {/* Payment Status Indicator */}
           {paymentStatus !== 'idle' && (
             <div className={`px-4 py-3 rounded-xl shadow-sm border ${
               paymentStatus === 'processing' ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' :
@@ -865,7 +892,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
         </div>
         
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* ==================== LEFT COLUMN - SHIPPING, COUPONS & ORDER NOTES ==================== */}
+          {/* Left Column - Shipping, Coupons & Order Notes */}
           <div className="xl:col-span-2 space-y-6">
             {/* Shipping Address */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -1000,7 +1027,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
                 </div>
               </div>
 
-              {/* 🔥 COUNTRY DROPDOWN FOR SHIPPING CALCULATION */}
+              {/* Country Dropdown */}
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Country *
@@ -1119,7 +1146,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
             </div>
           </div>
 
-          {/* ==================== RIGHT COLUMN - ORDER SUMMARY ==================== */}
+          {/* Right Column - Order Summary */}
           <div className="xl:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sticky top-6">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Order Summary</h2>
@@ -1150,7 +1177,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
                 ))}
               </div>
 
-              {/* ==================== PRICE BREAKDOWN ==================== */}
+              {/* Price Breakdown */}
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
                 {/* Subtotal */}
                 <div className="flex justify-between">
@@ -1160,7 +1187,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
                   </span>
                 </div>
                 
-                {/* 🚚 Shipping Cost */}
+                {/* Shipping Cost */}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Shipping</span>
                   <span className="font-semibold text-gray-900 dark:text-white">
@@ -1174,7 +1201,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
                   </span>
                 </div>
                 
-                {/* 💰 Tax Amount */}
+                {/* Tax Amount */}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">
                     Tax {calculations?.taxRate > 0 && `(${(calculations.taxRate * 100).toFixed(1)}%)`}
@@ -1184,7 +1211,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
                   </span>
                 </div>
                 
-                {/* 🎉 Discount */}
+                {/* Discount */}
                 {appliedCoupon && (
                   <div className="flex justify-between text-green-600 dark:text-green-400">
                     <span className="font-medium">Discount</span>
@@ -1192,7 +1219,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
                   </div>
                 )}
                 
-                {/* 🧮 Final Total */}
+                {/* Final Total */}
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900 dark:text-white">Total</span>
@@ -1206,7 +1233,7 @@ const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
                 </div>
               </div>
 
-              {/* ==================== PLACE ORDER BUTTON ==================== */}
+              {/* Place Order Button */}
               <button
                 onClick={createOrder}
                 disabled={loading || calculating || !calculations || paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
