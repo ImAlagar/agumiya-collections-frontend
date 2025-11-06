@@ -216,8 +216,8 @@ const Checkout = () => {
       replace: true
     });
   };
-  // ==================== REDIRECT IF NOT AUTHENTICATED OR CART EMPTY ====================
 
+  // ==================== REDIRECT IF NOT AUTHENTICATED OR CART EMPTY ====================
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { replace: true });
@@ -229,7 +229,6 @@ const Checkout = () => {
       return;
     }
   }, [isAuthenticated, cartItems, navigate]);
-
 
   // ==================== LOAD AVAILABLE COUPONS ====================
   const loadAvailableCoupons = useCallback(async () => {
@@ -569,6 +568,76 @@ const Checkout = () => {
     }
   };
 
+
+  // ==================== PAYMENT SUCCESS HANDLER ====================
+  const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
+    try {
+      const orderId = verificationResult.order?.id;
+      
+      console.log('✅ PAYMENT SUCCESS: Starting cleanup process...');
+      
+      // 🔥 STEP 1: MARK COUPON AS USED (if any)
+      if (appliedCoupon && orderId) {
+        try {
+          await markCouponAsUsed({
+            couponId: appliedCoupon.id,
+            userId: user.id,
+            orderId: orderId,
+            discountAmount: discountAmount,
+            couponCode: appliedCoupon.code
+          });
+          console.log('✅ Coupon marked as used');
+        } catch (couponError) {
+          console.warn('⚠️ Failed to mark coupon as used:', couponError);
+        }
+      }
+      
+      // 🔥 STEP 2: CLEAR COUPON FIRST
+      removeCoupon();
+      console.log('✅ Coupon cleared');
+      
+      // 🔥 STEP 3: CLEAR CART
+      console.log('🛒 Clearing cart...');
+      clearCart();
+      
+      // 🔥 STEP 4: RESET PAYMENT STATE
+      paymentInProgressRef.current = false;
+      razorpayInstanceRef.current = null;
+      
+      // 🔥 STEP 5: IMMEDIATE NAVIGATION TO THANK YOU PAGE
+      console.log('🚀 Navigating to thank you page...');
+      
+      // Use setTimeout to ensure navigation happens in next event cycle
+      setTimeout(() => {
+        navigate('/thank-you', {
+          state: {
+            orderId: orderId,
+            paymentId: razorpayResponse.razorpay_payment_id,
+            finalTotal: finalTotal,
+            email: shippingAddress.email
+          },
+          replace: true // 🔥 IMPORTANT: Prevent going back to checkout
+        });
+      }, 100);
+      
+    } catch (error) {
+      console.error('❌ Payment success handling failed:', error);
+      
+      // 🔥 FALLBACK: Even if cleanup fails, navigate to thank you page
+      setTimeout(() => {
+        navigate('/thank-you', {
+          state: {
+            orderId: 'processing',
+            paymentId: razorpayResponse.razorpay_payment_id,
+            finalTotal: finalTotal,
+            email: shippingAddress.email
+          },
+          replace: true
+        });
+      }, 100);
+    }
+  };
+
   // ==================== OPTIMIZED RAZORPAY CHECKOUT INTEGRATION ====================
   const openRazorpayCheckout = async (paymentData) => {
     if (paymentInProgressRef.current) {
@@ -601,39 +670,8 @@ const Checkout = () => {
           });
 
           if (verificationResult.success) {
-            const orderId = verificationResult.order?.id;
-            
-            // Mark coupon as used if applied
-            if (appliedCoupon && orderId) {
-              try {
-                await markCouponAsUsed({
-                  couponId: appliedCoupon.id,
-                  userId: user.id,
-                  orderId: orderId,
-                  discountAmount: discountAmount,
-                  couponCode: appliedCoupon.code
-                });
-              } catch (couponError) {
-                console.warn('⚠️ Failed to mark coupon as used:', couponError);
-              }
-            }
-            
-            // 🔥 FIX: NAVIGATE FIRST, THEN CLEAR CART AND COUPON
-            navigateToThankYouPage({
-              orderId: orderId,
-              paymentId: response.razorpay_payment_id
-            });
-            
-            // 🔥 THEN CLEAR CART AND COUPON AFTER NAVIGATION
-            setTimeout(() => {
-              removeCoupon();
-              clearCart();
-            }, 100);
-            
-            // Reset payment state
-            paymentInProgressRef.current = false;
-            razorpayInstanceRef.current = null;
-            
+            // 🔥 USE THE NEW HANDLE PAYMENT SUCCESS FUNCTION
+            await handlePaymentSuccess(verificationResult, response);
           } else {
             throw new Error(verificationResult.message || 'Payment verification failed');
           }
@@ -649,16 +687,21 @@ const Checkout = () => {
             errorMessage = '✅ Payment successful! Order is being processed. Please check your orders page in a few minutes.';
             setPaymentStatus('success');
             
+            // 🔥 EVEN ON TIMEOUT, USE THE SUCCESS HANDLER
+            removeCoupon();
+            clearCart();
+            
             // Navigate to thank you page even on timeout
-            navigateToThankYouPage({
-              orderId: 'processing',
-              paymentId: response.razorpay_payment_id
-            });
-
-            // Clear cart and coupon after navigation
             setTimeout(() => {
-              removeCoupon();
-              clearCart();
+              navigate('/thank-you', {
+                state: {
+                  orderId: 'processing',
+                  paymentId: response.razorpay_payment_id,
+                  finalTotal: finalTotal,
+                  email: shippingAddress.email
+                },
+                replace: true
+              });
             }, 100);
             return;
           }
@@ -694,6 +737,7 @@ const Checkout = () => {
     };
 
     try {
+      // 🔥 FIX: Check if Razorpay is available and handle ad-blocker issues
       if (typeof window.Razorpay === 'undefined') {
         throw new Error('Razorpay payment gateway not loaded. Please check if it\'s blocked by your browser or ad-blocker.');
       }
