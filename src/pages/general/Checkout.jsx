@@ -152,11 +152,6 @@ const Checkout = () => {
   const [paymentStatus, setPaymentStatus] = useState('idle');
   const [paymentError, setPaymentError] = useState('');
   
-  // ==================== THANK YOU PAGE STATE ====================
-  const [showThankYouPage, setShowThankYouPage] = useState(false);
-  const [orderDetails, setOrderDetails] = useState(null);
-  const [redirectTimer, setRedirectTimer] = useState(5); // 5 seconds countdown
-
   // Available coupons state
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [showAvailableCoupons, setShowAvailableCoupons] = useState(false);
@@ -169,7 +164,6 @@ const Checkout = () => {
   const paymentInProgressRef = useRef(false);
   const razorpayInstanceRef = useRef(null);
   const paymentVerificationTimeoutRef = useRef(null);
-  const thankYouTimerRef = useRef(null);
 
   // ==================== SHIPPING ADDRESS FORM STATE ====================
   const [shippingAddress, setShippingAddress] = useState({
@@ -206,55 +200,36 @@ const Checkout = () => {
       if (paymentVerificationTimeoutRef.current) {
         clearTimeout(paymentVerificationTimeoutRef.current);
       }
-      if (thankYouTimerRef.current) {
-        clearInterval(thankYouTimerRef.current);
-      }
       paymentInProgressRef.current = false;
     };
   }, []);
 
-  // ==================== THANK YOU PAGE TIMER ====================
-  useEffect(() => {
-    if (showThankYouPage && redirectTimer > 0) {
-      thankYouTimerRef.current = setInterval(() => {
-        setRedirectTimer((prev) => {
-          if (prev <= 1) {
-            clearInterval(thankYouTimerRef.current);
-            // Redirect to order details page
-            navigate(`/profile?tab=orders`, {
-              state: {
-                paymentSuccess: true,
-                paymentId: orderDetails?.paymentId,
-                orderId: orderDetails?.orderId
-              },
-              replace: true
-            });
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (thankYouTimerRef.current) {
-        clearInterval(thankYouTimerRef.current);
-      }
-    };
-  }, [showThankYouPage, redirectTimer, orderDetails, navigate]);
-
+  // ==================== NAVIGATE TO THANK YOU PAGE ====================
+  const navigateToThankYouPage = (orderData) => {
+    navigate('/thank-you', {
+      state: {
+        orderId: orderData.orderId,
+        paymentId: orderData.paymentId,
+        finalTotal: finalTotal,
+        email: shippingAddress.email
+      },
+      replace: true
+    });
+  };
   // ==================== REDIRECT IF NOT AUTHENTICATED OR CART EMPTY ====================
+
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { replace: true });
       return;
     }
     
-    if (cartItems.length === 0 && !showThankYouPage) {
+    if (cartItems.length === 0) {
       navigate('/cart', { replace: true });
       return;
     }
-  }, [isAuthenticated, cartItems, navigate, showThankYouPage]);
+  }, [isAuthenticated, cartItems, navigate]);
+
 
   // ==================== LOAD AVAILABLE COUPONS ====================
   const loadAvailableCoupons = useCallback(async () => {
@@ -486,17 +461,6 @@ const Checkout = () => {
     return true;
   };
 
-  // ==================== THANK YOU PAGE HANDLER ====================
-  const showThankYouAndRedirect = (orderData) => {
-    setOrderDetails({
-      orderId: orderData.orderId,
-      paymentId: orderData.paymentId,
-      finalTotal: finalTotal
-    });
-    setShowThankYouPage(true);
-    setPaymentStatus('success');
-  };
-
   // ==================== ORDER CREATION & PAYMENT FLOW ====================
   const createOrder = async () => {
     if (!validateForm()) return;
@@ -654,21 +618,21 @@ const Checkout = () => {
               }
             }
             
-            // 🔥 STEP 1: CLEAR THE COUPON FIRST
-            removeCoupon();
+            // 🔥 FIX: NAVIGATE FIRST, THEN CLEAR CART AND COUPON
+            navigateToThankYouPage({
+              orderId: orderId,
+              paymentId: response.razorpay_payment_id
+            });
             
-            // 🔥 STEP 2: THEN CLEAR THE CART
-            clearCart();
+            // 🔥 THEN CLEAR CART AND COUPON AFTER NAVIGATION
+            setTimeout(() => {
+              removeCoupon();
+              clearCart();
+            }, 100);
             
             // Reset payment state
             paymentInProgressRef.current = false;
             razorpayInstanceRef.current = null;
-            
-            // 🔥 STEP 3: SHOW THANK YOU PAGE INSTEAD OF DIRECT REDIRECT
-            showThankYouAndRedirect({
-              orderId: orderId,
-              paymentId: response.razorpay_payment_id
-            });
             
           } else {
             throw new Error(verificationResult.message || 'Payment verification failed');
@@ -685,15 +649,17 @@ const Checkout = () => {
             errorMessage = '✅ Payment successful! Order is being processed. Please check your orders page in a few minutes.';
             setPaymentStatus('success');
             
-            // 🔥 STEP 4: CLEAR COUPON ON TIMEOUT TOO
-            removeCoupon();
-            clearCart();
-            
-            // Show thank you page even on timeout
-            showThankYouAndRedirect({
+            // Navigate to thank you page even on timeout
+            navigateToThankYouPage({
               orderId: 'processing',
               paymentId: response.razorpay_payment_id
             });
+
+            // Clear cart and coupon after navigation
+            setTimeout(() => {
+              removeCoupon();
+              clearCart();
+            }, 100);
             return;
           }
           
@@ -728,7 +694,6 @@ const Checkout = () => {
     };
 
     try {
-      // 🔥 FIX: Check if Razorpay is available and handle ad-blocker issues
       if (typeof window.Razorpay === 'undefined') {
         throw new Error('Razorpay payment gateway not loaded. Please check if it\'s blocked by your browser or ad-blocker.');
       }
@@ -794,108 +759,6 @@ const Checkout = () => {
         return 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800';
     }
   };
-
-  // ==================== THANK YOU PAGE COMPONENT ====================
-  const ThankYouPage = () => (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center py-8">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-green-200 dark:border-green-800 p-8 md:p-12">
-          {/* Success Icon */}
-          <div className="w-24 h-24 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-12 h-12 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          
-          {/* Title */}
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            Thank You!
-          </h1>
-          
-          {/* Message */}
-          <p className="text-xl text-gray-600 dark:text-gray-300 mb-6">
-            Your order has been placed successfully
-          </p>
-          
-          {/* Order Details */}
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6 mb-8">
-            <div className="grid grid-cols-2 gap-4 text-left">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Order ID</p>
-                <p className="font-semibold text-gray-900 dark:text-white">
-                  #{orderDetails?.orderId || 'Processing...'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Payment ID</p>
-                <p className="font-semibold text-gray-900 dark:text-white">
-                  {orderDetails?.paymentId || 'Processing...'}
-                </p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Amount Paid</p>
-                <p className="font-bold text-2xl text-green-600 dark:text-green-400">
-                  {formatPriceSimple(orderDetails?.finalTotal || finalTotal)}
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Redirect Timer */}
-          <div className="mb-8">
-            <p className="text-gray-500 dark:text-gray-400 mb-2">
-              Redirecting to order details in {redirectTimer} seconds...
-            </p>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div 
-                className="bg-green-600 h-2 rounded-full transition-all duration-1000 ease-linear"
-                style={{ width: `${((5 - redirectTimer) / 5) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => navigate(`/orders/${orderDetails?.orderId}`, { 
-                state: { 
-                  paymentSuccess: true,
-                  paymentId: orderDetails?.paymentId,
-                  orderId: orderDetails?.orderId
-                },
-                replace: true 
-              })}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105"
-            >
-              View Order Details Now
-            </button>
-            <button
-              onClick={() => navigate('/shop', { replace: true })}
-              className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-3 px-8 rounded-xl transition-all duration-200"
-            >
-              Continue Shopping
-            </button>
-          </div>
-          
-          {/* Confirmation Email */}
-          <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-            <div className="flex items-center justify-center gap-2 text-blue-700 dark:text-blue-300">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <span className="text-sm font-medium">
-                A confirmation email has been sent to {shippingAddress.email}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (showThankYouPage) {
-    return <ThankYouPage />;
-  }
 
   if (!isAuthenticated || cartItems.length === 0) {
     return null;

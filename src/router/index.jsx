@@ -1,4 +1,3 @@
-// router.jsx
 import { createBrowserRouter } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import ErrorPage from "../pages/general/ErrorPage";
@@ -40,6 +39,7 @@ import OrderSuccess from "../pages/user/OrderSuccess";
 import AdminOrderCancellations from "../pages/dashboard/admin/AdminOrderCancellations";
 import AdminReviews from "../pages/dashboard/admin/AdminReviews";
 import UserReviews from "../pages/user/UserReviews";
+import ThankYouPage from "../pages/general/ThankYouPage";
 
 const router = createBrowserRouter([
     {
@@ -70,6 +70,10 @@ const router = createBrowserRouter([
             {
                 path: 'checkout',
                 element: <Checkout />,
+            },
+            {
+                path: 'thank-you', // Add this route
+                element: <ThankYouPage />,
             },
             {
                 path: 'myorders',
@@ -107,7 +111,6 @@ const router = createBrowserRouter([
                 path: 'profile',
                 element: <UserProfile />,
             },
-
             {
                 path: 'lookbook',
                 element: <Lookbook />,
@@ -128,8 +131,8 @@ const router = createBrowserRouter([
                 path: 'cancellation-refund',
                 element: <CancellationRefundPolicy />,
             },
-             { path: 'search', element: <SearchResults /> },
-             { path: 'order-success', element: <OrderSuccess /> }
+            { path: 'search', element: <SearchResults /> },
+            { path: 'order-success', element: <OrderSuccess /> }
         ],
     },
     {
@@ -161,8 +164,8 @@ const router = createBrowserRouter([
                 element: <AdminOrders />,
             },
             {
-            path: 'cancellations',
-            element: <AdminOrderCancellations />,
+                path: 'cancellations',
+                element: <AdminOrderCancellations />,
             },
             {
                 path: 'products',
@@ -188,7 +191,6 @@ const router = createBrowserRouter([
                 path: 'reviews',
                 element: <AdminReviews />,
             },
-
         ],
     }
 ]);
