@@ -567,53 +567,39 @@ const Checkout = () => {
   // ==================== PAYMENT SUCCESS HANDLER ====================
 const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
   try {
-    const orderId = verificationResult.order?.id;
+
+    const orderId = verificationResult.orderId;
     
-    
-    // 🔥 STEP 1: MARK COUPON AS USED (if any)
-    if (appliedCoupon && orderId) {
-      try {
-        await markCouponAsUsed({
-          couponId: appliedCoupon.id,
-          userId: user.id,
-          orderId: orderId,
-          discountAmount: discountAmount,
-          couponCode: appliedCoupon.code
-        });
-      } catch (couponError) {
-        console.warn('⚠️ Failed to mark coupon as used:', couponError);
-      }
+    // 🔥 CLEANUP REGARDLESS OF ORDER ID
+    if (appliedCoupon) {
+      removeCoupon();
     }
     
-    // 🔥 STEP 2: CLEAR COUPON FIRST
-    removeCoupon();
-    
-    // 🔥 STEP 3: CLEAR CART
     clearCart();
     
-    // 🔥 STEP 4: RESET PAYMENT STATE
     paymentInProgressRef.current = false;
     razorpayInstanceRef.current = null;
-    
-    // 🔥 STEP 5: IMMEDIATE NAVIGATION TO THANK YOU PAGE
-    
-    // Use setTimeout to ensure navigation happens in next event cycle
+
+    // 🔥 NAVIGATE TO THANK YOU PAGE WITH ANY ORDER ID
     setTimeout(() => {
       navigate('/thank-you', {
         state: {
-          orderId: orderId,
+          orderId: orderId || 'processing',
           paymentId: razorpayResponse.razorpay_payment_id,
           finalTotal: finalTotal,
           email: shippingAddress.email
         },
-        replace: true // 🔥 IMPORTANT: Prevent going back to checkout
+        replace: true
       });
     }, 100);
     
   } catch (error) {
     console.error('❌ Payment success handling failed:', error);
     
-    // 🔥 FALLBACK: Even if cleanup fails, navigate to thank you page
+    // 🔥 EMERGENCY CLEANUP - STILL NAVIGATE
+    if (appliedCoupon) removeCoupon();
+    clearCart();
+    
     setTimeout(() => {
       navigate('/thank-you', {
         state: {
