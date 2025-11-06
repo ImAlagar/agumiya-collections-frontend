@@ -560,13 +560,7 @@ const Checkout = () => {
   // ==================== PAYMENT SUCCESS HANDLER ====================
   const handlePaymentSuccess = async (verificationData, razorpayResponse) => {
     try {
-      console.log('✅ PAYMENT SUCCESS: Starting cleanup...', {
-        verificationData,
-        razorpayResponse: {
-          paymentId: razorpayResponse.razorpay_payment_id,
-          orderId: razorpayResponse.razorpay_order_id
-        }
-      });
+
 
       const orderId = verificationData.orderId;
       
@@ -580,7 +574,6 @@ const Checkout = () => {
       paymentInProgressRef.current = false;
       razorpayInstanceRef.current = null;
 
-      console.log('🚀 Navigating to thank you page with order:', orderId);
 
       // Navigate to thank you page with any order ID
       setTimeout(() => {
@@ -636,14 +629,12 @@ const Checkout = () => {
         setPaymentStatus('verifying');
         
         try {
-          console.log('🔍 Razorpay Response:', response);
           
           // Validate Razorpay response
           if (!response.razorpay_payment_id || !response.razorpay_order_id || !response.razorpay_signature) {
             throw new Error('Incomplete payment response from Razorpay');
           }
 
-          console.log('🔄 Calling payment verification API...');
 
           // Handle payment verification
           const verificationResponse = await paymentService.verifyPayment({
@@ -652,7 +643,6 @@ const Checkout = () => {
             razorpay_signature: response.razorpay_signature
           });
 
-          console.log('📋 Full Verification Response:', verificationResponse);
 
           // Handle different response structures
           if (verificationResponse.success) {
@@ -670,7 +660,6 @@ const Checkout = () => {
               orderId = 'processing';
             }
             
-            console.log('🎯 Extracted Order ID:', orderId);
             
             await handlePaymentSuccess({
               orderId: orderId,
