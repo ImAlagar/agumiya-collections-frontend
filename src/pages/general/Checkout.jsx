@@ -151,6 +151,7 @@ const Checkout = () => {
   // ==================== PAYMENT FLOW STATE MANAGEMENT ====================
   const [paymentStatus, setPaymentStatus] = useState('idle');
   const [paymentError, setPaymentError] = useState('');
+  const [orderProcessing, setOrderProcessing] = useState(false);
   
   // Available coupons state
   const [availableCoupons, setAvailableCoupons] = useState([]);
@@ -204,18 +205,6 @@ const Checkout = () => {
     };
   }, []);
 
-  // ==================== NAVIGATE TO THANK YOU PAGE ====================
-  const navigateToThankYouPage = (orderData) => {
-    navigate('/thank-you', {
-      state: {
-        orderId: orderData.orderId,
-        paymentId: orderData.paymentId,
-        finalTotal: finalTotal,
-        email: shippingAddress.email
-      },
-      replace: true
-    });
-  };
 
   // ==================== REDIRECT IF NOT AUTHENTICATED OR CART EMPTY ====================
   useEffect(() => {
@@ -224,11 +213,11 @@ const Checkout = () => {
       return;
     }
     
-    if (cartItems.length === 0) {
+    if (cartItems.length === 0 && !orderProcessing) {
       navigate('/cart', { replace: true });
       return;
     }
-  }, [isAuthenticated, cartItems, navigate]);
+  }, [isAuthenticated, cartItems, navigate, orderProcessing]);
 
   // ==================== LOAD AVAILABLE COUPONS ====================
   const loadAvailableCoupons = useCallback(async () => {
@@ -550,10 +539,17 @@ const Checkout = () => {
         couponCode: appliedCoupon?.code || ''
       };
 
+      
       // 🔥 STEP 1: Create Razorpay order directly
       const paymentResult = await paymentService.createPaymentOrder(orderData);
 
       if (paymentResult.success) {
+        // 🔥 ADDITIONAL VALIDATION
+        if (!paymentResult.data || !paymentResult.data.id) {
+          throw new Error('Failed to create payment order. Please try again.');
+        }
+        
+        
         // 🔥 STEP 2: Open Razorpay checkout
         await openRazorpayCheckout(paymentResult.data);
       } else {
@@ -568,75 +564,69 @@ const Checkout = () => {
     }
   };
 
-
   // ==================== PAYMENT SUCCESS HANDLER ====================
-  const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
-    try {
-      const orderId = verificationResult.order?.id;
-      
-      console.log('✅ PAYMENT SUCCESS: Starting cleanup process...');
-      
-      // 🔥 STEP 1: MARK COUPON AS USED (if any)
-      if (appliedCoupon && orderId) {
-        try {
-          await markCouponAsUsed({
-            couponId: appliedCoupon.id,
-            userId: user.id,
-            orderId: orderId,
-            discountAmount: discountAmount,
-            couponCode: appliedCoupon.code
-          });
-          console.log('✅ Coupon marked as used');
-        } catch (couponError) {
-          console.warn('⚠️ Failed to mark coupon as used:', couponError);
-        }
+const handlePaymentSuccess = async (verificationResult, razorpayResponse) => {
+  try {
+    const orderId = verificationResult.order?.id;
+    
+    
+    // 🔥 STEP 1: MARK COUPON AS USED (if any)
+    if (appliedCoupon && orderId) {
+      try {
+        await markCouponAsUsed({
+          couponId: appliedCoupon.id,
+          userId: user.id,
+          orderId: orderId,
+          discountAmount: discountAmount,
+          couponCode: appliedCoupon.code
+        });
+      } catch (couponError) {
+        console.warn('⚠️ Failed to mark coupon as used:', couponError);
       }
-      
-      // 🔥 STEP 2: CLEAR COUPON FIRST
-      removeCoupon();
-      console.log('✅ Coupon cleared');
-      
-      // 🔥 STEP 3: CLEAR CART
-      console.log('🛒 Clearing cart...');
-      clearCart();
-      
-      // 🔥 STEP 4: RESET PAYMENT STATE
-      paymentInProgressRef.current = false;
-      razorpayInstanceRef.current = null;
-      
-      // 🔥 STEP 5: IMMEDIATE NAVIGATION TO THANK YOU PAGE
-      console.log('🚀 Navigating to thank you page...');
-      
-      // Use setTimeout to ensure navigation happens in next event cycle
-      setTimeout(() => {
-        navigate('/thank-you', {
-          state: {
-            orderId: orderId,
-            paymentId: razorpayResponse.razorpay_payment_id,
-            finalTotal: finalTotal,
-            email: shippingAddress.email
-          },
-          replace: true // 🔥 IMPORTANT: Prevent going back to checkout
-        });
-      }, 100);
-      
-    } catch (error) {
-      console.error('❌ Payment success handling failed:', error);
-      
-      // 🔥 FALLBACK: Even if cleanup fails, navigate to thank you page
-      setTimeout(() => {
-        navigate('/thank-you', {
-          state: {
-            orderId: 'processing',
-            paymentId: razorpayResponse.razorpay_payment_id,
-            finalTotal: finalTotal,
-            email: shippingAddress.email
-          },
-          replace: true
-        });
-      }, 100);
     }
-  };
+    
+    // 🔥 STEP 2: CLEAR COUPON FIRST
+    removeCoupon();
+    
+    // 🔥 STEP 3: CLEAR CART
+    clearCart();
+    
+    // 🔥 STEP 4: RESET PAYMENT STATE
+    paymentInProgressRef.current = false;
+    razorpayInstanceRef.current = null;
+    
+    // 🔥 STEP 5: IMMEDIATE NAVIGATION TO THANK YOU PAGE
+    
+    // Use setTimeout to ensure navigation happens in next event cycle
+    setTimeout(() => {
+      navigate('/thank-you', {
+        state: {
+          orderId: orderId,
+          paymentId: razorpayResponse.razorpay_payment_id,
+          finalTotal: finalTotal,
+          email: shippingAddress.email
+        },
+        replace: true // 🔥 IMPORTANT: Prevent going back to checkout
+      });
+    }, 100);
+    
+  } catch (error) {
+    console.error('❌ Payment success handling failed:', error);
+    
+    // 🔥 FALLBACK: Even if cleanup fails, navigate to thank you page
+    setTimeout(() => {
+      navigate('/thank-you', {
+        state: {
+          orderId: 'processing',
+          paymentId: razorpayResponse.razorpay_payment_id,
+          finalTotal: finalTotal,
+          email: shippingAddress.email
+        },
+        replace: true
+      });
+    }, 100);
+  }
+};
 
   // ==================== OPTIMIZED RAZORPAY CHECKOUT INTEGRATION ====================
   const openRazorpayCheckout = async (paymentData) => {
@@ -670,7 +660,7 @@ const Checkout = () => {
           });
 
           if (verificationResult.success) {
-            // 🔥 USE THE NEW HANDLE PAYMENT SUCCESS FUNCTION
+            // 🔥 USE THE handlePaymentSuccess FUNCTION INSTEAD OF DUPLICATE CODE
             await handlePaymentSuccess(verificationResult, response);
           } else {
             throw new Error(verificationResult.message || 'Payment verification failed');
@@ -723,6 +713,7 @@ const Checkout = () => {
           setPaymentStatus('cancelled');
           paymentInProgressRef.current = false;
           razorpayInstanceRef.current = null;
+          setOrderProcessing(false);
           
           setTimeout(() => {
             if (window.confirm('Payment was cancelled. You can try again from your orders page. Would you like to view your orders?')) {
@@ -751,6 +742,7 @@ const Checkout = () => {
         setPaymentError(response.error.description || 'Payment failed');
         paymentInProgressRef.current = false;
         razorpayInstanceRef.current = null;
+        setOrderProcessing(false);
         
         alert(`Payment failed: ${response.error.description}. Please try again.`);
       });
@@ -762,6 +754,7 @@ const Checkout = () => {
       setPaymentError(error.message || 'Failed to initialize payment gateway');
       paymentInProgressRef.current = false;
       razorpayInstanceRef.current = null;
+      setOrderProcessing(false);
       setLoading(false);
       
       if (error.message.includes('ad-blocker')) {
@@ -779,7 +772,7 @@ const Checkout = () => {
       return 'Verifying Payment...';
     }
     if (paymentStatus === 'success') {
-      return 'Payment Successful!';
+      return 'Order Successful!';
     }
     if (paymentStatus === 'failed') {
       return 'Try Again';
@@ -804,7 +797,7 @@ const Checkout = () => {
     }
   };
 
-  if (!isAuthenticated || cartItems.length === 0) {
+  if (!isAuthenticated || (cartItems.length === 0 && !orderProcessing)) {
     return null;
   }
 
@@ -861,7 +854,7 @@ const Checkout = () => {
                     <svg className="h-4 w-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-green-700 dark:text-green-300">Payment successful! Redirecting...</span>
+                    <span className="text-green-700 dark:text-green-300">Order successful! Completing process...</span>
                   </>
                 )}
                 {paymentStatus === 'failed' && (
@@ -903,7 +896,7 @@ const Checkout = () => {
                     value={shippingAddress.firstName}
                     onChange={(e) => handleAddressChange('firstName', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                   />
                 </div>
                 
@@ -917,7 +910,7 @@ const Checkout = () => {
                     value={shippingAddress.lastName}
                     onChange={(e) => handleAddressChange('lastName', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                   />
                 </div>
               </div>
@@ -932,7 +925,7 @@ const Checkout = () => {
                   value={shippingAddress.email}
                   onChange={(e) => handleAddressChange('email', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                 />
               </div>
 
@@ -946,7 +939,7 @@ const Checkout = () => {
                   value={shippingAddress.phone}
                   onChange={(e) => handleAddressChange('phone', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                 />
               </div>
 
@@ -960,7 +953,7 @@ const Checkout = () => {
                   value={shippingAddress.address1}
                   onChange={(e) => handleAddressChange('address1', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                 />
               </div>
 
@@ -973,7 +966,7 @@ const Checkout = () => {
                   value={shippingAddress.address2}
                   onChange={(e) => handleAddressChange('address2', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                 />
               </div>
 
@@ -988,7 +981,7 @@ const Checkout = () => {
                     value={shippingAddress.city}
                     onChange={(e) => handleAddressChange('city', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                   />
                 </div>
                 
@@ -1002,7 +995,7 @@ const Checkout = () => {
                     value={shippingAddress.region}
                     onChange={(e) => handleAddressChange('region', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                   />
                 </div>
                 
@@ -1016,7 +1009,7 @@ const Checkout = () => {
                     value={shippingAddress.zipCode}
                     onChange={(e) => handleAddressChange('zipCode', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                    disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                   />
                 </div>
               </div>
@@ -1029,7 +1022,7 @@ const Checkout = () => {
                 <CountryDropdown
                   value={shippingAddress.country}
                   onChange={(value) => handleAddressChange('country', value)}
-                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                  disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                   placeholder="Select your country"
                 />
               </div>
@@ -1046,7 +1039,7 @@ const Checkout = () => {
                       </h2>
                       <button
                         onClick={handleRefreshCoupons}
-                        disabled={couponsLoading || paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                        disabled={couponsLoading || paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                         className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors disabled:opacity-50"
                         title="Refresh coupons"
                       >
@@ -1057,7 +1050,7 @@ const Checkout = () => {
                     </div>
                     <button
                       onClick={() => setShowAvailableCoupons(!showAvailableCoupons)}
-                      disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                      disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                       className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-sm disabled:opacity-50"
                     >
                       {showAvailableCoupons ? 'Hide' : 'Show'} ({availableCoupons.length})
@@ -1111,7 +1104,7 @@ const Checkout = () => {
                               </div>
                               <button
                                 onClick={() => handleApplySuggestedCoupon(coupon)}
-                                disabled={couponLoading || paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                                disabled={couponLoading || paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                                 className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 disabled:scale-100"
                               >
                                 {couponLoading ? 'Applying...' : 'Apply'}
@@ -1135,7 +1128,7 @@ const Checkout = () => {
                 placeholder="Any special instructions for your order..."
                 rows="3"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                disabled={paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
               />
             </div>
           </div>
@@ -1230,10 +1223,10 @@ const Checkout = () => {
               {/* ==================== PLACE ORDER BUTTON ==================== */}
               <button
                 onClick={createOrder}
-                disabled={loading || calculating || !calculations || paymentStatus === 'processing' || paymentStatus === 'verifying'}
+                disabled={loading || calculating || !calculations || paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success'}
                 className={`w-full mt-6 ${getPaymentButtonVariant()} disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:scale-100 shadow-lg hover:shadow-xl flex items-center justify-center`}
               >
-                {loading || paymentStatus === 'processing' || paymentStatus === 'verifying' ? (
+                {loading || paymentStatus === 'processing' || paymentStatus === 'verifying' || paymentStatus === 'success' ? (
                   <>
                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

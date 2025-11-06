@@ -271,9 +271,7 @@ const OrderDetails = () => {
     // Try multiple possible variant ID fields
     const variantId = item.variantId || item.variant?.id || item.printifyVariantId;
     
-    if (!variantId || variantId === 'default' || variantId === 'NaN') {
-      console.warn('⚠️ Invalid variant ID found, using fallback:', variantId);
-      
+    if (!variantId || variantId === 'default' || variantId === 'NaN') {      
       // Try to find a valid variant from product data
       if (item.product?.printifyVariants && item.product.printifyVariants.length > 0) {
         return item.product.printifyVariants[0].id;
@@ -379,7 +377,6 @@ const OrderDetails = () => {
             estimatedDelivery: result.breakdown?.estimatedDelivery
           });
         } else {
-          console.warn('❌ ORDER DETAILS - Using fallback calculation');
           // Fallback to stored values from database
           setCalculatedTotals({
             subtotal: order.subtotalAmount || order.subtotal || 0,
@@ -392,7 +389,6 @@ const OrderDetails = () => {
           });
         }
       } catch (error) {
-        console.error('❌ ORDER DETAILS - Calculation failed:', error);
         // Fallback to stored values
         setCalculatedTotals({
           subtotal: order.subtotalAmount || order.subtotal || 0,
